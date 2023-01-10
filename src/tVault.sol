@@ -26,6 +26,8 @@ import { tERC20 } from "./tERC20.sol";
 // TODO: Interface
 // TODO: tERC20
 
+error ZeroShares();
+
 abstract contract tVault is tERC20 {
   using FixedPointMathLib for uint256;
   using SafeTransferLib for ERC20;
@@ -45,7 +47,8 @@ abstract contract tVault is tERC20 {
   ) public virtual returns (uint256 shares) {
     // calculate shares for assets
     // check for rounding error
-    shares = convertToShares(assets);
+    if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
+
     // transfer tokens before minting (or ERC777's could re-enter)
     // TODO: consider making this a transferFrom receiver and let user approve vault instead of Tenderizer
     asset().safeTransferFrom(msg.sender, address(this), assets);
@@ -61,10 +64,12 @@ abstract contract tVault is tERC20 {
   // then maybe we should consider it outside of scope
   // of the LS vault and only concern the LSVault with accounting
   // and transferring tokens
-  function unlock(uint256 assets, address owner) public virtual returns (uint256 unlockID) {
+  function unlock(uint256 assets, address owner) public virtual returns (uint256 shares) {
     // calculate shares to burn
+    // check rounding error
+    if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
     // burn shares
-    _burn(owner, convertToShares(assets));
+    _burn(owner, shares);
     // emit event
     emit Withdraw(owner, assets);
     // **unstake tokens**
