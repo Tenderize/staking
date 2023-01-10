@@ -5,6 +5,22 @@ __metadata:
   version: 6
   cacheKey: 8
 
+"@Tenderize/staking@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@Tenderize/staking@workspace:."
+  dependencies:
+    "@commitlint/cli": ^17.2.0
+    "@commitlint/config-conventional": ^17.2.0
+    commitizen: ^4.2.5
+    cz-conventional-changelog: ^3.3.0
+    husky: ^8.0.2
+    lint-staged: ^13.0.3
+    prettier: ^2.7.1
+    rimraf: ^3.0.2
+    solhint: ^3.3.7
+  languageName: unknown
+  linkType: soft
+
 "@babel/code-frame@npm:^7.0.0":
   version: 7.18.6
   resolution: "@babel/code-frame@npm:7.18.6"
@@ -298,22 +314,6 @@ __metadata:
   checksum: d89597752fd88d3f3480845691a05a44bd21faac18e2185b6f436c3b0fd0c5a859fbbd9aaa92050c4052caf325ad3e10e2e1d1b64327517471b7d51babc0ddef
   languageName: node
   linkType: hard
-
-"@prb/foundry-template@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "@prb/foundry-template@workspace:."
-  dependencies:
-    "@commitlint/cli": ^17.2.0
-    "@commitlint/config-conventional": ^17.2.0
-    commitizen: ^4.2.5
-    cz-conventional-changelog: ^3.3.0
-    husky: ^8.0.2
-    lint-staged: ^13.0.3
-    prettier: ^2.7.1
-    rimraf: ^3.0.2
-    solhint: ^3.3.7
-  languageName: unknown
-  linkType: soft
 
 "@solidity-parser/parser@npm:^0.14.5":
   version: 0.14.5

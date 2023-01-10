@@ -1,5 +1,18 @@
 # Full reference https://github.com/foundry-rs/foundry/tree/master/config
 
+[profile.default]
+bytecode_hash = "none"
+fuzz = { runs = 1_000 }
+gas_reports = ["*"]
+libs = ["lib"]
+# optimizer = true (default)
+optimizer_runs = 200
+fs_permissions = [{ access = "read-write", path = "./"}]
+solc="0.8.17"
+
+[profile.ci]
+verbosity = 4
+
 [fmt]
 bracket_spacing = true
 int_types = "long"
@@ -10,21 +23,4 @@ override_spacing = false
 quote_style = "double"
 tab_width = 4
 wrap_comments = true
-
-[profile.default]
-auto_detect_solc = false
-bytecode_hash = "none"
-fuzz = { runs = 1_000 }
-gas_reports = ["*"]
-libs = ["lib"]
-optimizer = true
-optimizer_runs = 10_000
-out = "out"
-solc = "0.8.17"
-src = "src"
-test = "test"
-
-[profile.ci]
-fuzz = { runs = 10_000 }
-verbosity = 4
 

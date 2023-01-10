@@ -1,3 +1,5 @@
-@prb/test/=lib/prb-test/src/
+test/=lib/prb-test/src/
 forge-std/=lib/forge-std/src/
-src/=src/
+math/=lib/prb-math/src/
+@tender/core/=./src/
+solmate/=lib/solmate/src/
