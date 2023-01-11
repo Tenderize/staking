@@ -29,8 +29,12 @@ contract VaultSetup is PRBTest, StdCheats {
 contract VaultTest is VaultSetup {
   uint256 MAX_INT_SQRT = 340282366920938463463374607431768211455;
 
+  // TODO: Get from Vault Contract
   error ZeroAmount();
+  error ZeroShares();
   event Deposit(address indexed sender, address indexed receiver, uint256 assets);
+  event Unlock(address indexed sender, uint256 indexed assets);
+  event Withdraw(address indexed receiver, uint256 assets);
 
   function testImmutableArgs() public {
     assertEq(vault.owner(), address(this));
@@ -51,7 +55,7 @@ contract VaultTest is VaultSetup {
     assertEq(vault.balanceOf(address(0xBEEF)), 0);
     assertEq(vault.allowance(address(0xBEEF), address(0xABCD)), 0);
     assertEq(vault.nonces(address(0xBEEF)), 0);
-    assertEq(vault.convertToAssets(100), 0);
+    assertEq(vault.convertToAssets(100), 100);
     assertEq(vault.convertToShares(100), 100);
   }
 
@@ -86,5 +90,60 @@ contract VaultTest is VaultSetup {
     vm.expectEmit(true, true, true, false);
     emit Deposit(address(this), address(this), depositAmount);
     vault.deposit(depositAmount, address(this), address(this));
+  }
+
+  // Unlock
+
+  function testUnlockRevertsWithZeroAmount() public {
+    vm.expectRevert(abi.encodeWithSelector(ZeroShares.selector));
+    vault.unlock(0, address(this));
+  }
+
+  function testUnlockRevertsIfZeroShares() public {
+    vm.expectRevert();
+    vault.unlock(100, address(this));
+  }
+
+  function _unlockPreReq(uint256 depositAmount, uint256 unlockAmount) internal {
+    vm.assume(depositAmount > unlockAmount);
+    vm.assume(unlockAmount > 0);
+    _depositPreReq(depositAmount);
+    vault.deposit(depositAmount, address(this), address(this));
+  }
+
+  function testUnlockBurnsTenderTokens(uint256 depositAmount, uint256 unlockAmount) public {
+    _unlockPreReq(depositAmount, unlockAmount);
+    vault.unlock(unlockAmount, address(this));
+    assertEq(vault.balanceOf(address(this)), depositAmount - unlockAmount);
+  }
+
+  function testUnlockEmits(uint256 depositAmount, uint256 unlockAmount) public {
+    _unlockPreReq(depositAmount, unlockAmount);
+    vm.expectEmit(true, true, true, false);
+    emit Unlock(address(this), unlockAmount);
+    vault.unlock(unlockAmount, address(this));
+  }
+
+  // Withdraw
+  function testWithdrawRevertsWithZeroAmount() public {
+    vm.expectRevert(abi.encodeWithSelector(ZeroAmount.selector));
+    vault.withdraw(0, address(this));
+  }
+
+  function testWithdrawTransfersTokens(uint256 withdrawAmount) public {
+    vm.assume(withdrawAmount > 0);
+    // simulate transfer of tokens from underlying 
+    asset.mint(address(vault), withdrawAmount);
+    vault.withdraw(withdrawAmount, address(0xBEEF));
+    assertEq(asset.balanceOf(address(0xBEEF)), withdrawAmount);
+  }
+
+  function testWithdrawEmitsEvent(uint256 withdrawAmount) public {
+    vm.assume(withdrawAmount > 0);
+    // simulate transfer of tokens from underlying 
+    asset.mint(address(vault), withdrawAmount);
+    vm.expectEmit(true, true, true, false);
+    emit Withdraw(address(0xBEEF), withdrawAmount);
+    vault.withdraw(withdrawAmount, address(0xBEEF));
   }
 }
