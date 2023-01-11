@@ -37,6 +37,7 @@
     "lint:sol": "forge fmt --check && yarn solhint \"{src,test}/**/*.sol\"",
     "postinstall": "husky install",
     "prettier:check": "prettier --check \"**/*.{json,md,yml}\"",
-    "prettier:write": "prettier --write \"**/*.{json,md,yml}\""
+    "prettier:write": "prettier --write \"**/*.{json,md,yml}\"",
+    "test": "FOUNDRY_PROFILE=test forge test -vvv"
   }
 }
