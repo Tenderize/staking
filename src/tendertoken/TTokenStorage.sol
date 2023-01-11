@@ -16,8 +16,6 @@ abstract contract TTokenStorage {
 
   struct ERC20Data {
     uint256 _totalSupply;
-    string name;
-    string symbol;
     mapping(address => uint256) balanceOf;
     mapping(address => mapping(address => uint256)) allowance;
     mapping(address => uint256) nonces;

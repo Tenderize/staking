@@ -15,11 +15,11 @@ pragma solidity 0.8.17;
 
 abstract contract VaultBase is Clone {
   function owner() public pure returns (address) {
-    return _getArgAddress(0); //ends at 20
+    return _getArgAddress(0); // ends at 20
   }
 
   function asset() public pure virtual returns (address) {
-    return _getArgAddress(20); //ends at 40
+    return _getArgAddress(20); // ends at 40
   }
 
   function validator() public pure virtual returns (address) {
