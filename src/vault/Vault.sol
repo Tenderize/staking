@@ -17,73 +17,37 @@
 
 pragma solidity 0.8.17;
 
-import { UD60x18 } from "math/UD60x18.sol";
+// import { UD60x18 } from "math/UD60x18.sol";
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 import { ERC20 } from "solmate/tokens/ERC20.sol";
-import { tERC20 } from "./tERC20.sol";
+import { TToken } from "core/tendertoken/TToken.sol";
+import { VaultStorage } from "core/vault/VaultStorage.sol";
+import { VaultBase } from "core/vault/VaultBase.sol";
 
 // TODO: Interface
-// TODO: tERC20
 
-error ZeroShares();
-
-abstract contract tVault is tERC20 {
+contract Vault is VaultStorage, VaultBase, TToken {
   using FixedPointMathLib for uint256;
   using SafeTransferLib for ERC20;
+  error ZeroShares();
 
   event Deposit(address indexed sender, address indexed receiver, uint256 assets);
 
   event Withdraw(address indexed receiver, uint256 assets);
 
-  function previewDeposit() public view virtual returns (uint256 shares) {}
-
-  function asset() public view virtual returns (ERC20);
-
-  function deposit(
-    uint256 assets,
-    address sender,
-    address receiver
-  ) public virtual returns (uint256 shares) {
-    // calculate shares for assets
-    // check for rounding error
-    if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
-
-    // transfer tokens before minting (or ERC777's could re-enter)
-    // TODO: consider making this a transferFrom receiver and let user approve vault instead of Tenderizer
-    asset().safeTransferFrom(msg.sender, address(this), assets);
-    // mint shares
-    _mint(receiver, shares);
-    // emit deposit event
-    emit Deposit(sender, receiver, assets);
-    // **stake tokens**
+  function name() public view override returns (string memory) {
+    return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
   }
 
-  // If unlock and withdraw deals with another
-  // "class" e.g. withdrawalPools
-  // then maybe we should consider it outside of scope
-  // of the LS vault and only concern the LSVault with accounting
-  // and transferring tokens
-  function unlock(uint256 assets, address owner) public virtual returns (uint256 shares) {
-    // calculate shares to burn
-    // check rounding error
-    if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
-    // burn shares
-    _burn(owner, shares);
-    // emit event
-    emit Withdraw(owner, assets);
-    // **unstake tokens**
+  function symbol() public view override returns (string memory) {
+    return string(abi.encodePacked("t", ERC20(asset()).symbol(), "_", validator()));
   }
 
-  function withdraw(uint256 assets, address receiver) public virtual returns (uint256 received) {
-    // **NFT lock is redeemed**
-    // **withdraw tokens**
-    // transfer tokens to receiver
-    asset().safeTransfer(receiver, assets);
-    // emit event
+  function totalAssets() public view returns (uint256) {
+    VaultData storage s = _loadVaultSlot();
+    return s.totalAssets;
   }
-
-  function totalAssets() public view virtual returns (uint256);
 
   function totalShares() public view returns (uint256) {
     ERC20Data storage s = _loadERC20Slot();
@@ -98,5 +62,48 @@ abstract contract tVault is tERC20 {
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
     uint256 _totalShares = totalShares(); // Saves an extra SLOAD if slot is non-zero
     return _totalShares == 0 ? assets : assets.mulDivDown(_totalShares, totalAssets());
+  }
+
+  function deposit(
+    uint256 assets,
+    address sender,
+    address receiver
+  ) public returns (uint256 shares) {
+    // calculate shares for assets
+    // check for rounding error
+    if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
+
+    // transfer tokens before minting (or ERC777's could re-enter)
+    // TODO: consider making this a transferFrom receiver and let user approve vault instead of Tenderizer
+    ERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
+    // mint shares
+    _mint(receiver, shares);
+    // emit deposit event
+    emit Deposit(sender, receiver, assets);
+    // **stake tokens**
+  }
+
+  // If unlock and withdraw deals with another
+  // "class" e.g. withdrawalPools
+  // then maybe we should consider it outside of scope
+  // of the LS vault and only concern the LSVault with accounting
+  // and transferring tokens
+  function unlock(uint256 assets, address owner) public returns (uint256 shares) {
+    // calculate shares to burn
+    // check rounding error
+    if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
+    // burn shares
+    _burn(owner, shares);
+    // emit event
+    // **unstake tokens**
+  }
+
+  function withdraw(uint256 assets, address receiver) public returns (uint256 received) {
+    // **NFT lock is redeemed**
+    // **withdraw tokens**
+    // transfer tokens to receiver
+    ERC20(asset()).safeTransfer(receiver, assets);
+    // emit event
+    emit Withdraw(receiver, assets);
   }
 }

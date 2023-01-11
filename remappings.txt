@@ -1,5 +1,6 @@
 test/=lib/prb-test/src/
 forge-std/=lib/forge-std/src/
 math/=lib/prb-math/src/
-@tender/core/=./src/
+core/=src/
 solmate/=lib/solmate/src/
+clones/=lib/clones-with-immutable-args/src/
