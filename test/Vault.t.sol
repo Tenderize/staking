@@ -27,7 +27,13 @@ contract VaultSetup is PRBTest, StdCheats {
 }
 
 contract VaultTest is VaultSetup {
-  function testMetaData() public {
+  function testImmutableArgs() public {
+    assertEq(vault.owner(), address(this));
+    assertEq(vault.asset(), address(asset));
+    assertEq(vault.validator(), validator);
+  }
+
+  function testMetadata() public {
     assertEq(vault.name(), string(abi.encodePacked("tender", asset.symbol(), " ", validator)));
     assertEq(vault.symbol(), string(abi.encodePacked("t", asset.symbol(), "_", validator)));
     assertEq(vault.decimals(), uint8(18));
