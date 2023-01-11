@@ -34,6 +34,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
   event Withdraw(address indexed receiver, uint256 assets);
 
   error ZeroShares();
+  error ZeroAmount();
 
   function name() public view override returns (string memory) {
     return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
@@ -55,12 +56,15 @@ contract Vault is VaultStorage, VaultBase, TToken {
 
   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
     uint256 _totalShares = totalShares(); // Saves an extra SLOAD if slot is non-zero
-    return _totalShares == 0 ? shares : shares.mulDivDown(totalAssets(), _totalShares);
+    return _totalShares == 0 ? 0 : shares.mulDivDown(totalAssets(), _totalShares);
   }
 
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
     uint256 _totalShares = totalShares(); // Saves an extra SLOAD if slot is non-zero
-    return _totalShares == 0 ? assets : assets.mulDivDown(_totalShares, totalAssets());
+    uint256 _totalAssets = totalAssets(); // Saves an extra SLOAD if slot is non-zero
+    if(_totalShares == 0) return assets;
+    if(_totalAssets == 0) return 0;
+    return assets.mulDivDown(_totalShares, _totalAssets);
   }
 
   function deposit(
@@ -68,9 +72,10 @@ contract Vault is VaultStorage, VaultBase, TToken {
     address sender,
     address receiver
   ) public returns (uint256 shares) {
+    if (assets == 0) revert ZeroAmount();
     // calculate shares for assets
     // check for rounding error
-    if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
+    shares = convertToShares(assets);
 
     // transfer tokens before minting (or ERC777's could re-enter)
     // TODO: consider making this a transferFrom receiver and let user approve vault instead of Tenderizer
@@ -88,6 +93,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
   // of the LS vault and only concern the LSVault with accounting
   // and transferring tokens
   function unlock(uint256 assets, address owner) public returns (uint256 shares) {
+    if (assets == 0) revert ZeroAmount();
     // calculate shares to burn
     // check rounding error
     if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
@@ -98,6 +104,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
   }
 
   function withdraw(uint256 assets, address receiver) public returns (uint256 received) {
+    if (assets == 0) revert ZeroAmount();
     // **NFT lock is redeemed**
     // **withdraw tokens**
     // transfer tokens to receiver
