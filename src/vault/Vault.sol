@@ -82,6 +82,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
     ERC20(asset()).safeTransferFrom(sender, address(this), assets);
     // mint shares
     _mint(receiver, shares);
+    _loadVaultSlot().totalAssets +=  assets;
     // emit deposit event
     emit Deposit(sender, receiver, assets);
     // **stake tokens**
@@ -99,6 +100,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
     if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
     // burn shares
     _burn(owner, shares);
+    _loadVaultSlot().totalAssets -=  assets;
     // emit event
     // **unstake tokens**
   }

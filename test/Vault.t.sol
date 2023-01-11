@@ -27,6 +27,8 @@ contract VaultSetup is PRBTest, StdCheats {
 }
 
 contract VaultTest is VaultSetup {
+  uint256 MAX_INT_SQRT = 340282366920938463463374607431768211455;
+
   error ZeroAmount();
   event Deposit(address indexed sender, address indexed receiver, uint256 assets);
 
@@ -61,7 +63,8 @@ contract VaultTest is VaultSetup {
   }
 
   function _depositPreReq(uint256 depositAmount) public {
-    vm.assume(depositAmount > 0); // TODO: Change to bound()
+    vm.assume(depositAmount > 0);
+    vm.assume(depositAmount < MAX_INT_SQRT);
     asset.mint(address(this), depositAmount);
     asset.approve(address(vault), depositAmount);
   }
