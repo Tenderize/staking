@@ -77,6 +77,11 @@ abstract contract TToken is TTokenStorage, IERC20 {
     return s.allowance[owner][spender];
   }
 
+  function nonces(address owner) external view returns (uint256) {
+    ERC20Data storage s = _loadERC20Slot();
+    return s.nonces[owner];
+  }
+
   function transferFrom(
     address from,
     address to,
