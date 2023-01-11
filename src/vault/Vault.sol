@@ -32,6 +32,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
   event Deposit(address indexed sender, address indexed receiver, uint256 assets);
   event Unlock(address indexed sender, uint256 indexed assets);
   event Withdraw(address indexed receiver, uint256 assets);
+  event Rebase(uint256 newTotalAssets, uint256 oldTotalAssets);
 
   error ZeroShares();
   error ZeroAmount();
@@ -54,7 +55,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
     return s._totalSupply;
   }
 
-   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
+  function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
     uint256 _totalShares = totalShares(); // Saves an extra SLOAD if slot is non-zero
     return _totalShares == 0 ? shares : shares.mulDivDown(totalAssets(), _totalShares);
   }
@@ -72,7 +73,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
     if (assets == 0) revert ZeroAmount();
     // calculate shares for assets
     // check for rounding error
-    shares = convertToShares(assets);
+    if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
 
     // transfer tokens before minting (or ERC777's could re-enter)
     // TODO: consider making this a transferFrom receiver and let user approve vault instead of Tenderizer
@@ -112,5 +113,12 @@ contract Vault is VaultStorage, VaultBase, TToken {
     ERC20(asset()).safeTransfer(receiver, assets);
     // emit event
     emit Withdraw(receiver, assets);
+  }
+
+  function rebase(uint256 newTotalAssets) public {
+    VaultData storage s = _loadVaultSlot();
+    uint256 oldTotalAssets = s.totalAssets;
+    s.totalAssets =  newTotalAssets;
+    emit Rebase(newTotalAssets, oldTotalAssets);
   }
 }

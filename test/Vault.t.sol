@@ -35,6 +35,7 @@ contract VaultTest is VaultSetup {
   event Deposit(address indexed sender, address indexed receiver, uint256 assets);
   event Unlock(address indexed sender, uint256 indexed assets);
   event Withdraw(address indexed receiver, uint256 assets);
+  event Rebase(uint256 newTotalAssets, uint256 oldTotalAssets);
 
   function testImmutableArgs() public {
     assertEq(vault.owner(), address(this));
@@ -85,6 +86,12 @@ contract VaultTest is VaultSetup {
     assertEq(vault.balanceOf(address(this)), depositAmount);
   }
 
+  function testDepositIncreasesAssets(uint256 depositAmount) public {
+    _depositPreReq(depositAmount);
+    vault.deposit(depositAmount, address(this), address(this));
+    assertEq(vault.totalAssets(), depositAmount);
+  }
+
   function testDepositEmitsEvent(uint256 depositAmount) public {
     _depositPreReq(depositAmount);
     vm.expectEmit(true, true, true, false);
@@ -117,6 +124,12 @@ contract VaultTest is VaultSetup {
     assertEq(vault.balanceOf(address(this)), depositAmount - unlockAmount);
   }
 
+  function testUnlockReducesAssets(uint256 depositAmount, uint256 unlockAmount) public {
+    _unlockPreReq(depositAmount, unlockAmount);
+    vault.unlock(unlockAmount, address(this));
+    assertEq(vault.totalAssets(), depositAmount - unlockAmount);
+  }
+
   function testUnlockEmits(uint256 depositAmount, uint256 unlockAmount) public {
     _unlockPreReq(depositAmount, unlockAmount);
     vm.expectEmit(true, true, true, false);
@@ -145,5 +158,16 @@ contract VaultTest is VaultSetup {
     vm.expectEmit(true, true, true, false);
     emit Withdraw(address(0xBEEF), withdrawAmount);
     vault.withdraw(withdrawAmount, address(0xBEEF));
+  }
+
+  // Rebase
+  function testRebaseSetsNewTotalAssets(uint256 newTotalAssets) public {
+    vault.rebase(newTotalAssets);
+    assertEq(vault.totalAssets(), newTotalAssets);
+  }
+
+  function testRebaseEmitsEvent(uint256 newTotalAssets) public {
+    emit Rebase(newTotalAssets, 0);
+    vault.rebase(newTotalAssets);
   }
 }
