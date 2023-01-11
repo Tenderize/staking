@@ -11,7 +11,7 @@
 
 pragma solidity 0.8.17;
 
-import { IERC20 } from "core/std/interfaces/IERC20.sol";
+import { IERC20 } from "core/interfaces/IERC20.sol";
 import { TTokenStorage } from "core/tendertoken/TTokenStorage.sol";
 
 /// @notice Non-standard ERC20 + EIP-2612 implementation.

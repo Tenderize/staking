@@ -18,11 +18,11 @@ abstract contract VaultBase is Clone {
     return _getArgAddress(0); // ends at 20
   }
 
-  function asset() public pure virtual returns (address) {
+  function asset() public pure returns (address) {
     return _getArgAddress(20); // ends at 40
   }
 
-  function validator() public pure virtual returns (address) {
+  function validator() public pure returns (address) {
     return _getArgAddress(40); // ends at 60
   }
 }

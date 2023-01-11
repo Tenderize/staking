@@ -10,7 +10,7 @@
 // Copyright (c) Tenderize Labs Ltd
 
 /**
- * @title tVault
+ * @title Vault
  * @notice Gas efficient base implementation for a Liquid Staking Vault using fixed-point math with full type safety
  * @author Tenderize (https://github.com/tenderize)
  */
@@ -25,16 +25,15 @@ import { TToken } from "core/tendertoken/TToken.sol";
 import { VaultStorage } from "core/vault/VaultStorage.sol";
 import { VaultBase } from "core/vault/VaultBase.sol";
 
-// TODO: Interface
-
 contract Vault is VaultStorage, VaultBase, TToken {
   using FixedPointMathLib for uint256;
   using SafeTransferLib for ERC20;
-  error ZeroShares();
 
   event Deposit(address indexed sender, address indexed receiver, uint256 assets);
 
   event Withdraw(address indexed receiver, uint256 assets);
+
+  error ZeroShares();
 
   function name() public view override returns (string memory) {
     return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
