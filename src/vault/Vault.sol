@@ -74,9 +74,11 @@ contract Vault is VaultStorage, VaultBase, TToken {
 
     // transfer tokens before minting (or ERC777's could re-enter)
     // TODO: consider making this a transferFrom receiver and let user approve vault instead of Tenderizer
-    ERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
+    ERC20(asset()).safeTransferFrom(sender, address(this), assets);
     // mint shares
     _mint(receiver, shares);
+    // add to total assets
+    _loadVaultSlot().totalAssets += assets;
     // emit deposit event
     emit Deposit(sender, receiver, assets);
     // **stake tokens**
@@ -93,6 +95,8 @@ contract Vault is VaultStorage, VaultBase, TToken {
     if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
     // burn shares
     _burn(owner, shares);
+    // decrease total assets
+    _loadVaultSlot().totalAssets += assets;
     // emit event
     // **unstake tokens**
   }
