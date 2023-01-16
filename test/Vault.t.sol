@@ -73,6 +73,12 @@ contract VaultTest is VaultSetup {
     assertEq(vault.convertToShares(100), 100);
   }
 
+  function test_Vault_Deposit_OnlyOwner() public {
+    vm.expectRevert(abi.encodeWithSelector(Vault.OnlyOwner.selector, address(this), account0));
+    vm.prank(account0);
+    vault.deposit(account0, 1);
+  }
+
   function test_Vault_Deposit_ZeroSharesError() public {
     vm.expectRevert(abi.encodePacked(Vault.ZeroShares.selector));
     vault.deposit(address(this), 0);
@@ -126,6 +132,12 @@ contract VaultTest is VaultSetup {
     assertEq(vault.convertToShares(assets + assets2), assets + assets2);
   }
 
+  function test_Vault_Unlock_OnlyOwner() public {
+    vm.expectRevert(abi.encodeWithSelector(Vault.OnlyOwner.selector, address(this), account0));
+    vm.prank(account0);
+    vault.unlock(account0, 1);
+  }
+
   function test_Vault_Unlock_ZeroShares() public {
     vm.expectRevert(abi.encodePacked(Vault.ZeroShares.selector));
     vault.unlock(address(this), 0);
@@ -171,5 +183,51 @@ contract VaultTest is VaultSetup {
     assertEq(vault.balanceOf(address(this)), assets - unlock);
     assertEq(vault.convertToAssets(assets - unlock), assets - unlock);
     assertEq(vault.convertToShares(assets - unlock), assets - unlock);
+  }
+
+  function test_Vault_Unlock_MultipleUsers(uint256 assets, uint256 assets2) public {
+    vm.assume(assets > 0 && assets < sqrt(type(uint256).max - 1));
+    vm.assume(assets2 > 0 && assets2 < sqrt(type(uint256).max - 1));
+
+    mintTokens(asset, address(this), assets);
+    asset.approve(address(vault), assets);
+    vault.deposit(address(this), assets);
+    mintTokens(asset, address(this), assets2);
+    asset.approve(address(vault), assets2);
+    vault.deposit(address(this), assets2);
+    vault.unlock(address(this), assets);
+    assertEq(vault.totalAssets(), assets2);
+    assertEq(vault.totalShares(), assets2);
+    assertEq(vault.totalSupply(), assets2);
+    assertEq(vault.balanceOf(address(this)), assets2);
+    assertEq(vault.convertToAssets(assets2), assets2);
+    assertEq(vault.convertToShares(assets2), assets2);
+
+    // unlock assets2
+    vault.unlock(address(this), assets2);
+    assertEq(vault.totalAssets(), 0);
+    assertEq(vault.totalShares(), 0);
+    assertEq(vault.totalSupply(), 0);
+    assertEq(vault.balanceOf(address(this)), 0);
+  }
+
+  function test_Vault_Unlock_MultipleUsers_Partial(uint256 assets, uint256 assets2, uint256 unlock) public {
+    vm.assume(assets > 0 && assets < sqrt(type(uint256).max - 1));
+    vm.assume(assets2 > 0 && assets2 < sqrt(type(uint256).max - 1));
+    vm.assume(unlock > 0 && unlock < assets);
+
+    mintTokens(asset, address(this), assets);
+    asset.approve(address(vault), assets);
+    vault.deposit(address(this), assets);
+    mintTokens(asset, address(this), assets2);
+    asset.approve(address(vault), assets2);
+    vault.deposit(address(this), assets2);
+    vault.unlock(address(this), unlock);
+    assertEq(vault.totalAssets(), assets + assets2 - unlock);
+    assertEq(vault.totalShares(), assets + assets2 - unlock);
+    assertEq(vault.totalSupply(), assets + assets2 - unlock);
+    assertEq(vault.balanceOf(address(this)), assets + assets2 - unlock);
+    assertEq(vault.convertToAssets(assets + assets2 - unlock), assets + assets2 - unlock);
+    assertEq(vault.convertToShares(assets + assets2 - unlock), assets + assets2 - unlock);
   }
 }

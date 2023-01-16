@@ -31,11 +31,13 @@ contract Vault is VaultStorage, VaultBase, TToken {
 
   event Deposit(address indexed sender, address indexed receiver, uint256 assets);
 
+  event Unlock(address indexed receiver, uint256 assets);
+
   event Withdraw(address indexed receiver, uint256 assets);
 
   error ZeroShares();
 
-  error OnlyOwner();
+  error OnlyOwner(address owner, address caller);
 
   modifier onlyOwner() {
     checkOwner();
@@ -43,7 +45,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
   }
 
   function checkOwner() internal view {
-    if (msg.sender != owner()) revert OnlyOwner();
+    if (msg.sender != owner()) revert OnlyOwner(owner(), msg.sender);
   }
 
   function name() public view override returns (string memory) {
@@ -109,6 +111,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
     // decrease total assets
     _loadVaultSlot().totalAssets -= assets;
     // emit event
+    emit Unlock(owner, assets);
     // **unstake tokens**
   }
 
