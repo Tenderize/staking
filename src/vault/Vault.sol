@@ -35,6 +35,17 @@ contract Vault is VaultStorage, VaultBase, TToken {
 
   error ZeroShares();
 
+  error OnlyOwner();
+
+  modifier onlyOwner() {
+    checkOwner();
+    _;
+  }
+
+  function checkOwner() internal view {
+    if (msg.sender != owner()) revert OnlyOwner();
+  }
+
   function name() public view override returns (string memory) {
     return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
   }
@@ -63,24 +74,24 @@ contract Vault is VaultStorage, VaultBase, TToken {
     return _totalShares == 0 ? assets : assets.mulDivDown(_totalShares, totalAssets());
   }
 
-  function deposit(
-    uint256 assets,
-    address sender,
-    address receiver
-  ) public returns (uint256 shares) {
+  function setTotalAssets(uint256 assets) public onlyOwner {
+    _loadVaultSlot().totalAssets = assets;
+  }
+
+  function deposit(address receiver, uint256 assets) public onlyOwner returns (uint256 shares) {
     // calculate shares for assets
     // check for rounding error
     if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
 
     // transfer tokens before minting (or ERC777's could re-enter)
     // TODO: consider making this a transferFrom receiver and let user approve vault instead of Tenderizer
-    ERC20(asset()).safeTransferFrom(sender, address(this), assets);
+    ERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
     // mint shares
     _mint(receiver, shares);
     // add to total assets
     _loadVaultSlot().totalAssets += assets;
     // emit deposit event
-    emit Deposit(sender, receiver, assets);
+    emit Deposit(msg.sender, receiver, assets);
     // **stake tokens**
   }
 
@@ -89,19 +100,19 @@ contract Vault is VaultStorage, VaultBase, TToken {
   // then maybe we should consider it outside of scope
   // of the LS vault and only concern the LSVault with accounting
   // and transferring tokens
-  function unlock(uint256 assets, address owner) public returns (uint256 shares) {
+  function unlock(address owner, uint256 assets) public onlyOwner returns (uint256 shares) {
     // calculate shares to burn
     // check rounding error
     if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
     // burn shares
     _burn(owner, shares);
     // decrease total assets
-    _loadVaultSlot().totalAssets += assets;
+    _loadVaultSlot().totalAssets -= assets;
     // emit event
     // **unstake tokens**
   }
 
-  function withdraw(uint256 assets, address receiver) public returns (uint256 received) {
+  function withdraw(address receiver, uint256 assets) public onlyOwner {
     // **NFT lock is redeemed**
     // **withdraw tokens**
     // transfer tokens to receiver
