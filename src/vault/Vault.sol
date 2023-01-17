@@ -87,7 +87,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
 
     // transfer tokens before minting (or ERC777's could re-enter)
     // TODO: consider making this a transferFrom receiver and let user approve vault instead of Tenderizer
-    ERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
+    ERC20(asset()).safeTransferFrom(receiver, address(this), assets);
     // mint shares
     _mint(receiver, shares);
     // add to total assets
@@ -115,9 +115,13 @@ contract Vault is VaultStorage, VaultBase, TToken {
     // **unstake tokens**
   }
 
+  // Can we maybe have the withdraw function receive the NFT from receiver instead
+  // The Tenderizer does all the stuff on how to actually redeem the NFT and calculate the output assets from the vault to send
+  // The vault then burns the NFT instead of the Tenderizer
   function withdraw(address receiver, uint256 assets) public onlyOwner {
     // **NFT lock is redeemed**
     // **withdraw tokens**
+
     // transfer tokens to receiver
     ERC20(asset()).safeTransfer(receiver, assets);
     // emit event
