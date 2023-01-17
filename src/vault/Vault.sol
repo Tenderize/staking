@@ -21,6 +21,7 @@ pragma solidity 0.8.17;
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 import { ERC20 } from "solmate/tokens/ERC20.sol";
+import { IERC721 } from "core/interfaces/IERC721.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 import { VaultStorage } from "core/vault/VaultStorage.sol";
 import { VaultBase } from "core/vault/VaultBase.sol";
@@ -115,9 +116,15 @@ contract Vault is VaultStorage, VaultBase, TToken {
     // **unstake tokens**
   }
 
-  function withdraw(address receiver, uint256 assets) public onlyOwner {
+  // Can we maybe have the withdraw function receive the NFT from receiver instead
+  // The Tenderizer does all the stuff on how to actually redeem the NFT and calculate the output assets from the vault to send
+  // The vault then burns the NFT instead of the Tenderizer
+  function withdraw(address receiver, uint256 assets, IERC721 unlocks, uint256 unlockID) public onlyOwner {
     // **NFT lock is redeemed**
     // **withdraw tokens**
+    // burn NFT
+    unlocks.safeTransferFrom(address(this), receiver, unlockID);
+    unlocks.burn(unlockID);
     // transfer tokens to receiver
     ERC20(asset()).safeTransfer(receiver, assets);
     // emit event
