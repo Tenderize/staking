@@ -88,7 +88,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
 
     // transfer tokens before minting (or ERC777's could re-enter)
     // TODO: consider making this a transferFrom receiver and let user approve vault instead of Tenderizer
-    ERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
+    ERC20(asset()).safeTransferFrom(receiver, address(this), assets);
     // mint shares
     _mint(receiver, shares);
     // add to total assets
