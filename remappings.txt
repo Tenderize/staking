@@ -4,3 +4,4 @@ math/=lib/prb-math/src/
 core/=src/
 solmate/=lib/solmate/src/
 clones/=lib/clones-with-immutable-args/src/
+mocks/=test/mocks/
