@@ -25,20 +25,11 @@ import { IERC721 } from "core/interfaces/IERC721.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 import { VaultStorage } from "core/vault/VaultStorage.sol";
 import { VaultBase } from "core/vault/VaultBase.sol";
+import { IVault } from "core/vault/IVault.sol";
 
-contract Vault is VaultStorage, VaultBase, TToken {
+contract Vault is VaultStorage, VaultBase, IVault, TToken {
   using FixedPointMathLib for uint256;
   using SafeTransferLib for ERC20;
-
-  event Deposit(address indexed sender, address indexed receiver, uint256 assets);
-
-  event Unlock(address indexed receiver, uint256 assets);
-
-  event Withdraw(address indexed receiver, uint256 assets);
-
-  error ZeroShares();
-
-  error OnlyOwner(address owner, address caller);
 
   modifier onlyOwner() {
     checkOwner();

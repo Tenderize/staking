@@ -6,6 +6,7 @@ import { PRBTest } from "test/PRBTest.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 import { MockERC20 } from "solmate/test/utils/mocks/MockERC20.sol";
 import { Vault } from "core/vault/Vault.sol";
+import { IVault } from "core/vault/IVault.sol";
 
 import { ClonesWithImmutableArgs } from "clones/ClonesWithImmutableArgs.sol";
 
@@ -25,11 +26,8 @@ contract TestHelpers {
   }
 }
 
-contract VaultSetup is TestHelpers, PRBTest, StdCheats {
+contract VaultSetup is TestHelpers, PRBTest, StdCheats, IVault {
   using ClonesWithImmutableArgs for address;
-
-  // TODO: move events to interface
-  event Deposit(address indexed sender, address indexed receiver, uint256 assets);
 
   MockERC20 internal asset;
   Vault internal vault;
@@ -74,13 +72,13 @@ contract VaultTest is VaultSetup {
   }
 
   function test_Vault_Deposit_OnlyOwner() public {
-    vm.expectRevert(abi.encodeWithSelector(Vault.OnlyOwner.selector, address(this), account0));
+    vm.expectRevert(abi.encodeWithSelector(IVault.OnlyOwner.selector, address(this), account0));
     vm.prank(account0);
     vault.deposit(account0, 1);
   }
 
   function test_Vault_Deposit_ZeroSharesError() public {
-    vm.expectRevert(abi.encodePacked(Vault.ZeroShares.selector));
+    vm.expectRevert(abi.encodePacked(IVault.ZeroShares.selector));
     vault.deposit(address(this), 0);
   }
 
@@ -133,13 +131,13 @@ contract VaultTest is VaultSetup {
   }
 
   function test_Vault_Unlock_OnlyOwner() public {
-    vm.expectRevert(abi.encodeWithSelector(Vault.OnlyOwner.selector, address(this), account0));
+    vm.expectRevert(abi.encodeWithSelector(IVault.OnlyOwner.selector, address(this), account0));
     vm.prank(account0);
     vault.unlock(account0, 1);
   }
 
   function test_Vault_Unlock_ZeroShares() public {
-    vm.expectRevert(abi.encodePacked(Vault.ZeroShares.selector));
+    vm.expectRevert(abi.encodePacked(IVault.ZeroShares.selector));
     vault.unlock(address(this), 0);
   }
 
