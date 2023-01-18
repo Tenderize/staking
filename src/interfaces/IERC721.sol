@@ -32,9 +32,18 @@ interface IERC721 {
 
   function transfer(address _to, uint256 _tokenId) external;
 
-  function safeTransferFrom(address _from, address _to, uint256 _tokenId) external;
+  function safeTransferFrom(
+    address _from,
+    address _to,
+    uint256 _tokenId
+  ) external;
 
-  function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory _data) external;
+  function safeTransferFrom(
+    address _from,
+    address _to,
+    uint256 _tokenId,
+    bytes memory _data
+  ) external;
 
   function mint(address _to, uint256 _tokenId) external;
 

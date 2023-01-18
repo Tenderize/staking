@@ -110,7 +110,12 @@ contract Vault is VaultStorage, VaultBase, IVault, TToken {
   // Can we maybe have the withdraw function receive the NFT from receiver instead
   // The Tenderizer does all the stuff on how to actually redeem the NFT and calculate the output assets from the vault to send
   // The vault then burns the NFT instead of the Tenderizer
-  function withdraw(address receiver, uint256 assets, IERC721 unlocks, uint256 unlockID) public onlyOwner {
+  function withdraw(
+    address receiver,
+    uint256 assets,
+    IERC721 unlocks,
+    uint256 unlockID
+  ) public onlyOwner {
     // **NFT lock is redeemed**
     // **withdraw tokens**
     // burn NFT

@@ -11,7 +11,11 @@ import { IVault } from "core/vault/IVault.sol";
 import { ClonesWithImmutableArgs } from "clones/ClonesWithImmutableArgs.sol";
 
 contract TestHelpers {
-  function mintTokens(MockERC20 token, address to, uint256 amount) public {
+  function mintTokens(
+    MockERC20 token,
+    address to,
+    uint256 amount
+  ) public {
     token.mint(to, amount);
   }
 
@@ -209,7 +213,11 @@ contract VaultTest is VaultSetup {
     assertEq(vault.balanceOf(address(this)), 0);
   }
 
-  function test_Vault_Unlock_MultipleUsers_Partial(uint256 assets, uint256 assets2, uint256 unlock) public {
+  function test_Vault_Unlock_MultipleUsers_Partial(
+    uint256 assets,
+    uint256 assets2,
+    uint256 unlock
+  ) public {
     vm.assume(assets > 0 && assets < sqrt(type(uint256).max - 1));
     vm.assume(assets2 > 0 && assets2 < sqrt(type(uint256).max - 1));
     vm.assume(unlock > 0 && unlock < assets);
