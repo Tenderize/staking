@@ -23,10 +23,13 @@ abstract contract Unlocks is ERC721 {
     _;
   }
 
-  function createUnlock(uint256 id) public virtual isValidTenderizer(msg.sender) returns (uint256 tokenId) {
+  function createUnlock(
+    address receiver,
+    uint256 id
+  ) public virtual isValidTenderizer(msg.sender) returns (uint256 tokenId) {
     require(id < 1 << 96);
     tokenId = _encodeTokenId(msg.sender, uint96(id));
-    _safeMint(msg.sender, tokenId);
+    _safeMint(receiver, tokenId);
   }
 
   function useUnlock(address owner, uint256 id) public virtual isValidTenderizer(msg.sender) returns (uint256 tokenId) {

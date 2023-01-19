@@ -90,16 +90,16 @@ contract Vault is VaultBase, VaultStorage, TToken {
   // then maybe we should consider it outside of scope
   // of the LS vault and only concern the LSVault with accounting
   // and transferring tokens
-  function unlock(address owner, uint256 assets) public virtual returns (uint256 shares) {
+  function unlock(uint256 assets) public virtual returns (uint256 shares) {
     // calculate shares to burn
     // check rounding error
     if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
     // burn shares
-    _burn(owner, shares);
+    _burn(msg.sender, shares);
     // decrease total assets
     _loadVaultSlot().totalAssets -= assets;
     // emit event
-    emit Unlock(owner, assets);
+    emit Unlock(msg.sender, assets);
   }
 
   // Can we maybe have the withdraw function receive the NFT from receiver instead

@@ -199,7 +199,8 @@ contract GraphAdapter is Adapter {
 
   function _processWithdraw(address validator) internal {
     // withdrawal isn't ready: no-op
-    if (graph.getDelegation(validator, address(this)).tokensLockedUntil > block.number) return;
+    uint256 tokensLockedUntil = graph.getDelegation(validator, address(this)).tokensLockedUntil;
+    if (tokensLockedUntil != 0 && tokensLockedUntil > block.number) return;
     Withdrawals storage w = _loadWithdrawalsSlot();
     // update state
     w.withdrawable += w.unlocked;

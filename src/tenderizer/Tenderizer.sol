@@ -41,11 +41,11 @@ contract Tenderizer is Vault {
     return toMint;
   }
 
-  function unlock(address owner, uint256 assets) public override returns (uint256 unlockID) {
+  function unlock(uint256 assets) public override returns (uint256 unlockID) {
     unlockID = _unstake(validator(), assets);
-    unlocks.createUnlock(unlockID);
+    unlocks.createUnlock(msg.sender, unlockID);
 
-    Vault.unlock(owner, assets);
+    Vault.unlock(assets);
   }
 
   function withdraw(address receiver, uint256 unlockID) public override returns (uint256) {
