@@ -42,6 +42,8 @@ abstract contract Unlocks is ERC721 {
   function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
     // return all parameters DYNAMICALLY (as SVG)
     // - _getTenderizer
+    // - _getValidator
+    // - _getAsset
     // - _getAmount
     // - _getMaturity
   }
@@ -61,6 +63,18 @@ abstract contract Unlocks is ERC721 {
     (address tenderizer, uint256 id) = _decodeTokenId(tokenId);
 
     return Tenderizer(tenderizer).unlockMaturity(id);
+  }
+
+  function _getValidator(uint256 tokenId) internal view virtual returns (address) {
+    (address tenderizer, ) = _decodeTokenId(tokenId);
+
+    return Tenderizer(tenderizer).validator();
+  }
+
+  function _getAsset(uint256 tokenId) internal view virtual returns (address) {
+    (address tenderizer, ) = _decodeTokenId(tokenId);
+
+    return Tenderizer(tenderizer).asset();
   }
 
   function _isValidTenderizer(address sender) internal view virtual;
