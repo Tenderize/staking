@@ -22,10 +22,11 @@ import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
+
 import { VaultStorage } from "core/vault/VaultStorage.sol";
 import { VaultBase } from "core/vault/VaultBase.sol";
 
-contract Vault is VaultStorage, VaultBase, TToken {
+contract Vault is VaultBase, VaultStorage, TToken {
   using FixedPointMathLib for uint256;
   using SafeTransferLib for ERC20;
 
@@ -36,17 +37,6 @@ contract Vault is VaultStorage, VaultBase, TToken {
   event Withdraw(address indexed receiver, uint256 assets);
 
   error ZeroShares();
-
-  error OnlyOwner(address owner, address caller);
-
-  modifier onlyOwner() {
-    checkOwner();
-    _;
-  }
-
-  function checkOwner() internal view {
-    if (msg.sender != owner()) revert OnlyOwner(owner(), msg.sender);
-  }
 
   function name() public view override returns (string memory) {
     return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
@@ -66,27 +56,26 @@ contract Vault is VaultStorage, VaultBase, TToken {
     return s._totalSupply;
   }
 
-  function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
+  function convertToAssets(uint256 shares) public view override returns (uint256) {
     uint256 _totalShares = totalShares(); // Saves an extra SLOAD if slot is non-zero
     return _totalShares == 0 ? shares : shares.mulDivDown(totalAssets(), _totalShares);
   }
 
-  function convertToShares(uint256 assets) public view override returns (uint256 shares) {
+  function convertToShares(uint256 assets) public view override returns (uint256) {
     uint256 _totalShares = totalShares(); // Saves an extra SLOAD if slot is non-zero
     return _totalShares == 0 ? assets : assets.mulDivDown(_totalShares, totalAssets());
   }
 
-  function setTotalAssets(uint256 assets) public onlyOwner {
+  function setTotalAssets(uint256 assets) public {
     _loadVaultSlot().totalAssets = assets;
   }
 
-  function deposit(address receiver, uint256 assets) public onlyOwner returns (uint256 shares) {
+  function deposit(address receiver, uint256 assets) public virtual returns (uint256 shares) {
     // calculate shares for assets
     // check for rounding error
     if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
 
     // transfer tokens before minting (or ERC777's could re-enter)
-    // TODO: consider making this a transferFrom receiver and let user approve vault instead of Tenderizer
     ERC20(asset()).safeTransferFrom(receiver, address(this), assets);
     // mint shares
     _mint(receiver, shares);
@@ -94,7 +83,6 @@ contract Vault is VaultStorage, VaultBase, TToken {
     _loadVaultSlot().totalAssets += assets;
     // emit deposit event
     emit Deposit(msg.sender, receiver, assets);
-    // **stake tokens**
   }
 
   // If unlock and withdraw deals with another
@@ -102,7 +90,7 @@ contract Vault is VaultStorage, VaultBase, TToken {
   // then maybe we should consider it outside of scope
   // of the LS vault and only concern the LSVault with accounting
   // and transferring tokens
-  function unlock(address owner, uint256 assets) public onlyOwner returns (uint256 shares) {
+  function unlock(address owner, uint256 assets) public virtual returns (uint256 shares) {
     // calculate shares to burn
     // check rounding error
     if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
@@ -112,13 +100,12 @@ contract Vault is VaultStorage, VaultBase, TToken {
     _loadVaultSlot().totalAssets -= assets;
     // emit event
     emit Unlock(owner, assets);
-    // **unstake tokens**
   }
 
   // Can we maybe have the withdraw function receive the NFT from receiver instead
   // The Tenderizer does all the stuff on how to actually redeem the NFT and calculate the output assets from the vault to send
   // The vault then burns the NFT instead of the Tenderizer
-  function withdraw(address receiver, uint256 assets) public onlyOwner {
+  function withdraw(address receiver, uint256 assets) public virtual returns (uint256) {
     // **NFT lock is redeemed**
     // **withdraw tokens**
 
@@ -126,5 +113,6 @@ contract Vault is VaultStorage, VaultBase, TToken {
     ERC20(asset()).safeTransfer(receiver, assets);
     // emit event
     emit Withdraw(receiver, assets);
+    return assets;
   }
 }

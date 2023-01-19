@@ -9,16 +9,15 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-import { Clone } from "clones/Clone.sol";
-
 pragma solidity 0.8.17;
 
-abstract contract VaultBase is Clone {
-  function asset() public pure returns (address) {
-    return _getArgAddress(0); // start: 0 end: 19
-  }
+import { IERC20 } from "core/interfaces/IERC20.sol";
 
-  function validator() public pure returns (address) {
-    return _getArgAddress(20); // start: 20 end: 39
-  }
+/// @title Interface for WETH9
+interface IWETH9 is IERC20 {
+  /// @notice Deposit ether to get wrapped ether
+  function deposit() external payable;
+
+  /// @notice Withdraw wrapped ether to get ether
+  function withdraw(uint256) external;
 }
