@@ -13,4 +13,6 @@ pragma solidity 0.8.17;
 
 interface Router {
   function adapter(address asset) external view returns (address);
+
+  function isTenderizer(address tenderizer) external view returns (bool);
 }

@@ -12,22 +12,26 @@
 import { ERC721 } from "solmate/tokens/ERC721.sol";
 
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
+import { Router } from "core/router/Router.sol";
 
 pragma solidity 0.8.17;
 
 // TODO: add tokenURI
-// TODO: add isValidTenderizer
 
 contract Unlocks is ERC721 {
-  error NotOwner(address owner, address sender);
-  error NotTenderizer(address tenderizer, address sender);
+  Router private immutable router;
+
+  error NotOwnerOf(uint256 id, address owner, address sender);
+  error NotTenderizer(address sender);
 
   modifier isValidTenderizer(address sender) {
     _isValidTenderizer(sender);
     _;
   }
 
-  constructor() ERC721("Tenderize Unlocks", "TUNL") {}
+  constructor(address _router) ERC721("Tenderize Unlocks", "TUNL") {
+    router = Router(_router);
+  }
 
   function createUnlock(
     address receiver,
@@ -38,10 +42,10 @@ contract Unlocks is ERC721 {
     _safeMint(receiver, tokenId);
   }
 
-  function useUnlock(address owner, uint256 id) public virtual isValidTenderizer(msg.sender) returns (uint256 tokenId) {
+  function useUnlock(address owner, uint256 id) public virtual isValidTenderizer(msg.sender) {
     require(id < 1 << 96);
-    tokenId = _encodeTokenId(msg.sender, uint96(id));
-    if (ownerOf(tokenId) != owner) revert NotOwner(ownerOf(tokenId), owner);
+    uint256 tokenId = _encodeTokenId(msg.sender, uint96(id));
+    if (ownerOf(tokenId) != owner) revert NotOwnerOf(id, ownerOf(tokenId), owner);
     _burn(tokenId);
   }
 
@@ -85,7 +89,7 @@ contract Unlocks is ERC721 {
   }
 
   function _isValidTenderizer(address sender) internal view virtual {
-    return;
+    if (router.isTenderizer(sender)) revert NotTenderizer(sender);
   }
 
   function _encodeTokenId(address tenderizer, uint96 id) internal pure virtual returns (uint256) {
