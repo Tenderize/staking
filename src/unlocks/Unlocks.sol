@@ -15,6 +15,9 @@ import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 
 pragma solidity 0.8.17;
 
+// TODO: add tokenURI
+// TODO: add isValidTenderizer
+
 contract Unlocks is ERC721 {
   error NotOwner(address owner, address sender);
   error NotTenderizer(address tenderizer, address sender);
