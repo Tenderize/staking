@@ -15,13 +15,16 @@ import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 
 pragma solidity 0.8.17;
 
-abstract contract Unlocks is ERC721 {
+contract Unlocks is ERC721 {
   error NotOwner(address owner, address sender);
+  error NotTenderizer(address tenderizer, address sender);
 
   modifier isValidTenderizer(address sender) {
     _isValidTenderizer(sender);
     _;
   }
+
+  constructor() ERC721("Tenderize Unlocks", "TUNL") {}
 
   function createUnlock(
     address receiver,
@@ -39,13 +42,14 @@ abstract contract Unlocks is ERC721 {
     _burn(tokenId);
   }
 
-  function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+  function tokenURI(uint256 id) public view virtual override returns (string memory) {
     // return all parameters DYNAMICALLY (as SVG)
     // - _getTenderizer
     // - _getValidator
     // - _getAsset
     // - _getAmount
     // - _getMaturity
+    return "";
   }
 
   function _getTenderizer(uint256 tokenId) internal view virtual returns (address) {
@@ -77,7 +81,9 @@ abstract contract Unlocks is ERC721 {
     return Tenderizer(tenderizer).asset();
   }
 
-  function _isValidTenderizer(address sender) internal view virtual;
+  function _isValidTenderizer(address sender) internal view virtual {
+    return;
+  }
 
   function _encodeTokenId(address tenderizer, uint96 id) internal pure virtual returns (uint256) {
     return uint256(bytes32(abi.encodePacked(tenderizer, id)));
