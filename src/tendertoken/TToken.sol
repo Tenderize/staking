@@ -11,15 +11,21 @@
 
 pragma solidity 0.8.17;
 
+import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
+
 import { IERC20 } from "core/interfaces/IERC20.sol";
 import { TTokenStorage } from "core/tendertoken/TTokenStorage.sol";
 
 /// @notice Non-standard ERC20 + EIP-2612 implementation.
 /// @author Tenderize
 /// @author Modified from Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/tokens/ERC20.sol)
-/// @dev Do not manually set balances without updating totalSupply, as the sum of all user balances must not exceed it.
+/// @dev Do not mint shares without updating the total supply without being unaware of the consequences (see `_mintShares` and `_burnShares`).
 
 abstract contract TToken is TTokenStorage, IERC20 {
+  using FixedPointMathLib for uint256;
+
+  error ZeroShares();
+
   bytes32 private constant PERMIT_TYPEHASH =
     keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
@@ -33,17 +39,27 @@ abstract contract TToken is TTokenStorage, IERC20 {
 
   function symbol() public view virtual returns (string memory);
 
-  function convertToAssets(uint256 shares) public view virtual returns (uint256 assets);
+  function convertToAssets(uint256 shares) public view returns (uint256) {
+    ERC20Data storage s = _loadERC20Slot();
 
-  function convertToShares(uint256 assets) public view virtual returns (uint256 shares);
+    uint256 _totalShares = s._totalShares; // Saves an extra SLOAD if slot is non-zero
+    return _totalShares == 0 ? shares : shares.mulDivDown(s._totalSupply, _totalShares);
+  }
+
+  function convertToShares(uint256 assets) public view returns (uint256) {
+    ERC20Data storage s = _loadERC20Slot();
+
+    uint256 _totalShares = s._totalShares; // Saves an extra SLOAD if slot is non-zero
+    return _totalShares == 0 ? assets : assets.mulDivDown(_totalShares, s._totalSupply);
+  }
 
   function balanceOf(address account) public view virtual returns (uint256) {
-    return convertToAssets(_loadERC20Slot().balanceOf[account]);
+    return convertToAssets(_loadERC20Slot().shares[account]);
   }
 
   function totalSupply() public view virtual returns (uint256) {
     ERC20Data storage s = _loadERC20Slot();
-    return convertToAssets(s._totalSupply);
+    return s._totalSupply;
   }
 
   function nonces(address owner) external view returns (uint256) {
@@ -64,12 +80,12 @@ abstract contract TToken is TTokenStorage, IERC20 {
     ERC20Data storage s = _loadERC20Slot();
     uint256 shares = convertToShares(amount);
     // underflows if insufficient balance
-    s.balanceOf[msg.sender] -= shares;
+    s.shares[msg.sender] -= shares;
 
     // Cannot overflow because the sum of all user
     // balances can't exceed the max uint256 value.
     unchecked {
-      s.balanceOf[to] += shares;
+      s.shares[to] += shares;
     }
 
     emit Transfer(msg.sender, to, amount);
@@ -82,11 +98,7 @@ abstract contract TToken is TTokenStorage, IERC20 {
     return s.allowance[owner][spender];
   }
 
-  function transferFrom(
-    address from,
-    address to,
-    uint256 amount
-  ) public virtual returns (bool) {
+  function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
     ERC20Data storage s = _loadERC20Slot();
     uint256 allowed = s.allowance[from][msg.sender]; // Saves gas for limited approvals.
 
@@ -96,12 +108,12 @@ abstract contract TToken is TTokenStorage, IERC20 {
 
     uint256 shares = convertToShares(amount);
 
-    s.balanceOf[from] -= shares;
+    s.shares[from] -= shares;
 
     // Cannot overflow because the sum of all user
     // balances can't exceed the max uint256 value.
     unchecked {
-      s.balanceOf[to] += shares;
+      s.shares[to] += shares;
     }
 
     emit Transfer(from, to, amount);
@@ -162,25 +174,65 @@ abstract contract TToken is TTokenStorage, IERC20 {
       );
   }
 
-  function _mint(address to, uint256 amount) internal virtual {
+  /// @dev this function only mints shares, *it doesn't update total supply*
+  /// using this function will result in dilution of other user balances in favor of `to`
+  function _mintShares(address to, uint256 shares) internal virtual {
     ERC20Data storage s = _loadERC20Slot();
-    s._totalSupply += amount;
+    s._totalShares += shares;
 
     // Cannot overflow because the sum of all user
     // balances can't exceed the max uint256 value.
     unchecked {
-      s.balanceOf[to] += amount;
+      s.shares[to] += shares;
     }
   }
 
-  function _burn(address from, uint256 amount) internal virtual {
+  /// @dev this function only burns shares, *it doesn't update total supply*
+  /// using this function will result in an inflation of other user balances at the expense of `from`
+  function _burnShares(address from, uint256 shares) internal virtual {
     ERC20Data storage s = _loadERC20Slot();
-    s.balanceOf[from] -= amount;
+    s.shares[from] -= shares;
 
     // Cannot underflow because a user's balance
     // will never be larger than the total supply.
     unchecked {
-      s._totalSupply -= amount;
+      s._totalShares -= shares;
+    }
+  }
+
+  // TODO: consider using int256 and calling it updateTotalSupply
+  // or 2 arguments (uint8 sign, uint256 amount) where `sign` is 0 for subtract, 1 for add
+  // this is the same as (bool increase, uint256 amount) but with better naming
+  function _setTotalSupply(uint256 supply) internal virtual {
+    ERC20Data storage s = _loadERC20Slot();
+    s._totalSupply = supply;
+  }
+
+  function _mint(address to, uint256 assets) internal virtual {
+    uint256 shares;
+    if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
+
+    ERC20Data storage s = _loadERC20Slot();
+    s._totalSupply += shares;
+
+    // Cannot overflow because the sum of all user
+    // balances can't exceed the max uint256 value.
+    unchecked {
+      s.shares[to] += convertToShares(shares);
+    }
+  }
+
+  function _burn(address from, uint256 assets) internal virtual {
+    uint256 shares;
+    if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
+
+    ERC20Data storage s = _loadERC20Slot();
+    s.shares[from] -= shares;
+
+    // Cannot underflow because a user's balance
+    // will never be larger than the total supply.
+    unchecked {
+      s._totalSupply -= shares;
     }
   }
 }

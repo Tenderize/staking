@@ -9,16 +9,8 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-import { Clone } from "clones/Clone.sol";
-
 pragma solidity 0.8.17;
 
-abstract contract VaultBase is Clone {
-  function asset() public pure returns (address) {
-    return _getArgAddress(0); // start: 0 end: 19
-  }
-
-  function validator() public pure returns (address) {
-    return _getArgAddress(20); // start: 20 end: 39
-  }
+interface Router {
+  function adapter(address asset) external view returns (address);
 }

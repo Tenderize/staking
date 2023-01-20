@@ -9,55 +9,15 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-import { ERC20 } from "solmate/tokens/ERC20.sol";
-import { IWETH9 } from "core/interfaces/IWETH9.sol";
-import { ISwapRouter } from "core/interfaces/ISwapRouter.sol";
-import { Tenderizer, Adapter } from "core/tenderizer/Tenderizer.sol";
-import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
-
 pragma solidity 0.8.17;
 
-interface ILivepeerBondingManager {
-  function bond(uint256 _amount, address _to) external;
+import { ERC20 } from "solmate/tokens/ERC20.sol";
+import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 
-  function unbond(uint256 _amount) external;
-
-  function withdrawStake(uint256 _unbondingLockId) external;
-
-  function withdrawFees(address payable, uint256) external;
-
-  function pendingFees(address _delegator, uint256 _endRound) external view returns (uint256);
-
-  function pendingStake(address _delegator, uint256 _endRound) external view returns (uint256);
-
-  function getDelegator(
-    address _delegator
-  )
-    external
-    view
-    returns (
-      uint256 bondedAmount,
-      uint256 fees,
-      address delegateAddress,
-      uint256 delegatedAmount,
-      uint256 startRound,
-      uint256 lastClaimRound,
-      uint256 nextUnbondingLockId
-    );
-
-  function getDelegatorUnbondingLock(
-    address _delegator,
-    uint256 _unbondingLockId
-  ) external view returns (uint256 amount, uint256 withdrawRound);
-}
-
-interface ILivepeerRoundsManager {
-  function currentRound() external view returns (uint256);
-
-  function currentRoundStartBlock() external view returns (uint256);
-
-  function roundLength() external view returns (uint256);
-}
+import { Adapter } from "core/adapters/Adapter.sol";
+import { ILivepeerBondingManager, ILivepeerRoundsManager } from "core/adapters/interfaces/ILivepeer.sol";
+import { ISwapRouter } from "core/adapters/interfaces/ISwapRouter.sol";
+import { IWETH9 } from "core/adapters/interfaces/IWETH9.sol";
 
 contract LivepeerAdapter {
   using SafeTransferLib for ERC20;
@@ -101,9 +61,9 @@ contract LivepeerAdapter {
     livepeer.bond(amount, validator);
   }
 
-  function unstake(address validator, uint256 amount) public returns (uint256 unlockID) {
+  function unstake(address /*validator*/, uint256 amount) public returns (uint256 unlockID) {
     // returns the *next* Livepeer unbonding lock ID for the delegator
-    // this will be the unlockID after calling unbond
+    // this will be the `unlockID` after calling unbond
     (, , , , , , unlockID) = livepeer.getDelegator(address(this));
     livepeer.unbond(amount);
   }
@@ -112,7 +72,7 @@ contract LivepeerAdapter {
     livepeer.withdrawStake(unlockID);
   }
 
-  function claimRewards() public {
+  function claimRewards(address validator) public {
     uint256 pendingFees;
     if ((pendingFees = livepeer.pendingFees(address(this), 0)) != 0) {
       livepeer.withdrawFees(payable(address(this)), pendingFees);
@@ -136,6 +96,10 @@ contract LivepeerAdapter {
         abi.encodeWithSelector(uniswapRouter.exactInputSingle.selector, params)
       );
 
+      if (!success) {
+        // fail silently ?
+      }
+
       // set return value of staticcall to minimum LPT value to receive from swap
       params.amountOutMinimum = abi.decode(returnData, (uint256));
 
@@ -143,6 +107,7 @@ contract LivepeerAdapter {
       uint256 amountOut = uniswapRouter.exactInputSingle(params);
 
       // should we restake here ?
+      stake(validator, amountOut);
       // how should we generalise adapter returns here ? int256 rewards ?
     }
   }

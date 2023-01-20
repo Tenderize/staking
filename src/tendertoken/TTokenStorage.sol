@@ -12,11 +12,12 @@
 pragma solidity 0.8.17;
 
 abstract contract TTokenStorage {
-  uint256 private constant ERC20_SLOT = uint256(keccak256("xyz.tenderize.ERC20.storage.location")) - 1;
+  uint256 private constant ERC20_SLOT = uint256(keccak256("xyz.tenderize.ERC20.storage.location"));
 
   struct ERC20Data {
+    uint256 _totalShares;
     uint256 _totalSupply;
-    mapping(address => uint256) balanceOf;
+    mapping(address => uint256) shares;
     mapping(address => mapping(address => uint256)) allowance;
     mapping(address => uint256) nonces;
   }
