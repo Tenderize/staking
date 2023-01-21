@@ -37,16 +37,12 @@ abstract contract TenderizerImmutableArgs is Clone {
   }
 }
 
-/// @title TenderizerErrors
-/// @notice Errors for Tenderizer
-abstract contract TenderizerErrors {
-
-}
-
 /// @title TenderizerEvents
 /// @notice Events for Tenderizer
 abstract contract TenderizerEvents {
   event Deposit(address indexed sender, address indexed receiver, uint256 assetsIn, uint256 tTokenOut);
+
+  event Rebase(uint256 oldStake, uint256 newStake);
 
   event Unlock(address indexed receiver, uint256 assets, uint256 unlockID);
 

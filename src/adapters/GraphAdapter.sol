@@ -18,6 +18,7 @@ import { IGraphStaking } from "core/adapters/interfaces/IGraph.sol";
 
 contract GraphAdapter is Adapter {
   using SafeTransferLib for ERC20;
+  // TODO: make constants
   IGraphStaking graph;
   ERC20 GRT;
 
@@ -82,7 +83,7 @@ contract GraphAdapter is Adapter {
     return (w.unlocks[unlockID].shares * (w.toUnlock + w.withdrawable + w.unlocked)) / w.totalShares;
   }
 
-  function getTotalStaked(address validator) external view override returns (uint256) {
+  function getTotalStaked(address validator) public view override returns (uint256) {
     IGraphStaking.Delegation memory delegation = graph.getDelegation(validator, address(this));
     IGraphStaking.DelegationPool memory delPool = graph.delegationPools(validator);
 
@@ -95,12 +96,12 @@ contract GraphAdapter is Adapter {
     return (delShares * totalTokens) / totalShares;
   }
 
-  function stake(address validator, uint256 amount) external override {
+  function stake(address validator, uint256 amount) public override {
     GRT.safeApprove(address(graph), amount);
     graph.delegate(validator, amount);
   }
 
-  function unstake(address validator, uint256 amount) external override returns (uint256 unlockID) {
+  function unstake(address validator, uint256 amount) public override returns (uint256 unlockID) {
     Withdrawals storage w = _loadWithdrawalsSlot();
     uint256 shares = (amount * w.totalShares) / (w.toUnlock + w.withdrawable + w.unlocked);
 
@@ -112,7 +113,7 @@ contract GraphAdapter is Adapter {
     _processWithdrawals(validator);
   }
 
-  function withdraw(address validator, uint256 unlockID) external override {
+  function withdraw(address validator, uint256 unlockID) public override {
     _processWithdrawals(validator);
     Withdrawals storage w = _loadWithdrawalsSlot();
     Withdrawal memory withdrawal = w.unlocks[unlockID];
@@ -124,9 +125,13 @@ contract GraphAdapter is Adapter {
     delete w.unlocks[unlockID];
   }
 
-  function claimRewards(address validator) external override {
-    // if negative rewards, update tokens to unlock and unlocked
-    validator;
+  function claimRewards(address validator, uint256 currentStake) public override returns (uint256 newStake) {
+    newStake = getTotalStaked(validator);
+    // if negative rewards, update tokens to unlock
+    if (newStake < currentStake) {
+      Withdrawals storage w = _loadWithdrawalsSlot();
+      w.toUnlock -= (w.toUnlock * newStake) / currentStake;
+    }
   }
 
   function _processWithdrawals(address validator) internal {

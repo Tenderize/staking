@@ -19,8 +19,9 @@ import { ILivepeerBondingManager, ILivepeerRoundsManager } from "core/adapters/i
 import { ISwapRouter } from "core/adapters/interfaces/ISwapRouter.sol";
 import { IWETH9 } from "core/adapters/interfaces/IWETH9.sol";
 
-contract LivepeerAdapter {
+contract LivepeerAdapter is Adapter {
   using SafeTransferLib for ERC20;
+  // TODO: make constants
   ILivepeerBondingManager livepeer;
   ILivepeerRoundsManager livepeerRounds;
   ERC20 LPT;
@@ -72,43 +73,52 @@ contract LivepeerAdapter {
     livepeer.withdrawStake(unlockID);
   }
 
-  function claimRewards(address validator) public {
-    uint256 pendingFees;
-    if ((pendingFees = livepeer.pendingFees(address(this), 0)) != 0) {
-      livepeer.withdrawFees(payable(address(this)), pendingFees);
-      // convert fees to WETH
-      weth.deposit{ value: address(this).balance }();
-      ERC20(address(weth)).safeApprove(address(uniswapRouter), address(this).balance);
-      // Create initial params for swap
-      ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
-        tokenIn: address(weth),
-        tokenOut: address(address(LPT)),
-        fee: UNISWAP_POOL_FEE,
-        recipient: address(this),
-        deadline: block.timestamp,
-        amountIn: address(this).balance,
-        amountOutMinimum: 0,
-        sqrtPriceLimitX96: 0
-      });
+  function claimRewards(address validator, uint256 currentStake) public returns (uint256 newStake) {
+    _livepeerClaimFees();
 
-      // make a static call to see how much LPT would be received
-      (bool success, bytes memory returnData) = address(uniswapRouter).staticcall(
-        abi.encodeWithSelector(uniswapRouter.exactInputSingle.selector, params)
-      );
-
-      if (!success) {
-        // fail silently ?
-      }
-
-      // set return value of staticcall to minimum LPT value to receive from swap
-      params.amountOutMinimum = abi.decode(returnData, (uint256));
-
-      // execute swap
-      uint256 amountOut = uniswapRouter.exactInputSingle(params);
-
-      // should we restake here ?
-      stake(validator, amountOut);
-      // how should we generalise adapter returns here ? int256 rewards ?
+    // restake
+    uint256 amount = LPT.balanceOf(address(this));
+    if (amount != 0) {
+      stake(validator, amount);
     }
+
+    // Read new stake
+    newStake = getTotalStaked(validator);
+  }
+
+  /// @notice function for swapping livepeer fees to LPT
+  function _livepeerClaimFees() internal {
+    // get pending fees
+    uint256 pendingFees;
+    if ((pendingFees = livepeer.pendingFees(address(this), 0)) == 0) return;
+    // withdraw fees
+    livepeer.withdrawFees(payable(address(this)), pendingFees);
+    // convert fees to WETH
+    weth.deposit{ value: address(this).balance }();
+    ERC20(address(weth)).safeApprove(address(uniswapRouter), address(this).balance);
+    // Create initial params for swap
+    ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+      tokenIn: address(weth),
+      tokenOut: address(address(LPT)),
+      fee: UNISWAP_POOL_FEE,
+      recipient: address(this),
+      deadline: block.timestamp,
+      amountIn: address(this).balance,
+      amountOutMinimum: 0,
+      sqrtPriceLimitX96: 0
+    });
+
+    // make a static call to see how much LPT would be received
+    (bool success, bytes memory returnData) = address(uniswapRouter).staticcall(
+      abi.encodeWithSelector(uniswapRouter.exactInputSingle.selector, params)
+    );
+
+    if (!success) return;
+
+    // set return value of staticcall to minimum LPT value to receive from swap
+    params.amountOutMinimum = abi.decode(returnData, (uint256));
+
+    // execute swap
+    uniswapRouter.exactInputSingle(params);
   }
 }

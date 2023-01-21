@@ -26,7 +26,7 @@ interface Adapter {
 
   function withdraw(address validator, uint256 unlockID) external;
 
-  function claimRewards(address validator) external;
+  function claimRewards(address validator, uint256 currentStake) external returns (uint256 newStake);
 }
 
 library AdapterDelegateCall {

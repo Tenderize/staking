@@ -17,21 +17,17 @@ import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 
 import { Adapter, AdapterDelegateCall } from "core/adapters/Adapter.sol";
 import { Router } from "core/router/Router.sol";
-import { TenderizerImmutableArgs, TenderizerErrors, TenderizerEvents, TenderizerStorage } from "core/tenderizer/TenderizerBase.sol";
+import { TenderizerImmutableArgs, TenderizerEvents, TenderizerStorage } from "core/tenderizer/TenderizerBase.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 
-// TODO: Fees
-// Fees MUST update the totalSupply and totalShares when minting
-// TODO: Claim rewards
-// Figure out a good way to handle claiming rewards
-// TODO: Rebase automation
-// Automate claiming rewards, figure out a good solution
+// TODO: Fee parameter: Constant as immutable arg or read from router ?
+// TODO: Rebase automation: rebate to caller turning it into a GDA ?
 
 /// @title Tenderizer
 /// @notice Liquid Staking vault using fixed-point math with full type safety and unstructured storage
 /// @dev Delegates calls to a stateless Adapter contract which is responsible for interacting with a third-party staking protocol
 
-contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerErrors, TenderizerEvents, TToken {
+contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEvents, TToken {
   using AdapterDelegateCall for Adapter;
   using FixedPointMathLib for uint256;
   using SafeTransferLib for ERC20;
@@ -112,6 +108,42 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerErr
     return assets;
   }
 
+  function rebase() public {
+    uint256 currentStake = totalSupply();
+    uint256 newStake = _claimRewards(validator(), currentStake);
+
+    if (newStake > currentStake) {
+      unchecked {
+        uint256 rewards = newStake - currentStake;
+        uint256 fees = _calculateFees(rewards);
+        _setTotalSupply(newStake - fees);
+        // mint fees
+        // TODO: mint to treasury ? How to handle fees ?
+        _mint(address(this), fees);
+      }
+    } else {
+      _setTotalSupply(newStake);
+    }
+
+    // emit rebase event
+    emit Rebase(currentStake, newStake);
+  }
+
+  function _calculateFees(uint256 rewards) internal returns (uint256 fees) {
+    fees = rewards - rewards;
+  }
+
+  function _adapter() internal view returns (Adapter) {
+    return Adapter(Router(_router()).adapter(asset()));
+  }
+
+  function _claimRewards(address validator, uint256 currentStake) internal returns (uint256 newStake) {
+    newStake = abi.decode(
+      _adapter()._delegatecall(abi.encodeWithSelector(_adapter().claimRewards.selector, validator, currentStake)),
+      (uint256)
+    );
+  }
+
   function _stake(address validator, uint256 amount) internal {
     _adapter()._delegatecall(abi.encodeWithSelector(_adapter().stake.selector, validator, amount));
   }
@@ -125,9 +157,5 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerErr
 
   function _withdraw(address validator, uint256 unlockID) internal {
     _adapter()._delegatecall(abi.encodeWithSelector(_adapter().withdraw.selector, validator, unlockID));
-  }
-
-  function _adapter() internal view returns (Adapter) {
-    return Adapter(Router(_router()).adapter(asset()));
   }
 }
