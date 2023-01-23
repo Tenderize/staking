@@ -18,16 +18,13 @@ import { IGraphStaking } from "core/adapters/interfaces/IGraph.sol";
 
 contract GraphAdapter is Adapter {
   using SafeTransferLib for ERC20;
-  // TODO: make constants
-  IGraphStaking graph;
-  ERC20 GRT;
+  IGraphStaking private constant graph = IGraphStaking(address(0));
+  ERC20 private constant GRT = ERC20(address(0));
+  uint256 constant MAX_PPM = 1000000;
+
+  uint256 private constant WITHDRAWALS_SLOT = uint256(keccak256("xyz.tenderize.graph.withdrawals.storage.location"));
 
   error WithdrawPending();
-
-  uint256 private constant WITHDRAWALS_SLOT =
-    uint256(keccak256("xyz.tenderize.graph.withdrawals.storage.location")) - 1;
-
-  uint256 constant MAX_PPM = 1000000;
 
   struct Withdrawal {
     uint256 shares;

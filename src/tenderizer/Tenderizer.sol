@@ -31,6 +31,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
   using AdapterDelegateCall for Adapter;
   using FixedPointMathLib for uint256;
   using SafeTransferLib for ERC20;
+  uint256 constant MAX_FEE = 0.005 ether; // 0.5%
 
   function name() public view override returns (string memory) {
     return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
@@ -129,8 +130,10 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
     emit Rebase(currentStake, newStake);
   }
 
-  function _calculateFees(uint256 rewards) internal returns (uint256 fees) {
-    fees = rewards - rewards;
+  function _calculateFees(uint256 rewards) internal view returns (uint256 fees) {
+    uint256 fee = Router(_router()).fee(asset());
+    fee = fee > MAX_FEE ? MAX_FEE : fee;
+    fees = (rewards * (1 ether - fee)) / 1 ether;
   }
 
   function _adapter() internal view returns (Adapter) {
@@ -150,7 +153,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
 
   function _unstake(address validator, uint256 amount) internal returns (uint256 unlockID) {
     unlockID = abi.decode(
-      _adapter()._delegatecall(abi.encodeWithSelector(_adapter().stake.selector, validator, amount)),
+      _adapter()._delegatecall(abi.encodeWithSelector(_adapter().unstake.selector, validator, amount)),
       (uint256)
     );
   }

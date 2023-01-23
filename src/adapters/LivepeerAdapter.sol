@@ -21,12 +21,11 @@ import { IWETH9 } from "core/adapters/interfaces/IWETH9.sol";
 
 contract LivepeerAdapter is Adapter {
   using SafeTransferLib for ERC20;
-  // TODO: make constants
-  ILivepeerBondingManager livepeer;
-  ILivepeerRoundsManager livepeerRounds;
-  ERC20 LPT;
-  IWETH9 weth;
-  ISwapRouter uniswapRouter;
+  ILivepeerBondingManager private constant livepeer = ILivepeerBondingManager(address(0));
+  ILivepeerRoundsManager private constant livepeerRounds = ILivepeerRoundsManager(address(0));
+  ERC20 private constant LPT = ERC20(address(0));
+  IWETH9 private constant weth = IWETH9(address(0));
+  ISwapRouter private constant uniswapRouter = ISwapRouter(address(0));
   uint24 private constant UNISWAP_POOL_FEE = 10000;
 
   function previewDeposit(uint256 assets) public pure returns (uint256) {
