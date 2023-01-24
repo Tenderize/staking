@@ -25,6 +25,8 @@ abstract contract TToken is TTokenStorage, IERC20 {
   using FixedPointMathLib for uint256;
 
   error ZeroShares();
+  error InvalidSignature();
+  error PermitDeadlineExpired(uint256 expiryTimestamp, uint256 currentTimestamp);
 
   bytes32 private constant PERMIT_TYPEHASH =
     keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
@@ -98,7 +100,11 @@ abstract contract TToken is TTokenStorage, IERC20 {
     return s.allowance[owner][spender];
   }
 
-  function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
+  function transferFrom(
+    address from,
+    address to,
+    uint256 amount
+  ) public virtual returns (bool) {
     ERC20Data storage s = _loadERC20Slot();
     uint256 allowed = s.allowance[from][msg.sender]; // Saves gas for limited approvals.
 
@@ -130,7 +136,7 @@ abstract contract TToken is TTokenStorage, IERC20 {
     bytes32 r,
     bytes32 s
   ) public virtual {
-    require(deadline >= block.timestamp, "PERMIT_DEADLINE_EXPIRED");
+    if (deadline < block.timestamp) revert PermitDeadlineExpired(deadline, block.timestamp);
 
     // Unchecked because the only math done is incrementing
     // the owner's nonce which cannot realistically overflow.
@@ -149,7 +155,7 @@ abstract contract TToken is TTokenStorage, IERC20 {
         s
       );
 
-      require(recoveredAddress != address(0) && recoveredAddress == owner, "INVALID_SIGNER");
+      if (recoveredAddress == address(0) || recoveredAddress != owner) revert InvalidSignature();
 
       _loadERC20Slot().allowance[recoveredAddress][spender] = value;
     }
@@ -213,12 +219,13 @@ abstract contract TToken is TTokenStorage, IERC20 {
     if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
 
     ERC20Data storage s = _loadERC20Slot();
-    s._totalSupply += shares;
+    s._totalSupply += assets;
+    s._totalShares += shares;
 
     // Cannot overflow because the sum of all user
     // balances can't exceed the max uint256 value.
     unchecked {
-      s.shares[to] += convertToShares(shares);
+      s.shares[to] += shares;
     }
   }
 
@@ -227,12 +234,13 @@ abstract contract TToken is TTokenStorage, IERC20 {
     if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
 
     ERC20Data storage s = _loadERC20Slot();
+    s._totalSupply -= assets;
     s.shares[from] -= shares;
 
     // Cannot underflow because a user's balance
     // will never be larger than the total supply.
     unchecked {
-      s._totalSupply -= shares;
+      s._totalShares -= shares;
     }
   }
 }
