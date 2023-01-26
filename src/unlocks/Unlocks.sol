@@ -10,9 +10,11 @@
 // Copyright (c) Tenderize Labs Ltd
 
 import { ERC721 } from "solmate/tokens/ERC721.sol";
+import { ERC20 } from "solmate/tokens/ERC20.sol";
 
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Router } from "core/router/Router.sol";
+import { Base64 } from "./Base64.sol";
 
 pragma solidity 0.8.17;
 
@@ -33,10 +35,12 @@ contract Unlocks is ERC721 {
     router = Router(_router);
   }
 
-  function createUnlock(
-    address receiver,
-    uint256 id
-  ) public virtual isValidTenderizer(msg.sender) returns (uint256 tokenId) {
+  function createUnlock(address receiver, uint256 id)
+    public
+    virtual
+    isValidTenderizer(msg.sender)
+    returns (uint256 tokenId)
+  {
     require(id < 1 << 96);
     tokenId = _encodeTokenId(msg.sender, uint96(id));
     _safeMint(receiver, tokenId);
@@ -50,13 +54,88 @@ contract Unlocks is ERC721 {
   }
 
   function tokenURI(uint256 id) public view virtual override returns (string memory) {
-    // return all parameters DYNAMICALLY (as SVG)
-    // - _getTenderizer
-    // - _getValidator
-    // - _getAsset
-    // - _getAmount
-    // - _getMaturity
-    return "";
+    require(ownerOf(id) != address(0));
+    return
+      string(
+        abi.encodePacked(
+          "data:application/json;base64,",
+          Base64.encode(
+            bytes(
+              abi.encodePacked(
+                '{"name": "TenderLock #',
+                _toString(id),
+                '", "description": "TenderLock from https://tenderize.me represents staked ERC20 tokens during the unbonding period, and thus making them tradable. Owning a TenderLock token makes the owner eligible to claim the tokens at the end of the unbonding period.", "image": "data:image/svg+xml;base64,',
+                _svg(_getAmount(id), _getMaturity(id), id),
+                '",',
+                '"attributes":',
+                _serializeMetadata(id),
+                "}"
+              )
+            )
+          )
+        )
+      );
+  }
+
+  function _svg(
+    uint256 amount,
+    uint256 maturity,
+    uint256 tokenId
+  ) internal view returns (string memory svg) {
+    svg = string(
+      abi.encodePacked(
+        '<svg width="290" height="500" viewBox="0 0 290 500" xmlns="http://www.w3.org/2000/svg"',
+        " xmlns:xlink='http://www.w3.org/1999/xlink'>",
+        Base64.encode(
+          bytes(
+            abi.encodePacked(
+              "<rect width='290px' height='500px' fill='#",
+              "000000",
+              "'/>",
+              "<text x='10' y='20'>",
+              symbol,
+              '</text><text x="10" y="40">',
+              _toString(amount),
+              '</text><text x="10" y="60">',
+              _toString(maturity),
+              '</text><text x="10" y="80">',
+              _toString(tokenId),
+              "</text>",
+              "</svg>"
+            )
+          )
+        )
+      )
+    );
+  }
+
+  function _serializeMetadata(uint256 id) internal view returns (string memory metadataString) {
+    address asset = _getAsset(id);
+    metadataString = string(
+      abi.encodePacked(
+        '{"trait_type"}: "maturity", "value:"',
+        _getMaturity(id),
+        "}",
+        '{"trait_type"}: "amount", "value:"',
+        _getAmount(id),
+        "}",
+        '{"trait_type"}: "asset", "value:"',
+        asset,
+        "}",
+        '{"trait_type"}: "underlyingToken", "value:"',
+        ERC20(asset).name(),
+        "}",
+        '{"trait_type"}: "underlyingSymbol", "value:"',
+        ERC20(asset).symbol(),
+        "}",
+        '{"trait_type"}: "token", "value:"',
+        _getName(id),
+        "}",
+        '{"trait_type"}: "symbol", "value:"',
+        _getSymbol(id),
+        "}"
+      )
+    );
   }
 
   function _getTenderizer(uint256 tokenId) internal view virtual returns (address) {
@@ -88,6 +167,18 @@ contract Unlocks is ERC721 {
     return Tenderizer(tenderizer).asset();
   }
 
+  function _getName(uint256 tokenId) internal view virtual returns (string memory) {
+    (address tenderizer, ) = _decodeTokenId(tokenId);
+
+    return Tenderizer(tenderizer).name();
+  }
+
+  function _getSymbol(uint256 tokenId) internal view virtual returns (string memory) {
+    (address tenderizer, ) = _decodeTokenId(tokenId);
+
+    return Tenderizer(tenderizer).symbol();
+  }
+
   function _isValidTenderizer(address sender) internal view virtual {
     if (router.isTenderizer(sender)) revert NotTenderizer(sender);
   }
@@ -98,5 +189,27 @@ contract Unlocks is ERC721 {
 
   function _decodeTokenId(uint256 tokenId) internal pure virtual returns (address tenderizer, uint96 id) {
     return (address(bytes20(bytes32(tokenId))), uint96(bytes12(bytes32(tokenId) << 160)));
+  }
+
+  function _toString(uint256 value) internal pure returns (string memory) {
+    // Inspired by OraclizeAPI's implementation - MIT licence
+    // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+    if (value == 0) {
+      return "0";
+    }
+    uint256 temp = value;
+    uint256 digits;
+    while (temp != 0) {
+      digits++;
+      temp /= 10;
+    }
+    bytes memory buffer = new bytes(digits);
+    while (value != 0) {
+      digits -= 1;
+      buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+      value /= 10;
+    }
+    return string(buffer);
   }
 }
