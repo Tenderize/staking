@@ -14,7 +14,7 @@ import { ERC20 } from "solmate/tokens/ERC20.sol";
 
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Router } from "core/router/Router.sol";
-import { Base64 } from "./Base64.sol";
+import { Base64 } from "core/unlocks/Base64.sol";
 
 pragma solidity 0.8.17;
 
@@ -180,7 +180,7 @@ contract Unlocks is ERC721 {
   }
 
   function _isValidTenderizer(address sender) internal view virtual {
-    if (router.isTenderizer(sender)) revert NotTenderizer(sender);
+    if (!router.isTenderizer(sender)) revert NotTenderizer(sender);
   }
 
   function _encodeTokenId(address tenderizer, uint96 id) internal pure virtual returns (uint256) {
