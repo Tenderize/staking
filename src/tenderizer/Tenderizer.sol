@@ -118,15 +118,12 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
         uint256 rewards = newStake - currentStake;
         uint256 fees = _calculateFees(rewards);
         _setTotalSupply(newStake - fees);
-        // mint fees
-        // TODO: mint to treasury ? How to handle fees ?
-        _mint(address(this), fees);
+        _mint(Router(_router()).treasury(), fees);
       }
     } else {
       _setTotalSupply(newStake);
     }
 
-    // emit rebase event
     emit Rebase(currentStake, newStake);
   }
 
