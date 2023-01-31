@@ -50,7 +50,7 @@ contract UnlockTest is Test {
 
   function test_useUnlock_Success() public {
     mockIsTenderizer(true);
-    unlocks.createUnlock(receiver, 1);
+    uint256 tokenId = unlocks.createUnlock(receiver, 1);
     uint256 balanceBefore = unlocks.balanceOf(receiver);
 
     unlocks.useUnlock(receiver, 1);
