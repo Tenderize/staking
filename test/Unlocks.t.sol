@@ -21,31 +21,19 @@ contract UnlockTest is Test {
     assertEq(unlocks.symbol(), "TUNL");
   }
 
-  function testCreateUnlock_SuccessReturnsEncodedTokenId() public {
+  function test_createUnlock_Success() public {
+    uint256 balanceBefore = unlocks.balanceOf(receiver);
     mockIsTenderizer(true);
     uint256 tokenId = unlocks.createUnlock(receiver, 1);
     (address tenderizer, uint256 decodedLockIndex) = _decodeTokenId(tokenId);
 
-    assertEq(decodedLockIndex, 1);
-    assertEq(address(uint160(tenderizer)), address(this));
-  }
-
-  function testCreateUnlock_SuccessIncreasesUserBalance() public {
-    uint256 balanceBefore = unlocks.balanceOf(receiver);
-    mockIsTenderizer(true);
-    unlocks.createUnlock(receiver, 1);
-
+    assertEq(decodedLockIndex, 1, "lock index should be 1");
+    assertEq(address(uint160(tenderizer)), address(this), "decoded address should be the test address");
     assertEq(unlocks.balanceOf(receiver), balanceBefore + 1, "user balance should increase by 1");
-  }
-
-  function testCreateUnlock_SuccessSetsTokenOwnership() public {
-    mockIsTenderizer(true);
-    uint256 tokenId = unlocks.createUnlock(receiver, 1);
-
     assertEq(unlocks.ownerOf(tokenId), receiver, "owner should be the receiver");
   }
 
-  function testCreateUnlock_FailureNotATenderizer() public {
+  function test_createUnlock_RevertIf_NotATenderizer() public {
     mockIsTenderizer(false);
 
     // TODO: how to expect specific error events
@@ -53,14 +41,14 @@ contract UnlockTest is Test {
     unlocks.createUnlock(receiver, 1);
   }
 
-  function testCreateUnlock_FailureTooLargeId() public {
+  function test_createUnlock_RevertIf_TooLargeId() public {
     mockIsTenderizer(true);
 
     vm.expectRevert(stdError.arithmeticError);
     unlocks.createUnlock(receiver, type(uint96).max + 1);
   }
 
-  function testUseUnlock_SuccessDecreasesUserBalance() public {
+  function test_useUnlock_Success() public {
     mockIsTenderizer(true);
     unlocks.createUnlock(receiver, 1);
     uint256 balanceBefore = unlocks.balanceOf(receiver);
@@ -68,18 +56,11 @@ contract UnlockTest is Test {
     unlocks.useUnlock(receiver, 1);
 
     assertEq(unlocks.balanceOf(receiver), balanceBefore - 1, "user balance should decrease by 1");
-  }
-
-  function testUseUnlock_SuccessRemovesTokenOwnership() public {
-    mockIsTenderizer(true);
-    uint256 tokenId = unlocks.createUnlock(receiver, 1);
-    unlocks.useUnlock(receiver, 1);
-
     vm.expectRevert("NOT_MINTED");
     unlocks.ownerOf(tokenId);
   }
 
-  function testUseUnlock_FailureNotATenderizer() public {
+  function test_useUnlock_RevertIf_NotATenderizer() public {
     mockIsTenderizer(true);
     unlocks.createUnlock(receiver, 1);
 
@@ -89,7 +70,7 @@ contract UnlockTest is Test {
     unlocks.useUnlock(receiver, 1);
   }
 
-  function testUseUnlock_FailureTooLargeId() public {
+  function test_useUnlock_RevertIf_TooLargeId() public {
     vm.expectRevert(stdError.arithmeticError);
     unlocks.useUnlock(receiver, type(uint96).max + 1);
   }
