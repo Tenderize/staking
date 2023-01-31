@@ -113,21 +113,18 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
     uint256 currentStake = totalSupply();
     uint256 newStake = _claimRewards(validator(), currentStake);
 
-    if (newStake > currentStake) {
-      unchecked {
-        uint256 rewards = newStake - currentStake;
-        uint256 fees = _calculateFees(rewards);
-        _setTotalSupply(newStake - fees);
-        // mint fees
-        // TODO: mint to treasury ? How to handle fees ?
-        _mint(address(this), fees);
-      }
-    } else {
+    // Rebase only if change in stake
+    if (newStake != currentStake) {
       _setTotalSupply(newStake);
+      // mint fees to treasuury if there are rewards
+      if (newStake > currentStake) {
+        uint256 rewards = newStake - currentStake;
+        // TODO: Reading router here and in _calculateFees
+        _mintShares(Router(_router()).treasury(), convertToShares(_calculateFees(rewards)));
+      }
+      // Emit event
+      emit Rebase(currentStake, newStake);
     }
-
-    // emit rebase event
-    emit Rebase(currentStake, newStake);
   }
 
   function _calculateFees(uint256 rewards) internal view returns (uint256 fees) {

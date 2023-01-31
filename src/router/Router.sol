@@ -17,4 +17,6 @@ interface Router {
   function fee(address asset) external view returns (uint256);
 
   function isTenderizer(address tenderizer) external view returns (bool);
+
+  function treasury() external view returns (address);
 }
