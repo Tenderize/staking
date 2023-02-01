@@ -66,7 +66,7 @@ contract Unlocks is ERC721 {
                 '{"name": "TenderLock #',
                 Renderer.toString(id),
                 // solhint-disable-next-line max-line-length
-                '", "description": "TenderLock from https://tenderize.me represents staked ERC20 tokens during the unbonding period, and thus making them tradable. Owning a TenderLock token makes the owner eligible to claim the tokens at the end of the unbonding period.", "image": "data:image/svg+xml;base64,',
+                '", "description": "TenderLock from https://tenderize.me represents ERC20 tokens during the unbonding period, thus making them tradable. Owning a TenderLock token makes the owner eligible to claim the tokens at the end of the unbonding period.", "image": "data:image/svg+xml;base64,',
                 Renderer.svg(_getSymbol(id), _getAmount(id), _getMaturity(id), id),
                 '",',
                 '"attributes":[',
