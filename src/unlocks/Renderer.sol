@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import { Base64 } from "core/unlocks/Base64.sol";
 
-/* solhint-disable quotes */
+// solhint-disable quotes
 
 library Renderer {
   function svg(
@@ -26,11 +26,11 @@ library Renderer {
                 "<text x='10' y='20'>",
                 symbol,
                 '</text><text x="10" y="40">',
-                _toString(amount),
+                toString(amount),
                 '</text><text x="10" y="60">',
-                _toString(maturity),
+                toString(maturity),
                 '</text><text x="10" y="80">',
-                _toString(tokenId),
+                toString(tokenId),
                 "</text>",
                 "</svg>"
               )
@@ -40,7 +40,7 @@ library Renderer {
       );
   }
 
-  function _toString(uint256 value) internal pure returns (string memory) {
+  function toString(uint256 value) internal pure returns (string memory) {
     // Inspired by OraclizeAPI's implementation - MIT licence
     // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
 

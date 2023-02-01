@@ -19,7 +19,7 @@ import { Renderer } from "core/unlocks/Renderer.sol";
 
 pragma solidity 0.8.17;
 
-/* solhint-disable quotes */
+// solhint-disable quotes
 
 contract Unlocks is ERC721 {
   Router private immutable router;
@@ -64,14 +64,14 @@ contract Unlocks is ERC721 {
             bytes(
               abi.encodePacked(
                 '{"name": "TenderLock #',
-                id,
+                Renderer.toString(id),
                 // solhint-disable-next-line max-line-length
                 '", "description": "TenderLock from https://tenderize.me represents staked ERC20 tokens during the unbonding period, and thus making them tradable. Owning a TenderLock token makes the owner eligible to claim the tokens at the end of the unbonding period.", "image": "data:image/svg+xml;base64,',
                 Renderer.svg(_getSymbol(id), _getAmount(id), _getMaturity(id), id),
                 '",',
-                '"attributes":',
+                '"attributes":[',
                 _serializeMetadata(id),
-                "}"
+                "]}"
               )
             )
           )
@@ -83,27 +83,24 @@ contract Unlocks is ERC721 {
     address asset = _getAsset(id);
     metadataString = string(
       abi.encodePacked(
-        '{"trait_type"}: "maturity", "value:"',
-        _getMaturity(id),
-        "}",
-        '{"trait_type"}: "amount", "value:"',
-        _getAmount(id),
-        "}",
-        '{"trait_type"}: "asset", "value:"',
-        asset,
-        "}",
-        '{"trait_type"}: "underlyingToken", "value:"',
+        '{"trait_type": "maturity", "value":',
+        Renderer.toString(_getMaturity(id)),
+        "},",
+        '{"trait_type": "amount", "value":',
+        Renderer.toString(_getAmount(id)),
+        "},",
+        '{"trait_type": "underlyingToken", "value":"',
         ERC20(asset).name(),
-        "}",
-        '{"trait_type"}: "underlyingSymbol", "value:"',
+        '"},',
+        '{"trait_type": "underlyingSymbol", "value":"',
         ERC20(asset).symbol(),
-        "}",
-        '{"trait_type"}: "token", "value:"',
+        '"},',
+        '{"trait_type": "token", "value":"',
         _getName(id),
-        "}",
-        '{"trait_type"}: "symbol", "value:"',
+        '"},',
+        '{"trait_type": "symbol", "value":"',
         _getSymbol(id),
-        "}"
+        '"}'
       )
     );
   }
