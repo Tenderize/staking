@@ -14,8 +14,9 @@ import { ERC20 } from "solmate/tokens/ERC20.sol";
 
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Router } from "core/router/Router.sol";
-import { Base64 } from "core/unlocks/Base64.sol";
-import { Renderer } from "core/unlocks/Renderer.sol";
+import { Base64 } from "openzeppelin/utils/Base64.sol";
+import { Renderer, RendererData } from "core/unlocks/Renderer.sol";
+import "forge-std/console2.sol";
 
 pragma solidity 0.8.17;
 
@@ -23,6 +24,7 @@ pragma solidity 0.8.17;
 
 contract Unlocks is ERC721 {
   Router private immutable router;
+  Renderer private immutable renderer;
 
   error NotOwnerOf(uint256 id, address owner, address sender);
   error NotTenderizer(address sender);
@@ -32,8 +34,9 @@ contract Unlocks is ERC721 {
     _;
   }
 
-  constructor(address _router) ERC721("Tenderize Unlocks", "TUNL") {
+  constructor(address _router, address _renderer) ERC721("Tenderize Unlocks", "TUNL") {
     router = Router(_router);
+    renderer = Renderer(_renderer);
   }
 
   function createUnlock(address receiver, uint256 id)
@@ -56,53 +59,20 @@ contract Unlocks is ERC721 {
 
   function tokenURI(uint256 id) public view virtual override returns (string memory) {
     require(ownerOf(id) != address(0));
-    return
-      string(
-        abi.encodePacked(
-          "data:application/json;base64,",
-          Base64.encode(
-            bytes(
-              abi.encodePacked(
-                '{"name": "TenderLock #',
-                Renderer.toString(id),
-                // solhint-disable-next-line max-line-length
-                '", "description": "TenderLock from https://tenderize.me represents ERC20 tokens during the unbonding period, thus making them tradable. Owning a TenderLock token makes the owner eligible to claim the tokens at the end of the unbonding period.", "image": "data:image/svg+xml;base64,',
-                Renderer.svg(_getSymbol(id), _getAmount(id), _getMaturity(id), id),
-                '",',
-                '"attributes":[',
-                _serializeMetadata(id),
-                "]}"
-              )
-            )
-          )
-        )
-      );
-  }
-
-  function _serializeMetadata(uint256 id) internal view returns (string memory metadataString) {
     address asset = _getAsset(id);
-    metadataString = string(
-      abi.encodePacked(
-        '{"trait_type": "maturity", "value":',
-        Renderer.toString(_getMaturity(id)),
-        "},",
-        '{"trait_type": "amount", "value":',
-        Renderer.toString(_getAmount(id)),
-        "},",
-        '{"trait_type": "underlyingToken", "value":"',
-        ERC20(asset).name(),
-        '"},',
-        '{"trait_type": "underlyingSymbol", "value":"',
-        ERC20(asset).symbol(),
-        '"},',
-        '{"trait_type": "token", "value":"',
-        _getName(id),
-        '"},',
-        '{"trait_type": "symbol", "value":"',
-        _getSymbol(id),
-        '"}'
-      )
-    );
+
+    return
+      renderer.json(
+        RendererData({
+          amount: _getAmount(id),
+          maturity: _getMaturity(id),
+          tokenId: id,
+          symbol: _getSymbol(id),
+          name: _getName(id),
+          underlyingSymbol: ERC20(asset).symbol(),
+          underlyingName: ERC20(asset).name()
+        })
+      );
   }
 
   function _getTenderizer(uint256 tokenId) internal view virtual returns (address) {
