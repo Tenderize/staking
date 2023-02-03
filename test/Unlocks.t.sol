@@ -17,6 +17,7 @@ contract UnlockTest is Test {
   address private asset = vm.addr(2);
   address private router = vm.addr(3);
   address private renderer = vm.addr(4);
+  address private impostor = vm.addr(5);
 
   function setUp() public {
     unlocks = new Unlocks(router, renderer);
@@ -97,16 +98,28 @@ contract UnlockTest is Test {
 
     assertEq(unlocks.balanceOf(receiver), balanceBefore - 1, "user balance should decrease by 1");
     vm.expectRevert("NOT_MINTED");
+
     unlocks.ownerOf(tokenId);
   }
 
   function test_useUnlock_RevertIf_NotATenderizer() public {
+    uint256 lockId = 1;
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
-    unlocks.createUnlock(receiver, 1);
+    unlocks.createUnlock(receiver, lockId);
 
     vm.expectRevert(abi.encodeWithSelector(Unlocks.NotTenderizer.selector, address(this)));
+
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(false));
-    unlocks.useUnlock(receiver, 1);
+    unlocks.useUnlock(receiver, lockId);
+  }
+
+  function test_useUnlock_RevertIf_NotOwnerOf() public {
+    uint256 lockId = 1;
+    vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
+    unlocks.createUnlock(receiver, lockId);
+
+    vm.expectRevert(abi.encodeWithSelector(Unlocks.NotOwnerOf.selector, lockId, receiver, impostor));
+    unlocks.useUnlock(impostor, lockId);
   }
 
   function test_useUnlock_RevertIf_TooLargeId() public {

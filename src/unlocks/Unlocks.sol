@@ -16,7 +16,6 @@ import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Router } from "core/router/Router.sol";
 import { Base64 } from "openzeppelin/utils/Base64.sol";
 import { Renderer, RendererData } from "core/unlocks/Renderer.sol";
-import "forge-std/console2.sol";
 
 pragma solidity 0.8.17;
 
