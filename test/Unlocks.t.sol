@@ -198,6 +198,6 @@ contract UnlockTest is Test {
   }
 
   function _isContract(address addr) internal view returns (bool) {
-    return addr.code.length > 0;
+    return addr.code.length != 0;
   }
 }
