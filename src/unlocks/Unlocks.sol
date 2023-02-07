@@ -14,7 +14,6 @@ import { ERC20 } from "solmate/tokens/ERC20.sol";
 
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Router } from "core/router/Router.sol";
-import { Base64 } from "openzeppelin/utils/Base64.sol";
 import { Renderer } from "core/unlocks/Renderer.sol";
 
 pragma solidity 0.8.17;
