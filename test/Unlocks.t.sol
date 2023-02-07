@@ -2,12 +2,12 @@
 pragma solidity 0.8.17;
 
 import { Unlocks } from "core/unlocks/Unlocks.sol";
-import { Renderer, RendererData } from "core/unlocks/Renderer.sol";
+import { Renderer } from "core/unlocks/Renderer.sol";
 import { Router } from "core/router/Router.sol";
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { IERC20Metadata } from "core/interfaces/IERC20.sol";
 import { TenderizerImmutableArgs } from "core/tenderizer/TenderizerBase.sol";
-
+import "forge-std/console2.sol";
 import "forge-std/Test.sol";
 
 // solhint-disable func-name-mixedcase
@@ -28,31 +28,18 @@ contract UnlockTest is Test {
     assertEq(unlocks.symbol(), "TUNL");
   }
 
-  function test_createUnlock_Success() public {
-    uint256 unlockId = 1;
-    uint256 balanceBefore = unlocks.balanceOf(receiver);
-    vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
-
-    uint256 tokenId = unlocks.createUnlock(receiver, unlockId);
-
-    (address tenderizer, uint256 decodedLockIndex) = _decodeTokenId(tokenId);
-    assertEq(decodedLockIndex, unlockId, "lock index should be 1");
-    assertEq(address(uint160(tenderizer)), address(this), "decoded address should be the test address");
-    assertEq(unlocks.balanceOf(receiver), balanceBefore + 1, "user balance should increase by 1");
-    assertEq(unlocks.ownerOf(tokenId), receiver, "owner should be the receiver");
-  }
-
   function testFuzz_createUnlock_Success(address receiver, uint256 lockId) public {
+    lockId = bound(lockId, 0, type(uint96).max);
     vm.assume(receiver != address(0));
     vm.assume(receiver != router);
     vm.assume(!_isContract(receiver));
-    vm.assume(lockId < 1 << 96);
     uint256 balanceBefore = unlocks.balanceOf(receiver);
+
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
     uint256 tokenId = unlocks.createUnlock(receiver, lockId);
-    (address tenderizer, uint256 decodedLockIndex) = _decodeTokenId(tokenId);
 
-    assertEq(decodedLockIndex, lockId, "lock index should be 1");
+    (address tenderizer, uint256 decodedLockIndex) = _decodeTokenId(tokenId);
+    assertEq(decodedLockIndex, lockId);
     assertEq(address(uint160(tenderizer)), address(this), "decoded address should be the test address");
     assertEq(unlocks.balanceOf(receiver), balanceBefore + 1, "user balance should increase by 1");
     assertEq(unlocks.ownerOf(tokenId), receiver, "owner should be the receiver");
@@ -72,24 +59,11 @@ contract UnlockTest is Test {
     unlocks.createUnlock(receiver, type(uint96).max + 1);
   }
 
-  function test_useUnlock_Success() public {
-    uint256 lockId = 1;
-    vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
-    uint256 tokenId = unlocks.createUnlock(receiver, lockId);
-    uint256 balanceBefore = unlocks.balanceOf(receiver);
-
-    unlocks.useUnlock(receiver, lockId);
-
-    assertEq(unlocks.balanceOf(receiver), balanceBefore - 1, "user balance should decrease by 1");
-    vm.expectRevert("NOT_MINTED");
-    unlocks.ownerOf(tokenId);
-  }
-
   function testFuzz_useUnlock_Success(address receiver, uint256 lockId) public {
+    lockId = bound(lockId, 0, type(uint96).max);
     vm.assume(receiver != address(0));
     vm.assume(receiver != router);
     vm.assume(!_isContract(receiver));
-    vm.assume(lockId < 1 << 96);
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
     uint256 tokenId = unlocks.createUnlock(receiver, lockId);
     uint256 balanceBefore = unlocks.balanceOf(receiver);
@@ -141,7 +115,7 @@ contract UnlockTest is Test {
       renderer,
       abi.encodeWithSelector(Renderer.json.selector),
       abi.encode(
-        RendererData({
+        Renderer.Data({
           amount: 100,
           maturity: 1000,
           tokenId: _encodeTokenId(address(this), uint96(lockId)),
@@ -168,7 +142,7 @@ contract UnlockTest is Test {
       abi.encodeCall(
         Renderer.json,
         (
-          RendererData({
+          Renderer.Data({
             amount: 100,
             maturity: 1000,
             tokenId: _encodeTokenId(address(this), uint96(lockId)),
@@ -184,7 +158,7 @@ contract UnlockTest is Test {
   }
 
   function test_tokenURI_RevertIf_IdDoesntExist() public {
-    vm.expectRevert("NOT_MINTED");
+    vm.expectRevert("non-existent token");
     unlocks.tokenURI(1);
   }
 

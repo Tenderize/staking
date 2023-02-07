@@ -15,7 +15,7 @@ import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Router } from "core/router/Router.sol";
 import { Base64 } from "openzeppelin/utils/Base64.sol";
-import { Renderer, RendererData } from "core/unlocks/Renderer.sol";
+import { Renderer } from "core/unlocks/Renderer.sol";
 
 pragma solidity 0.8.17;
 
@@ -57,12 +57,12 @@ contract Unlocks is ERC721 {
   }
 
   function tokenURI(uint256 id) public view virtual override returns (string memory) {
-    require(ownerOf(id) != address(0));
+    require(_ownerOf[id] != address(0), "non-existent token");
     address asset = _getAsset(id);
 
     return
       renderer.json(
-        RendererData({
+        Renderer.Data({
           amount: _getAmount(id),
           maturity: _getMaturity(id),
           tokenId: id,

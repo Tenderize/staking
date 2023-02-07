@@ -5,18 +5,18 @@ import { Base64 } from "openzeppelin/utils/Base64.sol";
 
 // solhint-disable quotes
 
-struct RendererData {
-  uint256 amount;
-  uint256 maturity;
-  uint256 tokenId;
-  string symbol;
-  string name;
-  string underlyingSymbol;
-  string underlyingName;
-}
-
 contract Renderer {
-  function json(RendererData memory data) external pure returns (string memory) {
+  struct Data {
+    uint256 amount;
+    uint256 maturity;
+    uint256 tokenId;
+    string symbol;
+    string name;
+    string underlyingSymbol;
+    string underlyingName;
+  }
+
+  function json(Data memory data) external pure returns (string memory) {
     return
       string(
         abi.encodePacked(
@@ -37,7 +37,7 @@ contract Renderer {
       );
   }
 
-  function _serializeMetadata(RendererData memory data) internal pure returns (string memory metadataString) {
+  function _serializeMetadata(Data memory data) internal pure returns (string memory metadataString) {
     metadataString = string(
       abi.encodePacked(
         '{"trait_type": "maturity", "value":',
@@ -62,7 +62,7 @@ contract Renderer {
     );
   }
 
-  function svg(RendererData memory data) internal pure returns (string memory) {
+  function svg(Data memory data) internal pure returns (string memory) {
     return
       string(
         abi.encodePacked(
