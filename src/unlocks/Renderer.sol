@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { Base64 } from "openzeppelin/utils/Base64.sol";
+import { Base64 } from "openzeppelin-contracts/utils/Base64.sol";
+import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { OwnableUpgradeable } from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 // solhint-disable quotes
 
-contract Renderer {
+contract Renderer is Initializable, UUPSUpgradeable, OwnableUpgradeable {
   struct Data {
     uint256 amount;
     uint256 maturity;
@@ -14,6 +17,15 @@ contract Renderer {
     string name;
     string underlyingSymbol;
     string underlyingName;
+  }
+
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  function initialize() public initializer {
+    __Ownable_init();
   }
 
   function json(Data memory data) external pure returns (string memory) {
@@ -41,10 +53,10 @@ contract Renderer {
     metadataString = string(
       abi.encodePacked(
         '{"trait_type": "maturity", "value":',
-        toString(data.maturity),
+        _toString(data.maturity),
         "},",
         '{"trait_type": "amount", "value":',
-        toString(data.amount),
+        _toString(data.amount),
         "},",
         '{"trait_type": "underlyingToken", "value":"',
         data.underlyingName,
@@ -76,11 +88,11 @@ contract Renderer {
               "<text x='10' y='20'>",
               data.symbol,
               '</text><text x="10" y="40">',
-              toString(data.amount),
+              _toString(data.amount),
               '</text><text x="10" y="60">',
-              toString(data.maturity),
+              _toString(data.maturity),
               '</text><text x="10" y="80">',
-              toString(data.tokenId),
+              _toString(data.tokenId),
               "</text>",
               "</svg>"
             )
@@ -89,7 +101,10 @@ contract Renderer {
       );
   }
 
-  function toString(uint256 value) internal pure returns (string memory) {
+  ///@dev required by the OZ UUPS module
+  function _authorizeUpgrade(address) internal override onlyOwner {}
+
+  function _toString(uint256 value) internal pure returns (string memory) {
     // Inspired by OraclizeAPI's implementation - MIT licence
     // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
 
