@@ -8,7 +8,7 @@ import { OwnableUpgradeable } from "openzeppelin-contracts-upgradeable/access/Ow
 import { ClonesUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/ClonesUpgradeable.sol";
 import { Unlocks } from "core/unlocks/Unlocks.sol";
 import { Renderer } from "core/unlocks/Renderer.sol";
-import { Base64 } from "core-test/utils/Base64.sol";
+import { Base64 } from "test/utils/Base64.sol";
 import "forge-std/console2.sol";
 import "forge-std/Test.sol";
 
