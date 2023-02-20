@@ -22,20 +22,39 @@ import { TestHelpers } from "test/helpers/Helpers.sol";
 // solhint-disable var-name-mixedcase
 // solhint-disable no-empty-blocks
 
-contract Handler is TToken, Test, TestHelpers {
+contract TestTToken is TToken {
+  function name() public view override returns (string memory) {}
+
+  function symbol() public view override returns (string memory) {}
+
+  function burn(address from, uint256 amount) public {
+    _burn(from, amount);
+  }
+
+  function mint(address to, uint256 amount) public {
+    _mint(to, amount);
+  }
+}
+
+contract Handler is Test, TestHelpers {
   using LibAddressSet for AddressSet;
 
+  TestTToken public ttoken;
   uint256 public ghost_mintedSum;
   uint256 public ghost_burnedSum;
   uint256 public MAX_INT_SQRT = sqrt(type(uint256).max - 1);
-  uint256 public ghost_circulatingSupply = MAX_INT_SQRT;
+  uint256 public ghost_notTenderizedSupply = MAX_INT_SQRT;
 
   AddressSet internal _actors;
   address internal currentActor;
+  mapping(bytes32 => uint256) public calls;
 
-  modifier createActor() {
-    currentActor = msg.sender;
-    _actors.add(msg.sender);
+  constructor(TestTToken _ttoken) {
+    ttoken = _ttoken;
+  }
+
+  modifier countCall(bytes32 key) {
+    calls[key]++;
     _;
   }
 
@@ -44,76 +63,80 @@ contract Handler is TToken, Test, TestHelpers {
     _;
   }
 
-  // mapping(bytes32 => uint256) public calls;
-
-  // modifier countCall(bytes32 key) {
-  //   calls[key]++;
-  //   _;
-  // }
-
-  // function callSummary() public view {
-  //   console2.log("Call summary:");
-  //   console2.log("-------------------");
-  //   console2.log("mint", calls["mint"]);
-  //   console2.log("burn", calls["burn"]);
-  // }
-
-  function mint(uint256 amount) public {
-    // vm.assume(amount != 0);
-    // vm.assume(amount < ghost_underlyingSupply);
-    if (ghost_circulatingSupply < 1) {
-      return;
-    }
+  function createActor() public {
     currentActor = msg.sender;
     _actors.add(msg.sender);
-
-    amount = bound(amount, 1, ghost_circulatingSupply);
-    ghost_circulatingSupply -= amount;
-    ghost_mintedSum += amount;
-    vm.prank(currentActor);
-    _mint(currentActor, amount);
   }
 
-  function burn(uint256 actorSeed, uint256 amount) public useActor(actorSeed) {
-    if (!_actors.contains(currentActor)) {
+  function callSummary() public view {
+    console2.log("Call summary:");
+    console2.log("-------------------");
+    console2.log("mint", calls["mint"]);
+    console2.log("burn", calls["burn"]);
+    console2.log("burn", calls["transfer"]);
+  }
+
+  function mint(uint256 amount) public countCall("mint") {
+    if (ghost_notTenderizedSupply == 0) {
       return;
     }
-    console2.log("contains", _actors.contains(currentActor));
-    console2.log("address", currentActor);
-    console2.log("balanceOf", balanceOf(currentActor));
-    amount = bound(amount, 1, balanceOf(currentActor));
+    createActor();
 
-    ghost_burnedSum += amount;
-    ghost_circulatingSupply += amount;
-    vm.prank(currentActor);
-    _burn(currentActor, amount);
+    amount = bound(amount, 1, ghost_notTenderizedSupply);
+    ghost_notTenderizedSupply -= amount;
+    ghost_mintedSum += amount;
+    ttoken.mint(currentActor, amount);
   }
 
-  function name() public view override returns (string memory) {}
+  function transfer(
+    uint256 actorSeed,
+    address to,
+    uint256 amount
+  ) public useActor(actorSeed) countCall("transfer") {
+    if (ttoken.balanceOf(currentActor) == 0) {
+      return;
+    }
+    amount = bound(amount, 1, ttoken.balanceOf(currentActor));
 
-  function symbol() public view override returns (string memory) {}
+    vm.startPrank(currentActor);
+    ttoken.transfer(to, amount);
+    vm.stopPrank();
+  }
+
+  function burn(uint256 actorSeed, uint256 amount) public useActor(actorSeed) countCall("burn") {
+    if (ttoken.balanceOf(currentActor) == 0) {
+      return;
+    }
+    amount = bound(amount, 1, ttoken.balanceOf(currentActor));
+
+    ghost_burnedSum += amount;
+    ghost_notTenderizedSupply += amount;
+    ttoken.burn(currentActor, amount);
+  }
 }
 
 contract TTokenInvariants is Test {
-  Handler handler;
+  Handler public handler;
+  TestTToken public ttoken;
 
   function setUp() public {
-    handler = new Handler();
+    ttoken = new TestTToken();
+    handler = new Handler(ttoken);
 
-    bytes4[] memory selectors = new bytes4[](2);
+    bytes4[] memory selectors = new bytes4[](3);
     selectors[0] = Handler.mint.selector;
     selectors[1] = Handler.burn.selector;
+    selectors[2] = Handler.transfer.selector;
 
     targetSelector(FuzzSelector({ addr: address(handler), selectors: selectors }));
     targetContract(address(handler));
   }
 
   function invariant_totalSupply() public {
-    console2.log(handler.ghost_burnedSum());
-    assertEq(handler.totalSupply(), handler.ghost_mintedSum() - handler.ghost_burnedSum());
+    assertEq(ttoken.totalSupply(), handler.ghost_mintedSum() - handler.ghost_burnedSum());
   }
 
-  // function invariant_callSummary() public view {
-  //   handler.callSummary();
-  // }
+  function invariant_callSummary() public view {
+    handler.callSummary();
+  }
 }
