@@ -6,8 +6,13 @@ import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/In
 import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { OwnableUpgradeable } from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ClonesUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/ClonesUpgradeable.sol";
+import { Unlocks } from "core/unlocks/Unlocks.sol";
 import { Renderer } from "core/unlocks/Renderer.sol";
+import { Base64 } from "core-test/utils/Base64.sol";
+import "forge-std/console2.sol";
 import "forge-std/Test.sol";
+
+// solhint-disable quotes
 
 contract RendererV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -19,7 +24,7 @@ contract RendererV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     __Ownable_init();
   }
 
-  function json(Renderer.Data memory data) external view returns (string memory) {
+  function json(uint256 id) external view returns (string memory) {
     return "test json response";
   }
 
@@ -110,7 +115,7 @@ contract RendererTest is Test {
   }
 
   function test_V1Json() public {
-    string memory json = RendererV1(address(proxy)).json(getTestData(tenderizer, 1));
+    string memory json = RendererV1(address(proxy)).json(1);
     assertEq(json, "test json response");
   }
 
@@ -119,24 +124,39 @@ contract RendererTest is Test {
     Renderer rendererV2 = new Renderer();
     RendererV1(address(proxy)).upgradeTo(address(rendererV2));
     vm.stopPrank();
-    string memory json = RendererV1(address(proxy)).json(getTestData(tenderizer, 1));
+    string memory data = Renderer(address(proxy)).json(1);
+    string memory encodedJson = substring(data, 29, bytes(data).length);
+
     assertEq(
-      json,
-      // solhint-disable max-line-length
-      "data:application/json;base64,eyJuYW1lIjogIlRlbmRlckxvY2siLCAiZGVzY3JpcHRpb24iOiAiVGVuZGVyTG9jayBmcm9tIGh0dHBzOi8vdGVuZGVyaXplLm1lIHJlcHJlc2VudHMgRVJDMjAgdG9rZW5zIGR1cmluZyB0aGUgdW5ib25kaW5nIHBlcmlvZCwgdGh1cyBtYWtpbmcgdGhlbSB0cmFkYWJsZS4gT3duaW5nIGEgVGVuZGVyTG9jayB0b2tlbiBtYWtlcyB0aGUgb3duZXIgZWxpZ2libGUgdG8gY2xhaW0gdGhlIHRva2VucyBhdCB0aGUgZW5kIG9mIHRoZSB1bmJvbmRpbmcgcGVyaW9kLiIsICJpbWFnZSI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LDxzdmcgd2lkdGg9IjI5MCIgaGVpZ2h0PSI1MDAiIHZpZXdCb3g9IjAgMCAyOTAgNTAwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJz5QSEpsWTNRZ2QybGtkR2c5SnpJNU1IQjRKeUJvWldsbmFIUTlKelV3TUhCNEp5Qm1hV3hzUFNjak1EQXdNREF3Snk4K1BIUmxlSFFnZUQwbk1UQW5JSGs5SnpJd0p6NTBSMUpVUEM5MFpYaDBQangwWlhoMElIZzlJakV3SWlCNVBTSTBNQ0krTVRBd1BDOTBaWGgwUGp4MFpYaDBJSGc5SWpFd0lpQjVQU0kyTUNJK01UQXdNRHd2ZEdWNGRENDhkR1Y0ZENCNFBTSXhNQ0lnZVQwaU9EQWlQalEzTURjMU56TXlNak13TnpNM05EVTFNak01TmpnME1EVTRNRE14TlRJNU5EQXpOemt4TWpJNE1EYzROemMzTlRreU16RTNPRGMwT0RjNU16ZzNNalF6TWpreU5qVTFOakUyTURBeFBDOTBaWGgwUGp3dmMzWm5QZz09IiwiYXR0cmlidXRlcyI6W3sidHJhaXRfdHlwZSI6ICJtYXR1cml0eSIsICJ2YWx1ZSI6MTAwMH0seyJ0cmFpdF90eXBlIjogImFtb3VudCIsICJ2YWx1ZSI6MTAwfSx7InRyYWl0X3R5cGUiOiAidW5kZXJseWluZ1Rva2VuIiwgInZhbHVlIjoiR3JhcGgifSx7InRyYWl0X3R5cGUiOiAidW5kZXJseWluZ1N5bWJvbCIsICJ2YWx1ZSI6IkdSVCJ9LHsidHJhaXRfdHlwZSI6ICJ0b2tlbiIsICJ2YWx1ZSI6InRlbmRlciBHUlQifSx7InRyYWl0X3R5cGUiOiAic3ltYm9sIiwgInZhbHVlIjoidEdSVCJ9XX0="
+      string(Base64.decode(encodedJson)),
+      // solhint-disable-next-line max-line-length
+      '{"name": "TenderLock", "description": "TenderLock from https://tenderize.me represents ERC20 tokens during the unbonding period, thus making them tradable. Owning a TenderLock token makes the owner eligible to claim the tokens at the end of the unbonding period.", "image": "data:image/svg+xml;base64,<svg width="290" height="500" viewBox="0 0 290 500" xmlns="http://www.w3.org/2000/svg" xmlns:xlink=\'http://www.w3.org/1999/xlink\'>PHJlY3Qgd2lkdGg9JzI5MHB4JyBoZWlnaHQ9JzUwMHB4JyBmaWxsPScjMDAwMDAwJy8+PHRleHQgeD0nMTAnIHk9JzIwJz50R1JUPC90ZXh0Pjx0ZXh0IHg9IjEwIiB5PSI0MCI+MTAwPC90ZXh0Pjx0ZXh0IHg9IjEwIiB5PSI2MCI+MTAwMDwvdGV4dD48dGV4dCB4PSIxMCIgeT0iODAiPjE8L3RleHQ+PC9zdmc+","attributes":[{"trait_type": "maturity", "value":1000},{"trait_type": "amount", "value":100},{"trait_type": "underlyingToken", "value":"Graph"},{"trait_type": "underlyingSymbol", "value":"GRT"},{"trait_type": "token", "value":"tender GRT"},{"trait_type": "symbol", "value":"tGRT"}]}'
     );
   }
 
-  function getTestData(address _tenderizer, uint96 id) internal view virtual returns (Renderer.Data memory data) {
+  function getMetadata(uint256 id) public view virtual returns (Unlocks.Metadata memory data) {
     return
-      Renderer.Data({
+      Unlocks.Metadata({
         amount: 100,
         maturity: 1000,
-        tokenId: uint256(bytes32(abi.encodePacked(_tenderizer, id))),
+        tokenId: id,
         symbol: "tGRT",
         name: "tender GRT",
         underlyingSymbol: "GRT",
         underlyingName: "Graph"
       });
+  }
+
+  function substring(
+    string memory str,
+    uint256 startIndex,
+    uint256 endIndex
+  ) public pure returns (string memory) {
+    bytes memory strBytes = bytes(str);
+    bytes memory result = new bytes(endIndex - startIndex);
+    for (uint256 i = startIndex; i < endIndex; i++) {
+      result[i - startIndex] = strBytes[i];
+    }
+    return string(result);
   }
 }

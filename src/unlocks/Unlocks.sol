@@ -21,6 +21,16 @@ pragma solidity 0.8.17;
 // solhint-disable quotes
 
 contract Unlocks is ERC721 {
+  struct Metadata {
+    uint256 amount;
+    uint256 maturity;
+    uint256 tokenId;
+    string symbol;
+    string name;
+    string underlyingSymbol;
+    string underlyingName;
+  }
+
   Router private immutable router;
   Renderer private immutable renderer;
 
@@ -57,20 +67,22 @@ contract Unlocks is ERC721 {
 
   function tokenURI(uint256 id) public view virtual override returns (string memory) {
     require(_ownerOf[id] != address(0), "non-existent token");
+    return renderer.json(id);
+  }
+
+  function getMetadata(uint256 id) public view returns (Metadata memory metadata) {
     address asset = _getAsset(id);
 
     return
-      renderer.json(
-        Renderer.Data({
-          amount: _getAmount(id),
-          maturity: _getMaturity(id),
-          tokenId: id,
-          symbol: _getSymbol(id),
-          name: _getName(id),
-          underlyingSymbol: ERC20(asset).symbol(),
-          underlyingName: ERC20(asset).name()
-        })
-      );
+      Metadata({
+        amount: _getAmount(id),
+        maturity: _getMaturity(id),
+        tokenId: id,
+        symbol: _getSymbol(id),
+        name: _getName(id),
+        underlyingSymbol: ERC20(asset).symbol(),
+        underlyingName: ERC20(asset).name()
+      });
   }
 
   function _getTenderizer(uint256 tokenId) internal view virtual returns (address) {

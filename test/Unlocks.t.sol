@@ -30,9 +30,7 @@ contract UnlockTest is Test {
 
   function testFuzz_createUnlock_Success(address receiver, uint256 lockId) public {
     lockId = bound(lockId, 0, type(uint96).max);
-    vm.assume(receiver != address(0));
-    vm.assume(receiver != router);
-    vm.assume(!_isContract(receiver));
+    vm.assume(receiver != address(0) && receiver != router && !_isContract(receiver));
     uint256 balanceBefore = unlocks.balanceOf(receiver);
 
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
@@ -61,9 +59,7 @@ contract UnlockTest is Test {
 
   function testFuzz_useUnlock_Success(address receiver, uint256 lockId) public {
     lockId = bound(lockId, 0, type(uint96).max);
-    vm.assume(receiver != address(0));
-    vm.assume(receiver != router);
-    vm.assume(!_isContract(receiver));
+    vm.assume(receiver != address(0) && receiver != router && !_isContract(receiver));
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
     uint256 tokenId = unlocks.createUnlock(receiver, lockId);
     uint256 balanceBefore = unlocks.balanceOf(receiver);
@@ -115,7 +111,7 @@ contract UnlockTest is Test {
       renderer,
       abi.encodeWithSelector(Renderer.json.selector),
       abi.encode(
-        Renderer.Data({
+        Unlocks.Metadata({
           amount: 100,
           maturity: 1000,
           tokenId: _encodeTokenId(address(this), uint96(lockId)),
@@ -128,32 +124,7 @@ contract UnlockTest is Test {
     );
     uint256 tokenId = unlocks.createUnlock(receiver, lockId);
 
-    (, uint256 decodedLockIndex) = _decodeTokenId(tokenId);
-
-    vm.expectCall(address(this), abi.encodeCall(Tenderizer.symbol, ()));
-    vm.expectCall(address(this), abi.encodeCall(Tenderizer.previewWithdraw, (decodedLockIndex)));
-    vm.expectCall(address(this), abi.encodeCall(Tenderizer.unlockMaturity, (decodedLockIndex)));
-    vm.expectCall(address(this), abi.encodeCall(Tenderizer.name, ()));
-    vm.expectCall(address(this), abi.encodeCall(TenderizerImmutableArgs.asset, ()));
-    vm.expectCall(asset, abi.encodeCall(IERC20Metadata.name, ()));
-    vm.expectCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()));
-    vm.expectCall(
-      renderer,
-      abi.encodeCall(
-        Renderer.json,
-        (
-          Renderer.Data({
-            amount: 100,
-            maturity: 1000,
-            tokenId: _encodeTokenId(address(this), uint96(lockId)),
-            symbol: "tGRT",
-            name: "tender GRT",
-            underlyingSymbol: "GRT",
-            underlyingName: "Graph"
-          })
-        )
-      )
-    );
+    vm.expectCall(renderer, abi.encodeCall(Renderer.json, (tokenId)));
     unlocks.tokenURI(tokenId);
   }
 
