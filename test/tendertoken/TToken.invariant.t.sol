@@ -73,7 +73,7 @@ contract Handler is Test, TestHelpers {
     console2.log("-------------------");
     console2.log("mint", calls["mint"]);
     console2.log("burn", calls["burn"]);
-    console2.log("burn", calls["transfer"]);
+    console2.log("transfer", calls["transfer"]);
   }
 
   function mint(uint256 amount) public countCall("mint") {
