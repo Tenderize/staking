@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.17;
 
+import { Test } from "forge-std/Test.sol";
+
+import { Base64 } from "lib/base64/Base64.sol";
 import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { OwnableUpgradeable } from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ClonesUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/ClonesUpgradeable.sol";
-import { Unlocks } from "core/unlocks/Unlocks.sol";
+import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 import { Renderer } from "core/unlocks/Renderer.sol";
-import { Base64 } from "test/utils/Base64.sol";
-import "forge-std/console2.sol";
-import "forge-std/Test.sol";
+import { Unlocks } from "core/unlocks/Unlocks.sol";
 
 // solhint-disable quotes
 

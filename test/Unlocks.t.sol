@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.17;
 
-import { Unlocks } from "core/unlocks/Unlocks.sol";
-import { Renderer } from "core/unlocks/Renderer.sol";
+import { Test } from "forge-std/Test.sol";
+
+import { IERC20Metadata } from "core/interfaces/IERC20.sol";
 import { Router } from "core/router/Router.sol";
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
-import { IERC20Metadata } from "core/interfaces/IERC20.sol";
 import { TenderizerImmutableArgs } from "core/tenderizer/TenderizerBase.sol";
-import "forge-std/console2.sol";
-import "forge-std/Test.sol";
+import { Renderer } from "core/unlocks/Renderer.sol";
+import { Unlocks } from "core/unlocks/Unlocks.sol";
 
 // solhint-disable func-name-mixedcase
 contract UnlockTest is Test {
@@ -43,7 +43,7 @@ contract UnlockTest is Test {
     assertEq(unlocks.ownerOf(tokenId), receiver, "owner should be the receiver");
   }
 
-  function test_createUnlock_RevertIf_NotATenderizer() public {
+  function test_createUnlock_RevertIf_NotTenderizer() public {
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(false));
 
     vm.expectRevert(abi.encodeWithSelector(Unlocks.NotTenderizer.selector, address(this)));
@@ -72,7 +72,7 @@ contract UnlockTest is Test {
     unlocks.ownerOf(tokenId);
   }
 
-  function test_useUnlock_RevertIf_NotATenderizer() public {
+  function test_useUnlock_RevertIf_NotTenderizer() public {
     uint256 lockId = 1;
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
     unlocks.createUnlock(receiver, lockId);
