@@ -12,7 +12,7 @@
 pragma solidity 0.8.17;
 
 abstract contract TTokenStorage {
-  uint256 private constant ERC20_SLOT = uint256(keccak256("xyz.tenderize.ERC20.storage.location"));
+  uint256 private constant ERC20_SLOT = uint256(keccak256("xyz.tenderize.tToken.storage.location")) - 1;
 
   struct ERC20Data {
     uint256 _totalShares;

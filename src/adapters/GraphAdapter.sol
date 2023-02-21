@@ -22,7 +22,8 @@ contract GraphAdapter is Adapter {
   ERC20 private constant GRT = ERC20(address(0));
   uint256 constant MAX_PPM = 1000000;
 
-  uint256 private constant WITHDRAWALS_SLOT = uint256(keccak256("xyz.tenderize.graph.withdrawals.storage.location"));
+  uint256 private constant WITHDRAWALS_SLOT =
+    uint256(keccak256("xyz.tenderize.graph.withdrawals.storage.location")) - 1;
 
   error WithdrawPending();
 

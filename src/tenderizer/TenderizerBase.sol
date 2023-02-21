@@ -52,7 +52,7 @@ abstract contract TenderizerEvents {
 /// @title TenderizerStorage
 /// @notice Unstructured storage for Tenderizer
 abstract contract TenderizerStorage {
-  uint256 private constant TENDERIZER_SLOT = uint256(keccak256("xyz.tenderize.tenderizer.storage.location"));
+  uint256 private constant TENDERIZER_SLOT = uint256(keccak256("xyz.tenderize.tenderizer.storage.location")) - 1;
 
   struct TenderizerData {
     uint256 totalAssets;
