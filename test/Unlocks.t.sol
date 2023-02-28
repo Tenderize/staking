@@ -1,4 +1,14 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
+//
+//  _____              _           _
+// |_   _|            | |         (_)
+//   | | ___ _ __   __| | ___ _ __ _ _______
+//   | |/ _ \ '_ \ / _` |/ _ \ '__| |_  / _ \
+//   | |  __/ | | | (_| |  __/ |  | |/ /  __/
+//   \_/\___|_| |_|\__,_|\___|_|  |_/___\___|
+//
+// Copyright (c) Tenderize Labs Ltd
+
 pragma solidity 0.8.17;
 
 import { Test } from "forge-std/Test.sol";
@@ -43,14 +53,14 @@ contract UnlockTest is Test {
     assertEq(unlocks.ownerOf(tokenId), receiver, "owner should be the receiver");
   }
 
-  function test_createUnlock_RevertIf_NotTenderizer() public {
+  function test_createUnlock_RevertIfNotTenderizer() public {
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(false));
 
     vm.expectRevert(abi.encodeWithSelector(Unlocks.NotTenderizer.selector, address(this)));
     unlocks.createUnlock(receiver, 1);
   }
 
-  function test_createUnlock_RevertIf_TooLargeId() public {
+  function test_createUnlock_RevertIfTooLargeId() public {
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
 
     vm.expectRevert(stdError.arithmeticError);
@@ -72,7 +82,7 @@ contract UnlockTest is Test {
     unlocks.ownerOf(tokenId);
   }
 
-  function test_useUnlock_RevertIf_NotTenderizer() public {
+  function test_useUnlock_RevertIfNotTenderizer() public {
     uint256 lockId = 1;
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
     unlocks.createUnlock(receiver, lockId);
@@ -83,7 +93,7 @@ contract UnlockTest is Test {
     unlocks.useUnlock(receiver, lockId);
   }
 
-  function test_useUnlock_RevertIf_NotOwnerOf() public {
+  function test_useUnlock_RevertIfNotOwnerOf() public {
     uint256 lockId = 1;
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
     unlocks.createUnlock(receiver, lockId);
@@ -92,7 +102,7 @@ contract UnlockTest is Test {
     unlocks.useUnlock(impostor, lockId);
   }
 
-  function test_useUnlock_RevertIf_TooLargeId() public {
+  function test_useUnlock_RevertIfTooLargeId() public {
     vm.expectRevert(stdError.arithmeticError);
     unlocks.useUnlock(receiver, type(uint96).max + 1);
   }
@@ -128,7 +138,7 @@ contract UnlockTest is Test {
     unlocks.tokenURI(tokenId);
   }
 
-  function test_tokenURI_RevertIf_IdDoesntExist() public {
+  function test_tokenURI_RevertIfIdDoesntExist() public {
     vm.expectRevert("non-existent token");
     unlocks.tokenURI(1);
   }

@@ -3,7 +3,6 @@ pragma solidity 0.8.17;
 
 import { Test } from "forge-std/Test.sol";
 
-import { Base64 } from "lib/base64/Base64.sol";
 import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { OwnableUpgradeable } from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ClonesUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/ClonesUpgradeable.sol";
@@ -12,6 +11,7 @@ import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/
 
 import { Renderer } from "core/unlocks/Renderer.sol";
 import { Unlocks } from "core/unlocks/Unlocks.sol";
+import { Base64 } from "core/utils/Base64.sol";
 
 // solhint-disable quotes
 
