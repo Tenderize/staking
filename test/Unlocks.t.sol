@@ -45,6 +45,7 @@ contract UnlockTest is Test {
     uint256 balanceBefore = unlocks.balanceOf(receiver);
 
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
+    vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
     uint256 tokenId = unlocks.createUnlock(receiver, lockId);
 
     (address tenderizer, uint256 decodedLockIndex) = _decodeTokenId(tokenId);
@@ -58,12 +59,14 @@ contract UnlockTest is Test {
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(false));
 
     vm.expectRevert(abi.encodeWithSelector(Unlocks.NotTenderizer.selector, address(this)));
+    vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
     unlocks.createUnlock(receiver, 1);
   }
 
   function test_createUnlock_RevertIfTooLargeId() public {
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
 
+    vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
     vm.expectRevert(stdError.arithmeticError);
     unlocks.createUnlock(receiver, type(uint96).max + 1);
   }
@@ -75,6 +78,7 @@ contract UnlockTest is Test {
     uint256 tokenId = unlocks.createUnlock(receiver, lockId);
     uint256 balanceBefore = unlocks.balanceOf(receiver);
 
+    vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
     unlocks.useUnlock(receiver, lockId);
 
     assertEq(unlocks.balanceOf(receiver), balanceBefore - 1, "user balance should decrease by 1");
@@ -91,6 +95,8 @@ contract UnlockTest is Test {
     vm.expectRevert(abi.encodeWithSelector(Unlocks.NotTenderizer.selector, address(this)));
 
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(false));
+
+    vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
     unlocks.useUnlock(receiver, lockId);
   }
 
@@ -99,6 +105,7 @@ contract UnlockTest is Test {
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
     unlocks.createUnlock(receiver, lockId);
 
+    vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
     vm.expectRevert(abi.encodeWithSelector(Unlocks.NotOwnerOf.selector, lockId, receiver, impostor));
     unlocks.useUnlock(impostor, lockId);
   }
@@ -111,13 +118,6 @@ contract UnlockTest is Test {
   function test_tokenURI_Success() public {
     uint256 lockId = 1;
     vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
-    vm.mockCall(address(this), abi.encodeWithSelector(Tenderizer.symbol.selector), abi.encode("tGRT"));
-    vm.mockCall(address(this), abi.encodeWithSelector(Tenderizer.previewWithdraw.selector), abi.encode(100));
-    vm.mockCall(address(this), abi.encodeWithSelector(Tenderizer.unlockMaturity.selector), abi.encode(1000));
-    vm.mockCall(address(this), abi.encodeWithSelector(Tenderizer.name.selector), abi.encode("tender GRT"));
-    vm.mockCall(address(this), abi.encodeWithSelector(TenderizerImmutableArgs.asset.selector), abi.encode(asset));
-    vm.mockCall(asset, abi.encodeWithSelector(IERC20Metadata.name.selector), abi.encode("Graph"));
-    vm.mockCall(asset, abi.encodeWithSelector(IERC20Metadata.symbol.selector), abi.encode("GRT"));
     vm.mockCall(
       renderer,
       abi.encodeWithSelector(Renderer.json.selector),
@@ -134,6 +134,7 @@ contract UnlockTest is Test {
         })
       )
     );
+    vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
     uint256 tokenId = unlocks.createUnlock(receiver, lockId);
 
     vm.expectCall(renderer, abi.encodeCall(Renderer.json, (tokenId)));
