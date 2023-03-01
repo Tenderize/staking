@@ -29,6 +29,7 @@ contract Unlocks is ERC721 {
     string name;
     string underlyingSymbol;
     string underlyingName;
+    address validator;
   }
 
   Router private immutable router;
@@ -70,60 +71,21 @@ contract Unlocks is ERC721 {
     return renderer.json(id);
   }
 
-  function getMetadata(uint256 id) public view returns (Metadata memory metadata) {
-    address asset = _getAsset(id);
+  function getMetadata(uint256 tokenId) public view returns (Metadata memory metadata) {
+    (address tenderizer, uint256 id) = _decodeTokenId(tokenId);
+    address asset = Tenderizer(tenderizer).asset();
 
     return
       Metadata({
-        amount: _getAmount(id),
-        maturity: _getMaturity(id),
+        amount: Tenderizer(tenderizer).previewWithdraw(id),
+        maturity: Tenderizer(tenderizer).unlockMaturity(id),
         tokenId: id,
-        symbol: _getSymbol(id),
-        name: _getName(id),
+        symbol: Tenderizer(tenderizer).symbol(),
+        name: Tenderizer(tenderizer).name(),
         underlyingSymbol: ERC20(asset).symbol(),
-        underlyingName: ERC20(asset).name()
+        underlyingName: ERC20(asset).name(),
+        validator: Tenderizer(tenderizer).validator()
       });
-  }
-
-  function _getTenderizer(uint256 tokenId) internal view virtual returns (address) {
-    (address tenderizer, ) = _decodeTokenId(tokenId);
-    return tenderizer;
-  }
-
-  function _getAmount(uint256 tokenId) internal view virtual returns (uint256) {
-    (address tenderizer, uint256 id) = _decodeTokenId(tokenId);
-
-    return Tenderizer(tenderizer).previewWithdraw(id);
-  }
-
-  function _getMaturity(uint256 tokenId) internal view virtual returns (uint256) {
-    (address tenderizer, uint256 id) = _decodeTokenId(tokenId);
-
-    return Tenderizer(tenderizer).unlockMaturity(id);
-  }
-
-  function _getValidator(uint256 tokenId) internal view virtual returns (address) {
-    (address tenderizer, ) = _decodeTokenId(tokenId);
-
-    return Tenderizer(tenderizer).validator();
-  }
-
-  function _getAsset(uint256 tokenId) internal view virtual returns (address) {
-    (address tenderizer, ) = _decodeTokenId(tokenId);
-
-    return Tenderizer(tenderizer).asset();
-  }
-
-  function _getName(uint256 tokenId) internal view virtual returns (string memory) {
-    (address tenderizer, ) = _decodeTokenId(tokenId);
-
-    return Tenderizer(tenderizer).name();
-  }
-
-  function _getSymbol(uint256 tokenId) internal view virtual returns (string memory) {
-    (address tenderizer, ) = _decodeTokenId(tokenId);
-
-    return Tenderizer(tenderizer).symbol();
   }
 
   function _isValidTenderizer(address sender) internal view virtual {

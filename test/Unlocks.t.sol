@@ -28,6 +28,7 @@ contract UnlockTest is Test {
   address private router = vm.addr(3);
   address private renderer = vm.addr(4);
   address private impostor = vm.addr(5);
+  address private validator = vm.addr(6);
 
   function setUp() public {
     unlocks = new Unlocks(router, renderer);
@@ -128,7 +129,8 @@ contract UnlockTest is Test {
           symbol: "tGRT",
           name: "tender GRT",
           underlyingSymbol: "GRT",
-          underlyingName: "Graph"
+          underlyingName: "Graph",
+          validator: validator
         })
       )
     );

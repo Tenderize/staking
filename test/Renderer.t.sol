@@ -40,6 +40,7 @@ contract RendererTest is Test {
   address private owner = vm.addr(1);
   address private nonAuthorized = vm.addr(2);
   address private tenderizer = vm.addr(3);
+  address private validator = vm.addr(4);
   RendererV1 private rendererV1;
 
   bytes32 internal constant IMPL_SLOT = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
@@ -144,7 +145,8 @@ contract RendererTest is Test {
         symbol: "tGRT",
         name: "tender GRT",
         underlyingSymbol: "GRT",
-        underlyingName: "Graph"
+        underlyingName: "Graph",
+        validator: validator
       });
   }
 
