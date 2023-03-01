@@ -88,12 +88,12 @@ contract RendererTest is Test {
     vm.stopPrank();
   }
 
-  function test_upgradeToFail() public {
+  function test_upgradeTo_RevertIfNotOwner() public {
     vm.startPrank(nonAuthorized);
 
     Renderer rendererV2 = new Renderer();
 
-    vm.expectRevert();
+    vm.expectRevert("Ownable: caller is not the owner");
     RendererV1(address(proxy)).upgradeTo(address(rendererV2));
     vm.stopPrank();
   }
