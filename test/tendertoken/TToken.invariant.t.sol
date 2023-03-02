@@ -130,6 +130,15 @@ contract TTokenInvariants is Test {
 
     targetSelector(FuzzSelector({ addr: address(handler), selectors: selectors }));
     targetContract(address(handler));
+
+    // these excludes are needed because there's a bug when using contract addresses as senders
+    // https://github.com/foundry-rs/foundry/issues/4163
+    // https://github.com/foundry-rs/foundry/issues/3879
+    excludeSender(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
+    excludeSender(0x4e59b44847b379578588920cA78FbF26c0B4956C);
+    excludeSender(address(ttoken));
+    excludeSender(address(handler));
+    excludeSender(address(this));
   }
 
   function invariant_totalSupply() public {
