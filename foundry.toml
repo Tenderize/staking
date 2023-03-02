@@ -27,3 +27,4 @@ wrap_comments = true
 [invariant]
 fail_on_revert = false
 runs = 256
+depth = 100

@@ -74,6 +74,8 @@ contract Handler is Test, TestHelpers {
     console2.log("mint", calls["mint"]);
     console2.log("burn", calls["burn"]);
     console2.log("transfer", calls["transfer"]);
+    console2.log("approve", calls["approve"]);
+    console2.log("transferFrom", calls["transferFrom"]);
   }
 
   function mint(uint256 amount) public countCall("mint") {
@@ -103,6 +105,36 @@ contract Handler is Test, TestHelpers {
     vm.stopPrank();
   }
 
+  function approve(
+    uint256 actorSeed,
+    address spender,
+    uint256 amount
+  ) public useActor(actorSeed) countCall("approve") {
+    vm.startPrank(currentActor);
+    ttoken.approve(spender, amount);
+    vm.stopPrank();
+  }
+
+  function transferFrom(
+    uint256 actorSeed,
+    address from,
+    address to,
+    uint256 amount
+  ) public useActor(actorSeed) countCall("transferFrom") {
+    if (ttoken.balanceOf(from) == 0) {
+      return;
+    }
+    uint256 allowance = ttoken.allowance(from, currentActor);
+    if (allowance == 0) {
+      return;
+    }
+    amount = bound(amount, 1, allowance);
+
+    vm.startPrank(currentActor);
+    ttoken.transferFrom(from, to, amount);
+    vm.stopPrank();
+  }
+
   function burn(uint256 actorSeed, uint256 amount) public useActor(actorSeed) countCall("burn") {
     if (ttoken.balanceOf(currentActor) == 0) {
       return;
@@ -123,10 +155,12 @@ contract TTokenInvariants is Test {
     ttoken = new TestTToken();
     handler = new Handler(ttoken);
 
-    bytes4[] memory selectors = new bytes4[](3);
+    bytes4[] memory selectors = new bytes4[](5);
     selectors[0] = Handler.mint.selector;
     selectors[1] = Handler.burn.selector;
     selectors[2] = Handler.transfer.selector;
+    selectors[3] = Handler.approve.selector;
+    selectors[4] = Handler.transferFrom.selector;
 
     targetSelector(FuzzSelector({ addr: address(handler), selectors: selectors }));
     targetContract(address(handler));
