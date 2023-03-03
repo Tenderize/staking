@@ -45,7 +45,8 @@ contract Handler is Test, TestHelpers {
   uint256 public MAX_INT_SQRT = sqrt(type(uint256).max - 1);
   uint256 public ghost_notTenderizedSupply = MAX_INT_SQRT;
 
-  AddressSet internal _actors;
+  AddressSet internal holders;
+  AddressSet internal actors;
   address internal currentActor;
   mapping(bytes32 => uint256) public calls;
 
@@ -59,13 +60,17 @@ contract Handler is Test, TestHelpers {
   }
 
   modifier useActor(uint256 actorIndexSeed) {
-    currentActor = _actors.rand(actorIndexSeed);
+    currentActor = actors.rand(actorIndexSeed);
     _;
+  }
+
+  function getHolders() public view returns (address[] memory) {
+    return holders.addrs;
   }
 
   function createActor() public {
     currentActor = msg.sender;
-    _actors.add(msg.sender);
+    actors.add(msg.sender);
   }
 
   function callSummary() public view {
@@ -88,6 +93,7 @@ contract Handler is Test, TestHelpers {
     ghost_notTenderizedSupply -= amount;
     ghost_mintedSum += amount;
     ttoken.mint(currentActor, amount);
+    holders.add(currentActor);
   }
 
   function transfer(
@@ -102,6 +108,7 @@ contract Handler is Test, TestHelpers {
 
     vm.startPrank(currentActor);
     ttoken.transfer(to, amount);
+    holders.add(to);
     vm.stopPrank();
   }
 
@@ -132,6 +139,7 @@ contract Handler is Test, TestHelpers {
 
     vm.startPrank(currentActor);
     ttoken.transferFrom(from, to, amount);
+    holders.add(to);
     vm.stopPrank();
   }
 
@@ -175,8 +183,19 @@ contract TTokenInvariants is Test {
     excludeSender(address(this));
   }
 
-  function invariant_totalSupply() public {
+  // total supply should equal sum of minted - sum of burned
+  function invariant_mintedPlusBurnt() public {
     assertEq(ttoken.totalSupply(), handler.ghost_mintedSum() - handler.ghost_burnedSum());
+  }
+
+  // sum of holder balances should equal total supply
+  function invariant_holderBalances() public {
+    uint256 sum = 0;
+    address[] memory holders = handler.getHolders();
+    for (uint256 i = 0; i < holders.length; i++) {
+      sum += ttoken.balanceOf(holders[i]);
+    }
+    assertEq(ttoken.totalSupply(), sum);
   }
 
   function invariant_callSummary() public view {
