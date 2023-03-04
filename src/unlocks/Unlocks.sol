@@ -10,16 +10,28 @@
 // Copyright (c) Tenderize Labs Ltd
 
 import { ERC721 } from "solmate/tokens/ERC721.sol";
+import { ERC20 } from "solmate/tokens/ERC20.sol";
 
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Router } from "core/router/Router.sol";
+import { Renderer } from "core/unlocks/Renderer.sol";
 
 pragma solidity 0.8.17;
 
-// TODO: add tokenURI
+// solhint-disable quotes
 
 contract Unlocks is ERC721 {
+  struct Metadata {
+    uint256 amount;
+    uint256 maturity;
+    uint256 tokenId;
+    string symbol;
+    string name;
+    address validator;
+  }
+
   Router private immutable router;
+  Renderer private immutable renderer;
 
   error NotOwnerOf(uint256 id, address owner, address sender);
   error NotTenderizer(address sender);
@@ -29,8 +41,9 @@ contract Unlocks is ERC721 {
     _;
   }
 
-  constructor(address _router) ERC721("Tenderize Unlocks", "TUNL") {
+  constructor(address _router, address _renderer) ERC721("Tenderize Unlocks", "TUNL") {
     router = Router(_router);
+    renderer = Renderer(_renderer);
   }
 
   function createUnlock(
@@ -50,46 +63,27 @@ contract Unlocks is ERC721 {
   }
 
   function tokenURI(uint256 id) public view virtual override returns (string memory) {
-    // return all parameters DYNAMICALLY (as SVG)
-    // - _getTenderizer
-    // - _getValidator
-    // - _getAsset
-    // - _getAmount
-    // - _getMaturity
-    return "";
+    require(_ownerOf[id] != address(0), "non-existent token");
+    return renderer.json(id);
   }
 
-  function _getTenderizer(uint256 tokenId) internal view virtual returns (address) {
-    (address tenderizer, ) = _decodeTokenId(tokenId);
-    return tenderizer;
-  }
-
-  function _getAmount(uint256 tokenId) internal view virtual returns (uint256) {
+  function getMetadata(uint256 tokenId) public view returns (Metadata memory metadata) {
     (address tenderizer, uint256 id) = _decodeTokenId(tokenId);
+    address asset = Tenderizer(tenderizer).asset();
 
-    return Tenderizer(tenderizer).previewWithdraw(id);
-  }
-
-  function _getMaturity(uint256 tokenId) internal view virtual returns (uint256) {
-    (address tenderizer, uint256 id) = _decodeTokenId(tokenId);
-
-    return Tenderizer(tenderizer).unlockMaturity(id);
-  }
-
-  function _getValidator(uint256 tokenId) internal view virtual returns (address) {
-    (address tenderizer, ) = _decodeTokenId(tokenId);
-
-    return Tenderizer(tenderizer).validator();
-  }
-
-  function _getAsset(uint256 tokenId) internal view virtual returns (address) {
-    (address tenderizer, ) = _decodeTokenId(tokenId);
-
-    return Tenderizer(tenderizer).asset();
+    return
+      Metadata({
+        amount: Tenderizer(tenderizer).previewWithdraw(id),
+        maturity: Tenderizer(tenderizer).unlockMaturity(id),
+        tokenId: id,
+        symbol: ERC20(asset).symbol(),
+        name: ERC20(asset).name(),
+        validator: Tenderizer(tenderizer).validator()
+      });
   }
 
   function _isValidTenderizer(address sender) internal view virtual {
-    if (router.isTenderizer(sender)) revert NotTenderizer(sender);
+    if (!router.isTenderizer(sender)) revert NotTenderizer(sender);
   }
 
   function _encodeTokenId(address tenderizer, uint96 id) internal pure virtual returns (uint256) {
