@@ -7,7 +7,7 @@ import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/
 import { OwnableUpgradeable } from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import { Unlocks } from "core/unlocks/Unlocks.sol";
-import { Base64 } from "core/utils/Base64.sol";
+import { Base64 } from "core/unlocks/Base64.sol";
 
 // solhint-disable quotes
 

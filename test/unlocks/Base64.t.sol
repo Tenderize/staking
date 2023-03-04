@@ -13,7 +13,7 @@ pragma solidity 0.8.17;
 
 import { Test } from "forge-std/Test.sol";
 
-import { Base64 } from "core/utils/Base64.sol";
+import { Base64 } from "core/unlocks/Base64.sol";
 
 contract Base64Test is Test {
   function test_encode() public {

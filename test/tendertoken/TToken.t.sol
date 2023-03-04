@@ -12,7 +12,7 @@
 pragma solidity 0.8.17;
 
 import { Test, stdError } from "forge-std/test.sol";
-import { TestHelpers } from "test/Helpers.sol";
+import { TestHelpers } from "test/helpers/Helpers.sol";
 import { IERC20 } from "core/interfaces/IERC20.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 
