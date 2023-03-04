@@ -98,7 +98,7 @@ contract RendererTest is Test {
     vm.stopPrank();
   }
 
-  function test_upgradeToSuccess() public {
+  function test_upgradeTo() public {
     vm.startPrank(owner);
     Renderer rendererV2 = new Renderer();
 
