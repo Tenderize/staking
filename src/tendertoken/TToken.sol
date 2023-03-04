@@ -98,7 +98,11 @@ abstract contract TToken is TTokenStorage, IERC20 {
     return s.allowance[owner][spender];
   }
 
-  function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
+  function transferFrom(
+    address from,
+    address to,
+    uint256 amount
+  ) public virtual returns (bool) {
     ERC20Data storage s = _loadERC20Slot();
     uint256 allowed = s.allowance[from][msg.sender]; // Saves gas for limited approvals.
 
@@ -172,32 +176,6 @@ abstract contract TToken is TTokenStorage, IERC20 {
           address(this)
         )
       );
-  }
-
-  /// @dev this function only mints shares, *it doesn't update total supply*
-  /// using this function will result in dilution of other user balances in favor of `to`
-  function _mintShares(address to, uint256 shares) internal virtual {
-    ERC20Data storage s = _loadERC20Slot();
-    s._totalShares += shares;
-
-    // Cannot overflow because the sum of all user
-    // balances can't exceed the max uint256 value.
-    unchecked {
-      s.shares[to] += shares;
-    }
-  }
-
-  /// @dev this function only burns shares, *it doesn't update total supply*
-  /// using this function will result in an inflation of other user balances at the expense of `from`
-  function _burnShares(address from, uint256 shares) internal virtual {
-    ERC20Data storage s = _loadERC20Slot();
-    s.shares[from] -= shares;
-
-    // Cannot underflow because a user's balance
-    // will never be larger than the total supply.
-    unchecked {
-      s._totalShares -= shares;
-    }
   }
 
   // TODO: consider using int256 and calling it updateTotalSupply
