@@ -1,30 +1,16 @@
 {
   "extends": "solhint:recommended",
   "rules": {
-    "code-complexity": [
-      "error",
-      8
-    ],
-    "compiler-version": [
-      "error",
-      "^0.8.0"
-    ],
+    "code-complexity": "off",
+    "compiler-version": ["error", ">=0.8.13"],
     "func-visibility": [
       "error",
       {
         "ignoreConstructors": true
       }
     ],
-    "max-line-length": [
-      "error",
-      120
-    ],
+    "no-inline-assembly": "off",
     "not-rely-on-time": "off",
-    "reason-string": [
-      "warn",
-      {
-        "maxLength": 64
-      }
-    ]
+    "var-name-mixedcase": "off"
   }
 }

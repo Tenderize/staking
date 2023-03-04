@@ -12,11 +12,11 @@
 pragma solidity 0.8.17;
 
 interface Router {
-  function adapter(address asset) external view returns (address);
+    function adapter(address asset) external view returns (address);
 
-  function treasury() external view returns (address);
+    function treasury() external view returns (address);
 
-  function fee(address asset) external view returns (uint256);
+    function fee(address asset) external view returns (uint256);
 
-  function isTenderizer(address tenderizer) external view returns (bool);
+    function isTenderizer(address tenderizer) external view returns (bool);
 }

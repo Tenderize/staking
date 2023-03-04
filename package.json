@@ -17,15 +17,6 @@
     "rimraf": "^3.0.2",
     "solhint": "^3.3.7"
   },
-  "keywords": [
-    "blockchain",
-    "ethereum",
-    "forge",
-    "foundry",
-    "smart-contracts",
-    "solidity",
-    "template"
-  ],
   "packageManager": "yarn@3.2.4",
   "private": true,
   "resolutions": {

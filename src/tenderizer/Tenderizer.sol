@@ -25,139 +25,138 @@ import { TToken } from "core/tendertoken/TToken.sol";
 
 /// @title Tenderizer
 /// @notice Liquid Staking vault using fixed-point math with full type safety and unstructured storage
-/// @dev Delegates calls to a stateless Adapter contract which is responsible for interacting with a third-party staking protocol
+/// @dev Delegates calls to a stateless Adapter contract which is responsible for interacting with a third-party staking
+/// protocol
 
 contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEvents, TToken {
-  using AdapterDelegateCall for Adapter;
-  using FixedPointMathLib for uint256;
-  using SafeTransferLib for ERC20;
-  uint256 constant MAX_FEE = 0.005 ether; // 0.5%
+    using AdapterDelegateCall for Adapter;
+    using FixedPointMathLib for uint256;
+    using SafeTransferLib for ERC20;
 
-  function name() public view override returns (string memory) {
-    return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
-  }
+    uint256 constant MAX_FEE = 0.005 ether; // 0.5%
 
-  function symbol() public view override returns (string memory) {
-    return string(abi.encodePacked("t", ERC20(asset()).symbol(), "_", validator()));
-  }
-
-  function previewDeposit(uint256 assets) public view returns (uint256) {
-    return _adapter().previewDeposit(assets);
-  }
-
-  function unlockMaturity(uint256 unlockID) public view returns (uint256) {
-    return _adapter().unlockMaturity(unlockID);
-  }
-
-  function previewWithdraw(uint256 unlockID) public view returns (uint256) {
-    return _adapter().previewWithdraw(unlockID);
-  }
-
-  function deposit(address receiver, uint256 assets) public returns (uint256) {
-    // transfer tokens before minting (or ERC777's could re-enter)
-    ERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
-
-    // preview deposit to get actual assets to mint for
-    // deducts any possible third-party protocol taxes or fees
-    uint256 actualAssets = previewDeposit(assets);
-
-    // stake assets
-    _stake(validator(), assets);
-
-    // mint tokens to receiver
-    _mint(receiver, actualAssets);
-
-    // get *exact* tToken output amount
-    // can be different from `actualAssets` due to rounding
-    uint256 tTokenOut = balanceOf(receiver);
-    // emit Deposit event
-    emit Deposit(msg.sender, receiver, assets, tTokenOut);
-
-    return tTokenOut;
-  }
-
-  function unlock(uint256 assets) public returns (uint256 unlockID) {
-    // burn tTokens before creating an `unlock`
-    _burn(msg.sender, assets);
-
-    // unlock assets and get unlockID
-    unlockID = _unstake(validator(), assets);
-
-    // create unlock of unlockID
-    _unlocks().createUnlock(msg.sender, unlockID);
-
-    // emit Unlock event
-    emit Unlock(msg.sender, assets, unlockID);
-  }
-
-  function withdraw(address receiver, uint256 unlockID) public returns (uint256) {
-    // retrieve amount of assets withdrawable for `unlockID`
-    uint256 assets = previewWithdraw(unlockID);
-
-    // Redeem unlock if mature
-    _unlocks().useUnlock(msg.sender, unlockID);
-
-    // withdraw assets to send to `receiver`
-    _withdraw(validator(), unlockID);
-
-    // transfer assets to `receiver`
-    ERC20(asset()).safeTransfer(receiver, assets);
-
-    // emit Withdraw event
-    emit Withdraw(receiver, assets, unlockID);
-
-    return assets;
-  }
-
-  function rebase() public {
-    uint256 currentStake = totalSupply();
-    uint256 newStake = _claimRewards(validator(), currentStake);
-
-    if (newStake > currentStake) {
-      unchecked {
-        uint256 rewards = newStake - currentStake;
-        uint256 fees = _calculateFees(rewards);
-        _setTotalSupply(newStake - fees);
-        // mint fees
-        _mint(Router(_router()).treasury(), fees);
-      }
-    } else {
-      _setTotalSupply(newStake);
+    function name() public view override returns (string memory) {
+        return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
     }
 
-    // emit rebase event
-    emit Rebase(currentStake, newStake);
-  }
+    function symbol() public view override returns (string memory) {
+        return string(abi.encodePacked("t", ERC20(asset()).symbol(), "_", validator()));
+    }
 
-  function _calculateFees(uint256 rewards) internal view returns (uint256 fees) {
-    uint256 fee = Router(_router()).fee(asset());
-    fee = fee > MAX_FEE ? MAX_FEE : fee;
-    fees = (rewards * (1 ether - fee)) / 1 ether;
-  }
+    function previewDeposit(uint256 assets) public view returns (uint256) {
+        return _adapter().previewDeposit(assets);
+    }
 
-  function _adapter() internal view returns (Adapter) {
-    return Adapter(Router(_router()).adapter(asset()));
-  }
+    function unlockMaturity(uint256 unlockID) public view returns (uint256) {
+        return _adapter().unlockMaturity(unlockID);
+    }
 
-  function _claimRewards(address validator, uint256 currentStake) internal returns (uint256 newStake) {
-    newStake = abi.decode(
-      _adapter()._delegatecall(abi.encodeWithSelector(_adapter().claimRewards.selector, validator, currentStake)),
-      (uint256)
-    );
-  }
+    function previewWithdraw(uint256 unlockID) public view returns (uint256) {
+        return _adapter().previewWithdraw(unlockID);
+    }
 
-  function _stake(address validator, uint256 amount) internal {
-    _adapter()._delegatecall(abi.encodeWithSelector(_adapter().stake.selector, validator, amount));
-  }
+    function deposit(address receiver, uint256 assets) public returns (uint256) {
+        // transfer tokens before minting (or ERC777's could re-enter)
+        ERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
 
-  function _unstake(address validator, uint256 amount) internal returns (uint256 unlockID) {
-    unlockID = abi.decode(
-      _adapter()._delegatecall(abi.encodeWithSelector(_adapter().unstake.selector, validator, amount)),
-      (uint256)
-    );
-  }
+        // preview deposit to get actual assets to mint for
+        // deducts any possible third-party protocol taxes or fees
+        uint256 actualAssets = previewDeposit(assets);
 
-  function _withdraw(address validator, uint256 unlockID) internal {
-    _adapter()._delegatecall(abi.encodeWithSelector(_adapter().withdraw.selector, validator, unlockID));
-  }
+        // stake assets
+        _stake(validator(), assets);
+
+        // mint tokens to receiver
+        _mint(receiver, actualAssets);
+
+        // get *exact* tToken output amount
+        // can be different from `actualAssets` due to rounding
+        uint256 tTokenOut = balanceOf(receiver);
+        // emit Deposit event
+        emit Deposit(msg.sender, receiver, assets, tTokenOut);
+
+        return tTokenOut;
+    }
+
+    function unlock(uint256 assets) public returns (uint256 unlockID) {
+        // burn tTokens before creating an `unlock`
+        _burn(msg.sender, assets);
+
+        // unlock assets and get unlockID
+        unlockID = _unstake(validator(), assets);
+
+        // create unlock of unlockID
+        _unlocks().createUnlock(msg.sender, unlockID);
+
+        // emit Unlock event
+        emit Unlock(msg.sender, assets, unlockID);
+    }
+
+    function withdraw(address receiver, uint256 unlockID) public returns (uint256) {
+        // retrieve amount of assets withdrawable for `unlockID`
+        uint256 assets = previewWithdraw(unlockID);
+
+        // Redeem unlock if mature
+        _unlocks().useUnlock(msg.sender, unlockID);
+
+        // withdraw assets to send to `receiver`
+        _withdraw(validator(), unlockID);
+
+        // transfer assets to `receiver`
+        ERC20(asset()).safeTransfer(receiver, assets);
+
+        // emit Withdraw event
+        emit Withdraw(receiver, assets, unlockID);
+
+        return assets;
+    }
+
+    function rebase() public {
+        uint256 currentStake = totalSupply();
+        uint256 newStake = _claimRewards(validator(), currentStake);
+
+        if (newStake > currentStake) {
+            unchecked {
+                uint256 rewards = newStake - currentStake;
+                uint256 fees = _calculateFees(rewards);
+                _setTotalSupply(newStake - fees);
+                // mint fees
+                _mint(Router(_router()).treasury(), fees);
+            }
+        } else {
+            _setTotalSupply(newStake);
+        }
+
+        // emit rebase event
+        emit Rebase(currentStake, newStake);
+    }
+
+    function _calculateFees(uint256 rewards) internal view returns (uint256 fees) {
+        uint256 fee = Router(_router()).fee(asset());
+        fee = fee > MAX_FEE ? MAX_FEE : fee;
+        fees = (rewards * (1 ether - fee)) / 1 ether;
+    }
+
+    function _adapter() internal view returns (Adapter) {
+        return Adapter(Router(_router()).adapter(asset()));
+    }
+
+    function _claimRewards(address validator, uint256 currentStake) internal returns (uint256 newStake) {
+        newStake = abi.decode(
+            _adapter()._delegatecall(abi.encodeWithSelector(_adapter().claimRewards.selector, validator, currentStake)), (uint256)
+        );
+    }
+
+    function _stake(address validator, uint256 amount) internal {
+        _adapter()._delegatecall(abi.encodeWithSelector(_adapter().stake.selector, validator, amount));
+    }
+
+    function _unstake(address validator, uint256 amount) internal returns (uint256 unlockID) {
+        unlockID =
+            abi.decode(_adapter()._delegatecall(abi.encodeWithSelector(_adapter().unstake.selector, validator, amount)), (uint256));
+    }
+
+    function _withdraw(address validator, uint256 unlockID) internal {
+        _adapter()._delegatecall(abi.encodeWithSelector(_adapter().withdraw.selector, validator, unlockID));
+    }
 }
