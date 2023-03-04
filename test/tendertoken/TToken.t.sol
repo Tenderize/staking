@@ -37,11 +37,7 @@ contract TTokenTest is TokenSetup {
     assertEq(decimals(), uint8(18), "invalid decimals");
   }
 
-  function testFuzz_ShareCalc(
-    uint256 amount,
-    uint256 totalShares,
-    uint256 totalSupply
-  ) public {
+  function testFuzz_ShareCalc(uint256 amount, uint256 totalShares, uint256 totalSupply) public {
     amount = bound(amount, 1, MAX_INT_SQRT);
     totalShares = bound(totalShares, 1, MAX_INT_SQRT);
     totalSupply = bound(totalSupply, 1, MAX_INT_SQRT);
@@ -69,11 +65,7 @@ contract TTokenTest is TokenSetup {
     convertToShares(amount);
   }
 
-  function testFuzz_BalanceOf(
-    uint256 shares,
-    uint256 totalShares,
-    uint256 totalSupply
-  ) public {
+  function testFuzz_BalanceOf(uint256 shares, uint256 totalShares, uint256 totalSupply) public {
     shares = bound(shares, 1, MAX_INT_SQRT / 2);
     totalShares = bound(shares, 1, MAX_INT_SQRT / 2);
     totalSupply = bound(shares, 1, MAX_INT_SQRT / 2);
@@ -130,11 +122,7 @@ contract TTokenTest is TokenSetup {
     assertFalse(this.transfer(account2, transferAmount), "invalid return value");
   }
 
-  function testFuzz_TransferFrom(
-    uint256 mintAmount,
-    uint256 approveAmount,
-    uint256 transferAmount
-  ) public {
+  function testFuzz_TransferFrom(uint256 mintAmount, uint256 approveAmount, uint256 transferAmount) public {
     mintAmount = bound(mintAmount, 1, MAX_INT_SQRT);
     approveAmount = bound(approveAmount, 1, mintAmount);
     transferAmount = bound(transferAmount, 1, approveAmount);
@@ -340,11 +328,7 @@ contract TTokenTest is TokenSetup {
     assertEq(s._totalShares, shares + shares2, "invalid totalShares");
   }
 
-  function testFuzz_BurnShares(
-    uint256 mintShares,
-    uint256 burnShares,
-    uint256 supply
-  ) public {
+  function testFuzz_BurnShares(uint256 mintShares, uint256 burnShares) public {
     mintShares = bound(mintShares, 1, MAX_INT_SQRT);
     burnShares = bound(burnShares, 1, mintShares);
 

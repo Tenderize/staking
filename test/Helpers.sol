@@ -27,12 +27,7 @@ contract TestHelpers {
     return x;
   }
 
-  function rand(
-    uint256 seed,
-    uint256 nonce,
-    uint256 lowerBound,
-    uint256 upperBound
-  ) public pure returns (uint256) {
+  function rand(uint256 seed, uint256 nonce, uint256 lowerBound, uint256 upperBound) public pure returns (uint256) {
     uint256 r = (uint256(keccak256(abi.encodePacked(seed, nonce))) % (upperBound - lowerBound)) + lowerBound;
     return r;
   }
@@ -46,15 +41,7 @@ contract TestHelpers {
     uint256 amount,
     uint256 nonce,
     uint256 timestamp
-  )
-    internal
-    view
-    returns (
-      uint8,
-      bytes32,
-      bytes32
-    )
-  {
+  ) internal pure returns (uint8, bytes32, bytes32) {
     return
       vm.sign(
         privateKey,

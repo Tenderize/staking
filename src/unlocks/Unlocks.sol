@@ -27,8 +27,6 @@ contract Unlocks is ERC721 {
     uint256 tokenId;
     string symbol;
     string name;
-    string underlyingSymbol;
-    string underlyingName;
     address validator;
   }
 
@@ -48,12 +46,10 @@ contract Unlocks is ERC721 {
     renderer = Renderer(_renderer);
   }
 
-  function createUnlock(address receiver, uint256 id)
-    public
-    virtual
-    isValidTenderizer(msg.sender)
-    returns (uint256 tokenId)
-  {
+  function createUnlock(
+    address receiver,
+    uint256 id
+  ) public virtual isValidTenderizer(msg.sender) returns (uint256 tokenId) {
     require(id < 1 << 96);
     tokenId = _encodeTokenId(msg.sender, uint96(id));
     _safeMint(receiver, tokenId);
@@ -80,10 +76,8 @@ contract Unlocks is ERC721 {
         amount: Tenderizer(tenderizer).previewWithdraw(id),
         maturity: Tenderizer(tenderizer).unlockMaturity(id),
         tokenId: id,
-        symbol: Tenderizer(tenderizer).symbol(),
-        name: Tenderizer(tenderizer).name(),
-        underlyingSymbol: ERC20(asset).symbol(),
-        underlyingName: ERC20(asset).name(),
+        symbol: ERC20(asset).symbol(),
+        name: ERC20(asset).name(),
         validator: Tenderizer(tenderizer).validator()
       });
   }

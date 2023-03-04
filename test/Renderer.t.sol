@@ -25,7 +25,7 @@ contract RendererV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     __Ownable_init();
   }
 
-  function json(uint256 id) external view returns (string memory) {
+  function json(uint256 /*id*/) external pure returns (string memory) {
     return "test json response";
   }
 
@@ -41,6 +41,9 @@ contract RendererTest is Test {
   address private nonAuthorized = vm.addr(2);
   address private tenderizer = vm.addr(3);
   address private validator = vm.addr(4);
+  uint256 private id = 1;
+  Unlocks.Metadata private metadata =
+    Unlocks.Metadata({ amount: 100, maturity: 1000, tokenId: id, symbol: "GRT", name: "Graph", validator: validator });
   RendererV1 private rendererV1;
 
   bytes32 internal constant IMPL_SLOT = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
@@ -78,8 +81,8 @@ contract RendererTest is Test {
     vm.expectRevert("Function must be called through delegatecall");
     rendererV1.upgradeTo(address(rendererV2));
 
-    vm.expectRevert("Function must be called through active proxy");
-    address(proxy2).delegatecall(abi.encodeWithSignature("upgradeTo(address)", address(rendererV2)));
+    (bool success, ) = address(proxy2).delegatecall(abi.encodeWithSignature("upgradeTo(address)", address(rendererV2)));
+    assertTrue(success);
 
     address implClone = ClonesUpgradeable.clone(address(rendererV1));
     vm.expectRevert("Function must be called through active proxy");
@@ -126,35 +129,19 @@ contract RendererTest is Test {
     Renderer rendererV2 = new Renderer();
     RendererV1(address(proxy)).upgradeTo(address(rendererV2));
     vm.stopPrank();
-    string memory data = Renderer(address(proxy)).json(1);
+    vm.mockCall(address(this), abi.encodeWithSignature("getMetadata(uint256)", id), abi.encode(metadata));
+    vm.expectCall(address(this), abi.encodeWithSignature("getMetadata(uint256)", id));
+    string memory data = Renderer(address(proxy)).json(id);
     string memory encodedJson = substring(data, 29, bytes(data).length);
 
     assertEq(
       string(Base64.decode(encodedJson)),
       // solhint-disable-next-line max-line-length
-      '{"name": "TenderLock", "description": "TenderLock from https://tenderize.me represents ERC20 tokens during the unbonding period, thus making them tradable. Owning a TenderLock token makes the owner eligible to claim the tokens at the end of the unbonding period.", "image": "data:image/svg+xml;base64,<svg width="290" height="500" viewBox="0 0 290 500" xmlns="http://www.w3.org/2000/svg" xmlns:xlink=\'http://www.w3.org/1999/xlink\'>PHJlY3Qgd2lkdGg9JzI5MHB4JyBoZWlnaHQ9JzUwMHB4JyBmaWxsPScjMDAwMDAwJy8+PHRleHQgeD0nMTAnIHk9JzIwJz50R1JUPC90ZXh0Pjx0ZXh0IHg9IjEwIiB5PSI0MCI+MTAwPC90ZXh0Pjx0ZXh0IHg9IjEwIiB5PSI2MCI+MTAwMDwvdGV4dD48dGV4dCB4PSIxMCIgeT0iODAiPjE8L3RleHQ+PC9zdmc+","attributes":[{"trait_type": "maturity", "value":1000},{"trait_type": "amount", "value":100},{"trait_type": "underlyingToken", "value":"Graph"},{"trait_type": "underlyingSymbol", "value":"GRT"},{"trait_type": "token", "value":"tender GRT"},{"trait_type": "symbol", "value":"tGRT"}]}'
+      '{"name": "TenderLock", "description": "TenderLock from https://tenderize.me represents ERC20 tokens during the unbonding period, thus making them tradable. Owning a TenderLock token makes the owner eligible to claim the tokens at the end of the unbonding period.", "image": "data:image/svg+xml;base64,<svg width="290" height="500" viewBox="0 0 290 500" xmlns="http://www.w3.org/2000/svg" xmlns:xlink=\'http://www.w3.org/1999/xlink\'>PHJlY3Qgd2lkdGg9JzI5MHB4JyBoZWlnaHQ9JzUwMHB4JyBmaWxsPScjMDAwMDAwJy8+PHRleHQgeD0nMTAnIHk9JzIwJz5HUlQ8L3RleHQ+PHRleHQgeD0iMTAiIHk9IjQwIj4xMDA8L3RleHQ+PHRleHQgeD0iMTAiIHk9IjYwIj4xMDAwPC90ZXh0Pjx0ZXh0IHg9IjEwIiB5PSI4MCI+MTwvdGV4dD48L3N2Zz4=","attributes":[{"trait_type": "maturity", "value":1000},{"trait_type": "amount", "value":100},{"trait_type": "token", "value":"Graph"},{"trait_type": "symbol", "value":"GRT"}]}'
     );
   }
 
-  function getMetadata(uint256 id) public view virtual returns (Unlocks.Metadata memory data) {
-    return
-      Unlocks.Metadata({
-        amount: 100,
-        maturity: 1000,
-        tokenId: id,
-        symbol: "tGRT",
-        name: "tender GRT",
-        underlyingSymbol: "GRT",
-        underlyingName: "Graph",
-        validator: validator
-      });
-  }
-
-  function substring(
-    string memory str,
-    uint256 startIndex,
-    uint256 endIndex
-  ) public pure returns (string memory) {
+  function substring(string memory str, uint256 startIndex, uint256 endIndex) public pure returns (string memory) {
     bytes memory strBytes = bytes(str);
     bytes memory result = new bytes(endIndex - startIndex);
     for (uint256 i = startIndex; i < endIndex; i++) {
