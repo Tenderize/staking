@@ -13,7 +13,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/console2.sol";
 
-import { Test } from "forge-std/test.sol";
+import { Test } from "forge-std/Test.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 import { TestHelpers, AddressSet, LibAddressSet } from "test/helpers/Helpers.sol";
 
