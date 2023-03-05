@@ -4,26 +4,22 @@ env:
   FOUNDRY_PROFILE: "ci"
 
 on:
+  workflow_dispatch:
   pull_request:
-    branches:
-      - "main"
   push:
     branches:
       - "main"
+      - "staging"
 
 jobs:
-  ci:
+  lint:
     runs-on: "ubuntu-latest"
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v3"
-        with:
-          submodules: "recursive"
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
-        with:
-          version: "nightly"
 
       - name: "Install Node.js"
         uses: "actions/setup-node@v3"
@@ -39,21 +35,45 @@ jobs:
 
       - name: "Add lint summary"
         run: |
-          echo "## Lint" >> $GITHUB_STEP_SUMMARY
+          echo "## Lint result" >> $GITHUB_STEP_SUMMARY
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+  build:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v3"
+        with:
+          submodules: "recursive"
 
-      - name: "Show the Foundry config"
-        run: "forge config"
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Build the contracts and print their size"
+        run: "forge build --sizes"
+
+      - name: "Add build summary"
+        run: |
+          echo "## Build result" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+  test:
+    needs: ["build"]
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v3"
+        with:
+          submodules: "recursive"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
 
       - name: "Run the tests"
         run: "forge test"
 
-      - name: "Check that the contracts are each under 24kB"
-        run: |
-          forge --version
-          forge build --sizes
+      - name: Run snapshot
+        run: forge snapshot
 
       - name: "Add test summary"
         run: |
-          echo "## Tests" >> $GITHUB_STEP_SUMMARY
+          echo "## Tests result" >> $GITHUB_STEP_SUMMARY
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
