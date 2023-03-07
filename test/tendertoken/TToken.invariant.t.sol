@@ -254,7 +254,7 @@ contract TTokenInvariants is Test {
         selectors[4] = Handler.transferFrom.selector;
         selectors[5] = Handler.setTotalSupply.selector;
 
-        targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+        targetSelector(FuzzSelector({ addr: address(handler), selectors: selectors }));
         targetContract(address(handler));
 
         // these excludes are needed because there's a bug when using contract addresses as senders
