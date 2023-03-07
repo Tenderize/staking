@@ -13,6 +13,8 @@ pragma solidity 0.8.17;
 
 import "forge-std/console2.sol";
 
+import { SafeMath } from "openzeppelin-contracts/utils/math/SafeMath.sol";
+
 import { Test } from "forge-std/Test.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 import { TestHelpers, AddressSet, LibAddressSet } from "test/helpers/Helpers.sol";
@@ -33,6 +35,20 @@ contract TestTToken is TToken {
     function mint(address to, uint256 amount) public {
         _mint(to, amount);
     }
+
+    function totalShares() public view returns (uint256) {
+        ERC20Data storage s = _loadERC20Slot();
+        return s._totalShares;
+    }
+
+    function shares(address owner) public view returns (uint256) {
+        ERC20Data storage s = _loadERC20Slot();
+        return s.shares[owner];
+    }
+
+    function setTotalSupply(uint256 amount) public {
+        _setTotalSupply(amount);
+    }
 }
 
 contract Handler is Test, TestHelpers {
@@ -41,8 +57,8 @@ contract Handler is Test, TestHelpers {
     TestTToken public ttoken;
     uint256 public ghost_mintedSum;
     uint256 public ghost_burnedSum;
-    uint256 public MAX_INT_SQRT = sqrt(type(uint256).max - 1);
-    uint256 public ghost_notTenderizedSupply = MAX_INT_SQRT;
+    uint256 public TOTAL_UNDERLYING_SUPPLY = sqrt(type(uint256).max - 1);
+    uint256 public ghost_notTenderizedSupply = TOTAL_UNDERLYING_SUPPLY;
 
     AddressSet internal holders;
     AddressSet internal actors;
@@ -80,6 +96,7 @@ contract Handler is Test, TestHelpers {
         console2.log("transfer", calls["transfer"]);
         console2.log("approve", calls["approve"]);
         console2.log("transferFrom", calls["transferFrom"]);
+        console2.log("setTotalSupply", calls["setTotalSupply"]);
     }
 
     function mint(uint256 amount) public countCall("mint") {
@@ -89,13 +106,45 @@ contract Handler is Test, TestHelpers {
         createActor();
 
         amount = bound(amount, 1, ghost_notTenderizedSupply);
+
+        // Ignore cases where x * y overflows or denominator is 0
+        unchecked {
+            uint256 denominator = ttoken.totalSupply();
+            uint256 y = ttoken.totalShares();
+            uint256 x = amount;
+
+            if (denominator == 0 || (x != 0 && (x * y) / x != y)) {
+                return;
+            }
+        }
+
+        if (ttoken.convertToShares(amount) == 0) {
+            return;
+        }
+
+        (bool success,) = SafeMath.tryAdd(ttoken.totalShares(), ttoken.convertToShares(amount));
+        if (success == false) {
+            return;
+        }
+
         ghost_notTenderizedSupply -= amount;
         ghost_mintedSum += amount;
+
         ttoken.mint(currentActor, amount);
         holders.add(currentActor);
     }
 
     function transfer(uint256 actorSeed, address to, uint256 amount) public useActor(actorSeed) countCall("transfer") {
+        // Ignore cases where x * y overflows or denominator is 0
+        unchecked {
+            uint256 y = ttoken.totalSupply();
+            uint256 denominator = ttoken.totalShares();
+            uint256 x = ttoken.shares(currentActor);
+
+            if (denominator == 0 || (x != 0 && (x * y) / x != y)) {
+                return;
+            }
+        }
         if (ttoken.balanceOf(currentActor) == 0) {
             return;
         }
@@ -123,13 +172,26 @@ contract Handler is Test, TestHelpers {
         useActor(actorSeed)
         countCall("transferFrom")
     {
+        // Ignore cases where x * y overflows or denominator is 0
+        unchecked {
+            uint256 y = ttoken.totalSupply();
+            uint256 denominator = ttoken.totalShares();
+            uint256 x = ttoken.shares(from);
+
+            if (denominator == 0 || (x != 0 && (x * y) / x != y)) {
+                return;
+            }
+        }
+
         if (ttoken.balanceOf(from) == 0) {
             return;
         }
+
         uint256 allowance = ttoken.allowance(from, currentActor);
         if (allowance == 0) {
             return;
         }
+
         amount = bound(amount, 1, allowance);
 
         vm.startPrank(currentActor);
@@ -139,14 +201,40 @@ contract Handler is Test, TestHelpers {
     }
 
     function burn(uint256 actorSeed, uint256 amount) public useActor(actorSeed) countCall("burn") {
+        // Ignore cases where x * y overflows or denominator is 0
+        unchecked {
+            uint256 y = ttoken.totalSupply();
+            uint256 denominator = ttoken.totalShares();
+            uint256 x = ttoken.shares(currentActor);
+
+            if (denominator == 0 || (x != 0 && (x * y) / x != y)) {
+                return;
+            }
+        }
+
         if (ttoken.balanceOf(currentActor) == 0) {
             return;
         }
         amount = bound(amount, 1, ttoken.balanceOf(currentActor));
 
+        if (ttoken.convertToShares(amount) == 0) {
+            return;
+        }
+
+        (bool success,) = SafeMath.trySub(ttoken.totalShares(), ttoken.convertToShares(amount));
+        if (success == false) {
+            return;
+        }
+
         ghost_burnedSum += amount;
         ghost_notTenderizedSupply += amount;
         ttoken.burn(currentActor, amount);
+    }
+
+    function setTotalSupply(uint256 totalSupply) public countCall("setTotalSupply") {
+        totalSupply = bound(totalSupply, 1, TOTAL_UNDERLYING_SUPPLY);
+        ttoken.setTotalSupply(totalSupply);
+        ghost_notTenderizedSupply = TOTAL_UNDERLYING_SUPPLY - totalSupply;
     }
 }
 
@@ -158,14 +246,15 @@ contract TTokenInvariants is Test {
         ttoken = new TestTToken();
         handler = new Handler(ttoken);
 
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = Handler.mint.selector;
         selectors[1] = Handler.burn.selector;
         selectors[2] = Handler.transfer.selector;
         selectors[3] = Handler.approve.selector;
         selectors[4] = Handler.transferFrom.selector;
+        selectors[5] = Handler.setTotalSupply.selector;
 
-        targetSelector(FuzzSelector({ addr: address(handler), selectors: selectors }));
+        targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
 
         // these excludes are needed because there's a bug when using contract addresses as senders
@@ -178,19 +267,19 @@ contract TTokenInvariants is Test {
         excludeSender(address(this));
     }
 
-    // total supply should equal sum of minted - sum of burned
-    function invariant_mintedPlusBurnt() public {
-        assertEq(ttoken.totalSupply(), handler.ghost_mintedSum() - handler.ghost_burnedSum());
+    // total supply should equal  underlying - notTenderized
+    function invariant_underlyingSubNotTenderized() public {
+        assertEq(ttoken.totalSupply(), handler.TOTAL_UNDERLYING_SUPPLY() - handler.ghost_notTenderizedSupply());
     }
 
     // sum of holder balances should equal total supply
-    function invariant_holderBalances() public {
+    function invariant_holderShares() public {
         uint256 sum = 0;
         address[] memory holders = handler.getHolders();
         for (uint256 i = 0; i < holders.length; i++) {
-            sum += ttoken.balanceOf(holders[i]);
+            sum += ttoken.shares(holders[i]);
         }
-        assertEq(ttoken.totalSupply(), sum);
+        assertEq(ttoken.totalShares(), sum);
     }
 
     function invariant_callSummary() public view {
