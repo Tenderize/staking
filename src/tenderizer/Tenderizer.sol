@@ -121,7 +121,9 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
                 uint256 fees = _calculateFees(rewards);
                 _setTotalSupply(newStake - fees);
                 // mint fees
-                _mint(Router(_router()).treasury(), fees);
+                if (fees > 0) {
+                    _mint(Router(_router()).treasury(), fees);
+                }
             }
         } else {
             _setTotalSupply(newStake);
@@ -134,7 +136,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
     function _calculateFees(uint256 rewards) internal view returns (uint256 fees) {
         uint256 fee = Router(_router()).fee(asset());
         fee = fee > MAX_FEE ? MAX_FEE : fee;
-        fees = (rewards * (1 ether - fee)) / 1 ether;
+        fees = rewards * fee / 1 ether;
     }
 
     function _adapter() internal view returns (Adapter) {
