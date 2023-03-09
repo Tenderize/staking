@@ -35,6 +35,7 @@ contract Unlocks is ERC721 {
 
     error NotOwnerOf(uint256 id, address owner, address sender);
     error NotTenderizer(address sender);
+    error InvalidID();
 
     modifier isValidTenderizer(address sender) {
         _isValidTenderizer(sender);
@@ -47,13 +48,13 @@ contract Unlocks is ERC721 {
     }
 
     function createUnlock(address receiver, uint256 id) public virtual isValidTenderizer(msg.sender) returns (uint256 tokenId) {
-        require(id < 1 << 96);
+        if (id >= 1 << 96) revert InvalidID();
         tokenId = _encodeTokenId(msg.sender, uint96(id));
         _safeMint(receiver, tokenId);
     }
 
     function useUnlock(address owner, uint256 id) public virtual isValidTenderizer(msg.sender) {
-        require(id < 1 << 96);
+        if (id >= 1 << 96) revert InvalidID();
         uint256 tokenId = _encodeTokenId(msg.sender, uint96(id));
         if (ownerOf(tokenId) != owner) revert NotOwnerOf(id, ownerOf(tokenId), owner);
         _burn(tokenId);

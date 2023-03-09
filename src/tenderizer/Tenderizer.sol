@@ -33,7 +33,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
 
-    uint256 constant MAX_FEE = 0.005 ether; // 0.5%
+    uint256 private constant MAX_FEE = 0.005 ether; // 0.5%
 
     function name() public view override returns (string memory) {
         return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));

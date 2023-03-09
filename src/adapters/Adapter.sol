@@ -33,6 +33,7 @@ library AdapterDelegateCall {
     error AdapterDelegateCallFailed(string msg);
 
     function _delegatecall(Adapter adapter, bytes memory data) internal returns (bytes memory) {
+        // solhint-disable-next-line avoid-low-level-calls
         (bool success, bytes memory returnData) = address(adapter).delegatecall(data);
 
         if (!success) {

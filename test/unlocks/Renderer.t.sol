@@ -14,6 +14,9 @@ import { Unlocks } from "core/unlocks/Unlocks.sol";
 import { Base64 } from "core/unlocks/Base64.sol";
 
 // solhint-disable quotes
+// solhint-disable func-name-mixedcase
+// solhint-disable avoid-low-level-calls
+// solhint-disable no-empty-blocks
 
 contract RendererV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -33,8 +36,6 @@ contract RendererV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _authorizeUpgrade(address) internal override onlyOwner { }
 }
 
-// solhint-disable func-name-mixedcase
-// solhint-disable avoid-low-level-calls
 contract RendererTest is Test {
     ERC1967Proxy private proxy;
     address private owner = vm.addr(1);

@@ -9,6 +9,9 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
+// solhint-disable func-name-mixedcase
+// solhint-disable no-empty-blocks
+
 pragma solidity 0.8.17;
 
 import { Test } from "forge-std/Test.sol";
@@ -16,17 +19,17 @@ import { Test } from "forge-std/Test.sol";
 import { Base64 } from "core/unlocks/Base64.sol";
 
 contract Base64Test is Test {
-    function test_encode() public {
+    function test_Encode() public {
         string memory encoded = Base64.encode("Hello, world!");
         assertEq(encoded, "SGVsbG8sIHdvcmxkIQ==");
     }
 
-    function test_decode() public {
+    function test_Decode() public {
         string memory decoded = string(Base64.decode("SGVsbG8sIHdvcmxkIQ=="));
         assertEq(decoded, "Hello, world!");
     }
 
-    function test_encodeDecode() public {
+    function test_EncodeDecode() public {
         string memory encoded = Base64.encode("Hello, world!");
         string memory decoded = string(Base64.decode(encoded));
         assertEq(decoded, "Hello, world!");
