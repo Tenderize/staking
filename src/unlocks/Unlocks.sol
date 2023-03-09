@@ -35,6 +35,7 @@ contract Unlocks is ERC721 {
 
     error NotOwnerOf(uint256 id, address owner, address sender);
     error NotTenderizer(address sender);
+    error InvalidID();
 
     modifier isValidTenderizer(address sender) {
         _isValidTenderizer(sender);

@@ -91,5 +91,6 @@ contract Renderer is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     ///@dev required by the OZ UUPS module
+    // solhint-disable-next-line no-empty-blocks
     function _authorizeUpgrade(address) internal override onlyOwner { }
 }

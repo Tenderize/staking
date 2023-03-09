@@ -41,6 +41,7 @@ library Base64 {
             let resultPtr := add(result, 32)
 
             // run over the input, 3 bytes at a time
+            // solhint-disable-next-line no-empty-blocks
             for { } lt(dataPtr, endPtr) { } {
                 // read 3 bytes
                 dataPtr := add(dataPtr, 3)
@@ -103,6 +104,7 @@ library Base64 {
             let resultPtr := add(result, 32)
 
             // run over the input, 4 characters at a time
+            // solhint-disable-next-line no-empty-blocks
             for { } lt(dataPtr, endPtr) { } {
                 // read 4 characters
                 dataPtr := add(dataPtr, 4)
