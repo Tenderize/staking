@@ -20,7 +20,7 @@ import { TToken } from "core/tendertoken/TToken.sol";
 // solhint-disable no-empty-blocks
 
 contract TokenSetup is TestHelpers, Test, TToken {
-    uint256 public MAX_INT_SQRT = sqrt(type(uint256).max - 1);
+    uint256 public MAX_UINT_SQRT = sqrt(type(uint256).max - 1);
 
     function name() public view override returns (string memory) { }
 
@@ -38,9 +38,9 @@ contract TTokenTest is TokenSetup {
     }
 
     function testFuzz_ShareCalc(uint256 amount, uint256 totalShares, uint256 totalSupply) public {
-        amount = bound(amount, 1, MAX_INT_SQRT);
-        totalShares = bound(totalShares, 1, MAX_INT_SQRT);
-        totalSupply = bound(totalSupply, 1, MAX_INT_SQRT);
+        amount = bound(amount, 1, MAX_UINT_SQRT);
+        totalShares = bound(totalShares, 1, MAX_UINT_SQRT);
+        totalSupply = bound(totalSupply, 1, MAX_UINT_SQRT);
 
         assertEq(convertToShares(amount), amount, "invalid share conversion - no shares/supply");
         assertEq(convertToAssets(amount), amount, "invalid asset conversion - no shares/supply");
@@ -66,9 +66,9 @@ contract TTokenTest is TokenSetup {
     }
 
     function testFuzz_BalanceOf(uint256 shares, uint256 totalShares, uint256 totalSupply) public {
-        shares = bound(shares, 1, MAX_INT_SQRT / 2);
-        totalShares = bound(shares, 1, MAX_INT_SQRT / 2);
-        totalSupply = bound(shares, 1, MAX_INT_SQRT / 2);
+        shares = bound(shares, 1, MAX_UINT_SQRT / 2);
+        totalShares = bound(shares, 1, MAX_UINT_SQRT / 2);
+        totalSupply = bound(shares, 1, MAX_UINT_SQRT / 2);
 
         ERC20Data storage s = _loadERC20Slot();
         s.shares[account1] = shares;
@@ -80,8 +80,8 @@ contract TTokenTest is TokenSetup {
     }
 
     function testFuzz_Approve(uint256 amountSeed) public {
-        uint256 amount1 = rand(amountSeed, 0, 0, MAX_INT_SQRT);
-        uint256 amount2 = rand(amountSeed, 1, 0, MAX_INT_SQRT);
+        uint256 amount1 = rand(amountSeed, 0, 0, MAX_UINT_SQRT);
+        uint256 amount2 = rand(amountSeed, 1, 0, MAX_UINT_SQRT);
 
         // with no prior approval
         vm.expectEmit(true, true, true, true);
@@ -99,7 +99,7 @@ contract TTokenTest is TokenSetup {
     }
 
     function testFuzz_Transfer(uint256 mintAmount, uint256 transferAmount) public {
-        mintAmount = bound(mintAmount, 1, MAX_INT_SQRT);
+        mintAmount = bound(mintAmount, 1, MAX_UINT_SQRT);
         transferAmount = bound(transferAmount, 0, mintAmount);
 
         _mint(account1, mintAmount);
@@ -112,8 +112,8 @@ contract TTokenTest is TokenSetup {
     }
 
     function testFuzz_Transfer_RevertIfNotEnoughBalance(uint256 mintAmount, uint256 transferAmount) public {
-        mintAmount = bound(mintAmount, 1, MAX_INT_SQRT - 1);
-        transferAmount = bound(transferAmount, mintAmount + 1, MAX_INT_SQRT);
+        mintAmount = bound(mintAmount, 1, MAX_UINT_SQRT - 1);
+        transferAmount = bound(transferAmount, mintAmount + 1, MAX_UINT_SQRT);
 
         _mint(account1, mintAmount);
 
@@ -123,7 +123,7 @@ contract TTokenTest is TokenSetup {
     }
 
     function testFuzz_TransferFrom(uint256 mintAmount, uint256 approveAmount, uint256 transferAmount) public {
-        mintAmount = bound(mintAmount, 1, MAX_INT_SQRT);
+        mintAmount = bound(mintAmount, 1, MAX_UINT_SQRT);
         approveAmount = bound(approveAmount, 1, mintAmount);
         transferAmount = bound(transferAmount, 1, approveAmount);
 
@@ -146,7 +146,7 @@ contract TTokenTest is TokenSetup {
     }
 
     function testFuzz_TransferFrom_InfiniteApproval(uint256 mintAmount, uint256 transferAmount) public {
-        mintAmount = bound(mintAmount, 1, MAX_INT_SQRT);
+        mintAmount = bound(mintAmount, 1, MAX_UINT_SQRT);
         transferAmount = bound(transferAmount, 1, mintAmount);
 
         _mint(account1, mintAmount);
@@ -165,9 +165,9 @@ contract TTokenTest is TokenSetup {
     )
         public
     {
-        mintAmount = bound(mintAmount, 1, MAX_INT_SQRT - 1);
+        mintAmount = bound(mintAmount, 1, MAX_UINT_SQRT - 1);
         approveAmount = bound(approveAmount, 1, mintAmount);
-        transferAmount = bound(transferAmount, approveAmount + 1, MAX_INT_SQRT);
+        transferAmount = bound(transferAmount, approveAmount + 1, MAX_UINT_SQRT);
 
         _mint(account1, mintAmount);
 
@@ -181,8 +181,8 @@ contract TTokenTest is TokenSetup {
     }
 
     function testFuzz_TransferFrom_RevertIfNotEnoughBalance(uint256 mintAmount, uint256 transferAmount) public {
-        mintAmount = bound(mintAmount, 1, MAX_INT_SQRT - 1);
-        transferAmount = bound(transferAmount, mintAmount + 1, MAX_INT_SQRT);
+        mintAmount = bound(mintAmount, 1, MAX_UINT_SQRT - 1);
+        transferAmount = bound(transferAmount, mintAmount + 1, MAX_UINT_SQRT);
 
         _mint(account1, mintAmount);
 
@@ -268,52 +268,14 @@ contract TTokenTest is TokenSetup {
         this.permit(signer, account2, amount, block.timestamp + 10_000, v, r, s);
     }
 
-    function testFuzz_MintShares(uint256 shares, uint256 shares2) public {
-        shares = bound(shares, 1, MAX_INT_SQRT);
-        shares2 = bound(shares2, 1, MAX_INT_SQRT);
-
-        _mintShares(account1, shares);
-        ERC20Data storage s = _loadERC20Slot();
-        assertEq(s.shares[account1], shares, "invalid account1 shares");
-        assertEq(s._totalShares, shares, "invalid totalShares");
-
-        _mintShares(account2, shares2);
-        assertEq(s.shares[account2], shares2, "invalid account2 shares");
-        assertEq(s._totalShares, shares + shares2, "invalid totalShares");
-    }
-
-    function testFuzz_BurnShares(uint256 mintShares, uint256 burnShares) public {
-        mintShares = bound(mintShares, 1, MAX_INT_SQRT);
-        burnShares = bound(burnShares, 1, mintShares);
-
-        _mintShares(account1, mintShares);
-        _mintShares(account2, mintShares);
-
-        _burnShares(account1, burnShares);
-
-        ERC20Data storage s = _loadERC20Slot();
-        assertEq(s.shares[account1], mintShares - burnShares, "invalid account1 shares");
-        assertEq(s.shares[account2], mintShares, "invalid account2 shares");
-        assertEq(s._totalShares, mintShares * 2 - burnShares, "invalid totalShares");
-    }
-
-    function testFuzz_BurnShares_RevertIfNotEnoughShares(uint256 mintShares, uint256 burnShares) public {
-        mintShares = bound(mintShares, 1, MAX_INT_SQRT - 1);
-        burnShares = bound(burnShares, mintShares + 1, MAX_INT_SQRT);
-
-        _mintShares(account1, mintShares);
-        vm.expectRevert(stdError.arithmeticError);
-        _burnShares(account1, burnShares);
-    }
-
     function test_SetTotalSupply(uint256 supply) public {
         _setTotalSupply(supply);
         assertEq(totalSupply(), supply);
     }
 
     function testFuzz_Mint(uint256 amountSeed) public {
-        uint256 amount1 = rand(amountSeed, 0, 1, MAX_INT_SQRT / 2);
-        uint256 amount2 = rand(amountSeed, 1, 1, MAX_INT_SQRT / 2);
+        uint256 amount1 = rand(amountSeed, 0, 1, MAX_UINT_SQRT / 2);
+        uint256 amount2 = rand(amountSeed, 1, 1, MAX_UINT_SQRT / 2);
 
         ERC20Data storage s = _loadERC20Slot();
 
@@ -332,13 +294,23 @@ contract TTokenTest is TokenSetup {
         assertEq(s._totalSupply, amount1 + amount2, "invalid total supply");
     }
 
-    function test_Mint_RevertsIfZeroShares() public {
-        vm.expectRevert(abi.encodeWithSelector(TToken.ZeroShares.selector));
+    function test_Mint_RevertsIfZeroAmount() public {
+        vm.expectRevert(abi.encodeWithSelector(TToken.ZeroAmount.selector));
         _mint(account1, 0);
     }
 
+    function test_Mint_AmountBelowFXRate() public {
+        _mint(account1, 1 ether);
+        ERC20Data storage s = _loadERC20Slot();
+        s._totalSupply = 2 ether;
+
+        _mint(account2, 1);
+
+        assertEq(balanceOf(account2), 0);
+    }
+
     function testFuzz_Burn(uint256 mintAmount, uint256 burnAmount) public {
-        mintAmount = bound(mintAmount, 1, MAX_INT_SQRT / 2);
+        mintAmount = bound(mintAmount, 1, MAX_UINT_SQRT / 2);
         burnAmount = bound(burnAmount, 1, mintAmount);
 
         _mint(account1, mintAmount);
@@ -354,27 +326,38 @@ contract TTokenTest is TokenSetup {
     }
 
     function testFuzz_Burn_RevertIfNotEnoughBalance(uint256 mintAmount, uint256 burnAmount) public {
-        mintAmount = bound(mintAmount, 1, MAX_INT_SQRT / 2);
-        burnAmount = bound(burnAmount, mintAmount + 1, MAX_INT_SQRT);
+        mintAmount = bound(mintAmount, 1, MAX_UINT_SQRT / 2);
+        burnAmount = bound(burnAmount, mintAmount + 1, MAX_UINT_SQRT);
 
         _mint(account1, mintAmount);
         vm.expectRevert(stdError.arithmeticError);
         _burn(account1, burnAmount);
     }
 
-    function test_Burn_RevertIfZeroShares() public {
-        vm.expectRevert(abi.encodeWithSelector(TToken.ZeroShares.selector));
+    function test_Burn_RevertIfZeroAmount() public {
+        vm.expectRevert(abi.encodeWithSelector(TToken.ZeroAmount.selector));
         _burn(account1, 0);
     }
 
     function test_Burn_RevertIfZeroTotalSupply(uint256 amount, uint256 totalShares) public {
-        amount = bound(amount, 1, MAX_INT_SQRT);
-        totalShares = bound(totalShares, 1, MAX_INT_SQRT);
+        amount = bound(amount, 1, MAX_UINT_SQRT);
+        totalShares = bound(totalShares, 1, MAX_UINT_SQRT);
         ERC20Data storage s = _loadERC20Slot();
         s._totalShares = totalShares;
         s._totalSupply = 0;
 
         vm.expectRevert();
         _burn(account1, amount);
+    }
+
+    function test_Burn_AmountBelowFXRate() public {
+        _mint(account1, 1 ether);
+        _mint(account2, 1 ether);
+        ERC20Data storage s = _loadERC20Slot();
+        s._totalSupply = 4 ether;
+
+        _burn(account2, 1);
+
+        assertEq(balanceOf(account2), 2 ether);
     }
 }

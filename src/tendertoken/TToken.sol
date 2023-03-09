@@ -25,7 +25,7 @@ import { TTokenStorage } from "core/tendertoken/TTokenStorage.sol";
 abstract contract TToken is TTokenStorage, IERC20 {
     using FixedPointMathLib for uint256;
 
-    error ZeroShares();
+    error ZeroAmount();
     error InvalidSignature();
     error PermitDeadlineExpired(uint256 expiryTimestamp, uint256 currentTimestamp);
 
@@ -179,32 +179,6 @@ abstract contract TToken is TTokenStorage, IERC20 {
         );
     }
 
-    /// @dev this function only mints shares, *it doesn't update total supply*
-    /// using this function will result in dilution of other user balances in favor of `to`
-    function _mintShares(address to, uint256 shares) internal virtual {
-        ERC20Data storage s = _loadERC20Slot();
-        s._totalShares += shares;
-
-        // Cannot overflow because the sum of all user
-        // balances can't exceed the max uint256 value.
-        unchecked {
-            s.shares[to] += shares;
-        }
-    }
-
-    /// @dev this function only burns shares, *it doesn't update total supply*
-    /// using this function will result in an inflation of other user balances at the expense of `from`
-    function _burnShares(address from, uint256 shares) internal virtual {
-        ERC20Data storage s = _loadERC20Slot();
-        s.shares[from] -= shares;
-
-        // Cannot underflow because a user's balance
-        // will never be larger than the total supply.
-        unchecked {
-            s._totalShares -= shares;
-        }
-    }
-
     // TODO: consider using int256 and calling it updateTotalSupply
     // or 2 arguments (uint8 sign, uint256 amount) where `sign` is 0 for subtract, 1 for add
     // this is the same as (bool increase, uint256 amount) but with better naming
@@ -215,7 +189,9 @@ abstract contract TToken is TTokenStorage, IERC20 {
 
     function _mint(address to, uint256 assets) internal virtual {
         uint256 shares;
-        if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
+
+        if (assets == 0) revert ZeroAmount();
+        if ((shares = convertToShares(assets)) == 0) return;
 
         ERC20Data storage s = _loadERC20Slot();
         s._totalSupply += assets;
@@ -230,7 +206,9 @@ abstract contract TToken is TTokenStorage, IERC20 {
 
     function _burn(address from, uint256 assets) internal virtual {
         uint256 shares;
-        if ((shares = convertToShares(assets)) == 0) revert ZeroShares();
+
+        if (assets == 0) revert ZeroAmount();
+        if ((shares = convertToShares(assets)) == 0) return;
 
         ERC20Data storage s = _loadERC20Slot();
         s._totalSupply -= assets;

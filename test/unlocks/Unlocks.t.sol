@@ -67,8 +67,8 @@ contract UnlockTest is Test {
         vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
 
         vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
-        vm.expectRevert(stdError.arithmeticError);
-        unlocks.createUnlock(receiver, type(uint96).max + 1);
+        vm.expectRevert(abi.encodeWithSelector(Unlocks.InvalidID.selector));
+        unlocks.createUnlock(receiver, 1 << 96);
     }
 
     function testFuzz_useUnlock_Success(address owner, uint256 lockId) public {
@@ -111,8 +111,11 @@ contract UnlockTest is Test {
     }
 
     function test_useUnlock_RevertIfTooLargeId() public {
-        vm.expectRevert(stdError.arithmeticError);
-        unlocks.useUnlock(receiver, type(uint96).max + 1);
+        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
+        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
+
+        vm.expectRevert(abi.encodeWithSelector(Unlocks.InvalidID.selector));
+        unlocks.useUnlock(receiver, 1 << 96);
     }
 
     function test_tokenURI_Success() public {
