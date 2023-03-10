@@ -22,9 +22,9 @@ import { IWETH9 } from "core/adapters/interfaces/IWETH9.sol";
 contract LivepeerAdapter is Adapter {
     using SafeTransferLib for ERC20;
 
-    ILivepeerBondingManager private constant LIVEPEER = ILivepeerBondingManager(address(0));
-    ILivepeerRoundsManager private constant LIVEPEER_ROUNDS = ILivepeerRoundsManager(address(0));
-    ERC20 private constant LPT = ERC20(address(0));
+    ILivepeerBondingManager private constant LIVEPEER = ILivepeerBondingManager(0x35Bcf3c30594191d53231E4FF333E8A770453e40);
+    ILivepeerRoundsManager private constant LIVEPEER_ROUNDS = ILivepeerRoundsManager(0xdd6f56DcC28D3F5f27084381fE8Df634985cc39f);
+    ERC20 private constant LPT = ERC20(0x289ba1701C2F088cf0faf8B3705246331cB8A839);
     IWETH9 private constant WETH = IWETH9(address(0));
     ISwapRouter private constant UNISWAP_ROUTER = ISwapRouter(address(0));
     uint24 private constant UNISWAP_POOL_FEE = 10_000;
@@ -34,7 +34,7 @@ contract LivepeerAdapter is Adapter {
     }
 
     function previewWithdraw(uint256 unlockID) public view returns (uint256 amount) {
-        (amount,) = LIVEPEER.getDelegatorUnbondingLock(address(this), unlockID);
+        (amount,) = LIVEPEER.getDelegatorUnbondingLock(msg.sender, unlockID);
     }
 
     function unlockMaturity(uint256 unlockID) public view returns (uint256 maturity) {
@@ -45,16 +45,18 @@ contract LivepeerAdapter is Adapter {
         // withdrawRound = w
         // blockRemainingInCurrentRound = b = roungLength - (block.number - currentRoundStartBlock)
         // maturity = n*(w - r - 1) + b
-        (, uint256 withdrawRound) = LIVEPEER.getDelegatorUnbondingLock(address(this), unlockID);
+        (, uint256 withdrawRound) = LIVEPEER.getDelegatorUnbondingLock(msg.sender, unlockID);
         uint256 currentRound = LIVEPEER_ROUNDS.currentRound();
         uint256 roundLength = LIVEPEER_ROUNDS.roundLength();
         uint256 currentRoundStartBlock = LIVEPEER_ROUNDS.currentRoundStartBlock();
         uint256 blockRemainingInCurrentRound = roundLength - (block.number - currentRoundStartBlock);
-        maturity = roundLength * (withdrawRound - currentRound - 1) + blockRemainingInCurrentRound;
+        if (withdrawRound > currentRound) {
+            maturity = roundLength * (withdrawRound - currentRound - 1) + blockRemainingInCurrentRound;
+        }
     }
 
-    function getTotalStaked(address validator) public view returns (uint256) {
-        return LIVEPEER.pendingStake(validator, 0);
+    function getTotalStaked(address /*validator*/) public view returns (uint256) {
+        return LIVEPEER.pendingStake(msg.sender, 0);
     }
 
     function stake(address validator, uint256 amount) public {
