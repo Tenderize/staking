@@ -55,7 +55,7 @@ contract LivepeerAdapter is Adapter {
         }
     }
 
-    function getTotalStaked(address /*validator*/) public view returns (uint256) {
+    function getTotalStaked(address /*validator*/ ) public view returns (uint256) {
         return LIVEPEER.pendingStake(msg.sender, 0);
     }
 
