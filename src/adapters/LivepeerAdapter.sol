@@ -25,8 +25,8 @@ contract LivepeerAdapter is Adapter {
     ILivepeerBondingManager private constant LIVEPEER = ILivepeerBondingManager(0x35Bcf3c30594191d53231E4FF333E8A770453e40);
     ILivepeerRoundsManager private constant LIVEPEER_ROUNDS = ILivepeerRoundsManager(0xdd6f56DcC28D3F5f27084381fE8Df634985cc39f);
     ERC20 private constant LPT = ERC20(0x289ba1701C2F088cf0faf8B3705246331cB8A839);
-    IWETH9 private constant WETH = IWETH9(address(0));
-    ISwapRouter private constant UNISWAP_ROUTER = ISwapRouter(address(0));
+    IWETH9 private constant WETH = IWETH9(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
+    ISwapRouter private constant UNISWAP_ROUTER = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
     uint24 private constant UNISWAP_POOL_FEE = 10_000;
 
     function previewDeposit(uint256 assets) public pure returns (uint256) {
@@ -85,7 +85,7 @@ contract LivepeerAdapter is Adapter {
         }
 
         // Read new stake
-        newStake = getTotalStaked(validator);
+        newStake = LIVEPEER.pendingStake(address(this), 0);
     }
 
     /// @notice function for swapping ETH fees to LPT
@@ -111,8 +111,12 @@ contract LivepeerAdapter is Adapter {
         });
 
         // make a static call to see how much LPT would be received
-        (bool success, bytes memory returnData) =
-            address(UNISWAP_ROUTER).staticcall(abi.encodeWithSelector(UNISWAP_ROUTER.exactInputSingle.selector, params));
+        // yes but that's from the static call, true comes from staticcall, and the returndata into returnData, that's the mocked
+        // response
+        // if you make the call revert then success would be false
+        // :)
+        (bool success, bytes memory returnData) = //ok i'll try this
+         address(UNISWAP_ROUTER).staticcall(abi.encodeWithSelector(UNISWAP_ROUTER.exactInputSingle.selector, params));
 
         if (!success) return;
 
