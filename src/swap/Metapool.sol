@@ -53,6 +53,7 @@ contract Metapool is MetapoolImmutableArgs, Multicall, SelfPermit {
     error InvalidAsset(address asset);
     error WrongMetapool(address actualUnderlying, address expectedUnderlying);
     error InsufficientAssets(uint256 requested, uint256 available);
+    error InvalidSwapAssets(address from, address to);
     error SlippageThresholdExceeded(uint256 out, uint256 minOut);
 
     event Deposit(address indexed asset, address indexed from, uint128 amount, uint256 lpSharesMinted);
@@ -60,12 +61,14 @@ contract Metapool is MetapoolImmutableArgs, Multicall, SelfPermit {
     event Swap(address indexed asset, address indexed caller, address toAsset, uint256 inAmount, uint128 outAmount);
 
     // Fee parameters
+    // Swap fee that is subtracted from the output amount on a swap
     uint128 private constant FEE = 0.003e18;
+    // Fee denominator, same scale as `SD59x18.UNIT`
     uint128 private constant FEE_DENOMINATOR = 1e18;
 
     // Slippage paramaters
-    // `k` is the slippage at a score of 0
-    // `n` is the steepness of the slippage curve
+    // `K` is the slippage at a score of 0
+    // `N` is the steepness of the slippage curve
     SD59x18 private constant K = SD59x18.wrap(0.005e18);
     SD59x18 private constant N = SD59x18.wrap(10e18);
 
@@ -221,6 +224,9 @@ contract Metapool is MetapoolImmutableArgs, Multicall, SelfPermit {
 
         Pool memory i = s.pools[from];
         Pool memory j = s.pools[to];
+
+        // either `from` or `to` must be `underlying`
+        if (from != underlying() && to != underlying()) revert InvalidSwapAssets(from, to);
 
         _checkRebase(from, i);
         _checkRebase(to, j);
