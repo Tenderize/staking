@@ -83,12 +83,12 @@ contract MetaPoolTest is Test {
 
         tokenA.mint(address(this), 0.22 ether);
         tokenA.approve(address(pool), 0.22 ether);
-        uint256 minOut = pool.quote(address(tokenA), address(tokenB), 0.12 ether);
-        uint256 out = pool.swap(address(tokenA), address(tokenB), 0.12 ether, minOut);
+        uint256 minOut = pool.quote(address(tokenA), address(tokenB), 0.03 ether);
+        uint256 out = pool.swap(address(tokenA), address(tokenB), 0.03 ether, minOut);
         console.log("out from swap ", out);
-        uint256 quoteNext = pool.quote(address(tokenB), address(tokenA), 0.12 ether);
+        uint256 quoteNext = pool.quote(address(tokenB), address(tokenA), 0.03 ether);
         console.log("Quote for next swap ", quoteNext);
-        uint256 slip = (0.12 ether - out);
-        console.log("diff ", slip - (quoteNext - 0.12 ether));
+        uint256 slip = (0.03 ether - out);
+        console.log("diff ", slip - (quoteNext - 0.03 ether));
     }
 }

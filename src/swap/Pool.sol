@@ -12,14 +12,11 @@
 import { ERC1155 } from "solmate/tokens/ERC1155.sol";
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
-import { wadPow } from "solmate/utils/SignedWadMath.sol";
 import { ClonesWithImmutableArgs } from "clones/ClonesWithImmutableArgs.sol";
-import { SD59x18, sd, pow, fromSD59x18, E, wrap, unwrap } from "prb-math/SD59x18.sol";
+import { SD59x18, sd, pow, div, fromSD59x18, E, wrap, unwrap, lte, gte } from "prb-math/SD59x18.sol";
+
 import { Router } from "core/router/Router.sol";
-
 import { LPToken } from "core/swap/LpToken.sol";
-
-import { console } from "forge-std/Test.sol";
 
 pragma solidity 0.8.17;
 
@@ -40,8 +37,9 @@ contract Metapool {
 
     address private immutable LP_TOKEN_IMPLEMENTATION;
     address private immutable ROUTER;
-    int256 private constant E_N = 2_718_281_828_459;
-    int256 private constant E_D = 10e9;
+
+    int256 private constant K = 0.005e18;
+    int256 private constant N = 10e18;
 
     using ClonesWithImmutableArgs for address;
 
@@ -123,16 +121,18 @@ contract Metapool {
         Pool storage pool = pools[asset];
         Pool storage poolOther = pools[otherAsset];
 
-        if (_score(pool.assets, pool.liabilities) >= 0) revert();
+        if (unwrap(_score(pool.assets, pool.liabilities)) >= 0) revert();
 
         if (poolOther.assets - poolOther.liabilities < amount) {
             revert InsufficientAssets(amount, poolOther.assets - poolOther.liabilities);
         }
 
-        int256 s =
+        SD59x18 s =
             _slippage(_score(poolOther.assets, poolOther.liabilities), _score(poolOther.assets - amount, poolOther.liabilities));
 
-        out = amount * uint256(E_D - s) / uint256(E_D);
+        s = wrap(1e18).sub(s);
+
+        out = amount * uint256(unwrap(s)) / 1e18;
         uint256 lpShares = amount * pool.lpToken.totalSupply() / pool.liabilities;
 
         pool.liabilities -= amount;
@@ -161,34 +161,46 @@ contract Metapool {
     }
 
     function quote(address from, address to, uint256 amount) external view returns (uint256 out) {
-        Pool storage i = pools[from];
-        Pool storage j = pools[to];
+        Pool memory i = pools[from];
+        Pool memory j = pools[to];
         out = _quote(i, j, amount);
     }
 
-    function _quote(Pool storage i, Pool storage j, uint256 amount) internal view returns (uint256 out) {
-        int256 s_i = _slippage(_score(i.assets, i.liabilities), _score(i.assets + amount, i.liabilities));
-        int256 s_j = _slippage(_score(j.assets, j.liabilities), _score(j.assets - amount, j.liabilities));
-
-        out = amount * uint256((E_D - (s_i - s_j))) / uint256(E_D);
+    function score(address asset) external view returns (SD59x18) {
+        Pool memory pool = pools[asset];
+        return _score(pool.assets, pool.liabilities);
     }
 
-    function _slippage(int256 r, int256 rY) internal view returns (int256) {
-        int256 slip = _slippageForScore(r);
-        int256 slipY = _slippageForScore(rY);
+    function _quote(Pool memory i, Pool memory j, uint256 amount) internal pure returns (uint256 out) {
+        SD59x18 s_i = _slippage(_score(i.assets, i.liabilities), _score(i.assets + amount, i.liabilities));
+        SD59x18 s_j = _slippage(_score(j.assets, j.liabilities), _score(j.assets - amount, j.liabilities));
 
-        return (slipY - slip) * E_D / (rY - r);
+        SD59x18 s = wrap(1e18).sub((s_i).sub(s_j));
+
+        out = amount * uint256(unwrap(s)) / 1e18;
     }
 
-    function _slippageForScore(int256 r) internal pure returns (int256) {
-        return wadPow(E_N, r * -400) / 5;
+    function _slippage(SD59x18 r, SD59x18 rY) internal pure returns (SD59x18) {
+        SD59x18 slip = _slippageForScore(r);
+        SD59x18 slipY = _slippageForScore(rY);
+
+        return (slipY.sub(slip)).div(rY.sub(r));
     }
 
-    function _score(uint256 assets, uint256 liabilities) internal pure returns (int256 score) {
+    function _slippageForScore(SD59x18 r) internal pure returns (SD59x18) {
+        // slippage for a score `r`is defined as
+        // `k / e^(r*n)`
+        // where `k` is a constant and can be seen as the slippage at score 0
+        // and `n`is the amplifier of the slippage function, lower `n` means a flatter curve
+        if (r.lte(wrap(-0.5e18))) return wrap(1e18);
+        return wrap(K).div(E.pow(r.mul(wrap(N))));
+    }
+
+    function _score(uint256 assets, uint256 liabilities) internal pure returns (SD59x18 r) {
         if (assets < liabilities) {
-            score = -int256((liabilities - assets) * 10e9 / (assets + liabilities));
+            r = wrap(-int256((liabilities - assets) * 1e18 / (assets + liabilities)));
         } else {
-            score = int256((assets - liabilities) * 10e9 / (assets + liabilities));
+            r = wrap(int256((assets - liabilities) * 1e18 / (assets + liabilities)));
         }
     }
 }
