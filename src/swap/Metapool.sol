@@ -188,14 +188,19 @@ contract Metapool is Multicall, SelfPermit {
         _checkRebase(from, i);
         _checkRebase(to, j);
 
+        // calculate fee
+        uint128 fee = amount * FEE / FEE_DENOMINATOR;
+
         // quote output amount for `amount` of `from` to `to`
-        out = _quote(i, j, amount);
+        out = _quote(i, j, amount - fee);
 
         // Revert if slippage threshold is exceeded, i.e. if `out` is less than `minOut`
         if (out < minOut) revert SlippageThresholdExceeded(out, minOut);
 
         // Add `amount` to `from` pool assets
         i.assets += amount;
+        //  Add `fee` to `from` pool liabilities
+        i.liabilities += fee;
         // Subtract `out` from `to` pool assets
         j.assets -= out;
 
