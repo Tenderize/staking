@@ -15,8 +15,9 @@ import { Test, stdError, console } from "forge-std/Test.sol";
 import { Router } from "core/router/Router.sol";
 import { MockERC20 } from "test/helpers/MockERC20.sol";
 
-import { Metapool } from "core/swap/Pool.sol";
+import { Metapool } from "core/swap/Metapool.sol";
 import { LPToken } from "core/swap/LpToken.sol";
+import { TenderizerImmutableArgs } from "core/tenderizer/TenderizerBase.sol";
 import { SD59x18, sd, pow, fromSD59x18, E, wrap, unwrap } from "prb-math/SD59x18.sol";
 
 contract MetaPoolTest is Test {
@@ -46,10 +47,11 @@ contract MetaPoolTest is Test {
         assertEq(pool.getPool(address(tokenA)).lpToken.totalSupply(), 1000);
 
         vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
-
+        vm.mockCall(address(tokenB), abi.encodeWithSelector(TenderizerImmutableArgs.asset.selector), abi.encode(address(tokenA)));
         tokenB.mint(address(this), 1000);
         tokenB.approve(address(pool), 1000);
         vm.expectCall(router, abi.encodeCall(Router.isTenderizer, address(tokenB)));
+        vm.expectCall(address(tokenB), abi.encodeCall(TenderizerImmutableArgs.asset, ()));
 
         pool.deposit(address(tokenB), 1000);
         assertEq(pool.totalAssets(), 2000);
@@ -76,19 +78,21 @@ contract MetaPoolTest is Test {
         tokenA.approve(address(pool), 5 ether);
         pool.deposit(address(tokenA), 5 ether);
         vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
+        vm.mockCall(address(tokenB), abi.encodeWithSelector(TenderizerImmutableArgs.asset.selector), abi.encode(address(tokenA)));
 
         tokenB.mint(address(this), 0.33 ether);
         tokenB.approve(address(pool), 0.33 ether);
+
         pool.deposit(address(tokenB), 0.33 ether);
 
         tokenA.mint(address(this), 0.22 ether);
         tokenA.approve(address(pool), 0.22 ether);
-        uint256 minOut = pool.quote(address(tokenA), address(tokenB), 0.03 ether);
-        uint256 out = pool.swap(address(tokenA), address(tokenB), 0.03 ether, minOut);
+        uint128 minOut = pool.quote(address(tokenA), address(tokenB), 0.03 ether);
+        uint128 out = pool.swap(address(tokenA), address(tokenB), 0.03 ether, minOut);
         console.log("out from swap ", out);
-        uint256 quoteNext = pool.quote(address(tokenB), address(tokenA), 0.03 ether);
+        uint128 quoteNext = pool.quote(address(tokenB), address(tokenA), 0.03 ether);
         console.log("Quote for next swap ", quoteNext);
-        uint256 slip = (0.03 ether - out);
+        uint128 slip = (0.03 ether - out);
         console.log("diff ", slip - (quoteNext - 0.03 ether));
     }
 }
