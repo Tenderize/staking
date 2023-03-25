@@ -25,6 +25,34 @@ import { SelfPermit } from "core/utils/SelfPermit.sol";
 
 pragma solidity 0.8.17;
 
+function _slippage(SD59x18 r, SD59x18 rY, SD59x18 K, SD59x18 N) pure returns (SD59x18) {
+    SD59x18 slip = _slippageForScore(r, K, N);
+    SD59x18 slipY = _slippageForScore(rY, K, N);
+
+    // The slippage for changing the score from `r` to `rY` is defined as
+    // `(slipY - slip) / (rY - r)`
+    return (slipY.sub(slip)).div(rY.sub(r));
+}
+
+function _slippageForScore(SD59x18 r, SD59x18 K, SD59x18 N) pure returns (SD59x18) {
+    // slippage for a score `r`is defined as
+    // `k / e^(r*n)`
+    // where `k` is a constant and can be seen as the slippage at score 0
+    // and `n`is the amplifier of the slippage function, lower `n` means a flatter curve
+
+    // If `r` is less than -0.5 return 100% slippage
+    if (r.lte(wrap(-0.5e18))) return UNIT;
+    return K.div(E.pow(r.mul(N)));
+}
+
+function _score(uint256 assets, uint256 liabilities) pure returns (SD59x18 r) {
+    if (assets < liabilities) {
+        r = wrap(-int256((liabilities - assets) * 1e18 / (assets + liabilities)));
+    } else {
+        r = wrap(int256((assets - liabilities) * 1e18 / (assets + liabilities)));
+    }
+}
+
 struct Pool {
     uint128 assets;
     uint128 liabilities;
@@ -55,6 +83,7 @@ contract Metapool is MetapoolImmutableArgs, Multicall, SelfPermit {
     error InsufficientAssets(uint256 requested, uint256 available);
     error InvalidSwapAssets(address from, address to);
     error SlippageThresholdExceeded(uint256 out, uint256 minOut);
+    error InvalidWithdrawOther(address asset);
 
     event Deposit(address indexed asset, address indexed from, uint128 amount, uint256 lpSharesMinted);
     event Withdraw(address indexed asset, address indexed to, uint128 amount, uint256 lpSharesBurnt);
@@ -69,8 +98,8 @@ contract Metapool is MetapoolImmutableArgs, Multicall, SelfPermit {
     // Slippage paramaters
     // `K` is the slippage at a score of 0
     // `N` is the steepness of the slippage curve
-    SD59x18 private constant K = SD59x18.wrap(0.005e18);
-    SD59x18 private constant N = SD59x18.wrap(10e18);
+    SD59x18 public constant K = SD59x18.wrap(0.005e18);
+    SD59x18 public constant N = SD59x18.wrap(10e18);
 
     uint256 private constant SSLOT = uint256(keccak256("xyz.tenderize.swap.storage.location")) - 1;
 
@@ -175,7 +204,7 @@ contract Metapool is MetapoolImmutableArgs, Multicall, SelfPermit {
         emit Withdraw(asset, msg.sender, amount, lpShares);
     }
 
-    function withdrawOther(address asset, address otherAsset, uint128 amount) external returns (uint128 out) {
+    function withdrawOther(address asset, address otherAsset, uint128 amount, uint128 minOut) external returns (uint128 out) {
         Data storage s = _loadStorageSlot();
 
         Pool memory p = s.pools[asset];
@@ -185,19 +214,22 @@ contract Metapool is MetapoolImmutableArgs, Multicall, SelfPermit {
         _checkRebase(otherAsset, op);
 
         // Can only withdrawOther if `asset` has a score less than 0
-        if (unwrap(_score(p.assets, p.liabilities)) >= 0) revert();
+        if (unwrap(_score(p.assets, p.liabilities)) >= 0) revert InvalidWithdrawOther(asset);
 
         // Withdrawing from `otherAsset` can't reduce its score below 0
-        if (p.assets - p.liabilities < amount) {
+        if (op.assets - op.liabilities < amount) {
             revert InsufficientAssets(amount, op.assets - op.liabilities);
         }
 
         // Calculate slippage for reducing score from `otherAsset`
-        SD59x18 sl = _slippage(_score(op.assets, op.liabilities), _score(op.assets - amount, op.liabilities));
+        SD59x18 sl = _slippage(_score(op.assets, op.liabilities), _score(op.assets - amount, op.liabilities), K, N);
 
         sl = UNIT.sub(sl);
 
         out = (amount * uint256(unwrap(sl)) / 1e18).safeCastTo128();
+
+        // Revert if slippage threshold is exceeded, i.e. if `out` is less than `minOut`
+        if (out < minOut) revert SlippageThresholdExceeded(out, minOut);
 
         // Calculate LP shares to burn from depositer for `asset`
         uint256 lpShares = amount * p.lpToken.totalSupply() / p.liabilities;
@@ -257,13 +289,13 @@ contract Metapool is MetapoolImmutableArgs, Multicall, SelfPermit {
         emit Swap(from, msg.sender, to, amount, out);
     }
 
-    function quote(address from, address to, uint256 amount) external view returns (uint128 out) {
+    function quote(address from, address to, uint256 amount) external view returns (uint128 out, uint128 fee) {
         Data storage s = _loadStorageSlot();
 
         // Use a memory cache to save gas
         Pool memory i = s.pools[from];
         Pool memory j = s.pools[to];
-        (out,) = _quote(i, j, amount);
+        (out, fee) = _quote(i, j, amount);
     }
 
     function score(address asset) external view returns (SD59x18) {
@@ -275,9 +307,9 @@ contract Metapool is MetapoolImmutableArgs, Multicall, SelfPermit {
 
     function _quote(Pool memory i, Pool memory j, uint256 amount) internal pure returns (uint128 out, uint128 fee) {
         // Get the slippage for increasing the score of pool `i`
-        SD59x18 s_i = _slippage(_score(i.assets, i.liabilities), _score(i.assets + amount, i.liabilities));
+        SD59x18 s_i = _slippage(_score(i.assets, i.liabilities), _score(i.assets + amount, i.liabilities), K, N);
         // Get the slippage for decreasing the score of pool `j`
-        SD59x18 s_j = _slippage(_score(j.assets, j.liabilities), _score(j.assets - amount, j.liabilities));
+        SD59x18 s_j = _slippage(_score(j.assets, j.liabilities), _score(j.assets - amount, j.liabilities), K, N);
 
         // Calculate the multiplier as `1 - slippage`
         SD59x18 s = UNIT.sub((s_i).sub(s_j));
@@ -286,34 +318,6 @@ contract Metapool is MetapoolImmutableArgs, Multicall, SelfPermit {
         out = (amount * uint256(unwrap(s)) / 1e18).safeCastTo128();
         fee = out * FEE / 1e18;
         out -= fee;
-    }
-
-    function _slippage(SD59x18 r, SD59x18 rY) internal pure returns (SD59x18) {
-        SD59x18 slip = _slippageForScore(r);
-        SD59x18 slipY = _slippageForScore(rY);
-
-        // The slippage for changing the score from `r` to `rY` is defined as
-        // `(slipY - slip) / (rY - r)`
-        return (slipY.sub(slip)).div(rY.sub(r));
-    }
-
-    function _slippageForScore(SD59x18 r) internal pure returns (SD59x18) {
-        // slippage for a score `r`is defined as
-        // `k / e^(r*n)`
-        // where `k` is a constant and can be seen as the slippage at score 0
-        // and `n`is the amplifier of the slippage function, lower `n` means a flatter curve
-
-        // If `r` is less than -0.5 return 100% slippage
-        if (r.lte(wrap(-0.5e18))) return UNIT;
-        return K.div(E.pow(r.mul(N)));
-    }
-
-    function _score(uint256 assets, uint256 liabilities) internal pure returns (SD59x18 r) {
-        if (assets < liabilities) {
-            r = wrap(-int256((liabilities - assets) * 1e18 / (assets + liabilities)));
-        } else {
-            r = wrap(int256((assets - liabilities) * 1e18 / (assets + liabilities)));
-        }
     }
 
     function _checkRebase(address asset, Pool memory p) internal view {

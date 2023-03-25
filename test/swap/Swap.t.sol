@@ -16,18 +16,14 @@ import { Router } from "core/router/Router.sol";
 import { MockERC20 } from "test/helpers/MockERC20.sol";
 import { ClonesWithImmutableArgs } from "clones/ClonesWithImmutableArgs.sol";
 
-import { Metapool } from "core/swap/Metapool.sol";
+import { Metapool, Pool } from "core/swap/Metapool.sol";
 import { LPToken } from "core/swap/LpToken.sol";
 import { TenderizerImmutableArgs } from "core/tenderizer/TenderizerBase.sol";
 import { SD59x18, sd, pow, fromSD59x18, E, wrap, unwrap } from "prb-math/SD59x18.sol";
 
-contract MetaPoolTest is Test {
-    using ClonesWithImmutableArgs for address;
-
+contract MetaPoolTest is Metapool, Test {
     MockERC20 tokenA;
     MockERC20 tokenB;
-
-    Metapool mp;
 
     address router = vm.addr(1333);
 
@@ -38,65 +34,45 @@ contract MetaPoolTest is Test {
         // default mock calls
         vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
         vm.mockCall(address(tokenB), abi.encodeWithSelector(TenderizerImmutableArgs.asset.selector), abi.encode(address(tokenA)));
-
-        mp = Metapool(address(new Metapool()).clone(abi.encodePacked(address(tokenA), router, address(new LPToken()))));
     }
 
-    function test_Deposit() public {
-        tokenA.mint(address(this), 1000);
-        tokenA.approve(address(mp), 1000);
+    function _testQuote() internal {
+        uint256 __id__ = vm.snapshot();
 
-        mp.deposit(address(tokenA), 1000);
-        assertEq(mp.totalAssets(), 1000);
-        assertEq(mp.totalLiabilities(), 1000);
-        assertEq(mp.pool(address(tokenA)).assets, 1000);
-        assertEq(mp.pool(address(tokenA)).liabilities, 1000);
-        assertEq(mp.pool(address(tokenA)).lpToken.totalSupply(), 1000);
-
-        tokenB.mint(address(this), 1000);
-        tokenB.approve(address(mp), 1000);
-        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, address(tokenB)));
-        vm.expectCall(address(tokenB), abi.encodeCall(TenderizerImmutableArgs.asset, ()));
-
-        mp.deposit(address(tokenB), 1000);
-        assertEq(mp.totalAssets(), 2000);
-        assertEq(mp.totalLiabilities(), 2000);
-        assertEq(mp.pool(address(tokenB)).assets, 1000);
-        assertEq(mp.pool(address(tokenB)).liabilities, 1000);
-        assertEq(mp.pool(address(tokenB)).lpToken.totalSupply(), 1000);
+        vm.revertTo(__id__);
     }
 
-    function test_Deposit_ErrorInvalidAsset() public {
-        tokenB.mint(address(this), 1000);
-        tokenB.approve(address(mp), 1000);
+    function testQuote() public {
+        Data storage s = _loadStorageSlot();
+        Pool storage a = s.pools[address(tokenA)];
+        Pool storage b = s.pools[address(tokenB)];
 
-        vm.clearMockedCalls();
-        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(false));
-        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, address(tokenB)));
-        vm.expectRevert(abi.encodeWithSelector(Metapool.InvalidAsset.selector, address(tokenB)));
+        // Case 1
+        a.assets = 100 ether;
+        a.liabilities = 100 ether;
+        b.assets = 100 ether;
+        b.liabilities = 100 ether;
+        s.totalAssets = a.assets + b.assets;
+        s.totalLiabilities = a.liabilities + b.liabilities;
 
-        mp.deposit(address(tokenB), 1000);
-    }
+        (uint128 out,) = Metapool(address(this)).quote(address(tokenA), address(tokenB), 10 ether);
+        assertEq(out, 9_710_527_972_550_683_042, "case 1 failed");
 
-    function test_Swap() public {
-        // Set Up
-        tokenA.mint(address(this), 5 ether);
-        tokenA.approve(address(mp), 5 ether);
-        mp.deposit(address(tokenA), 5 ether);
+        // Case 2
+        a.assets = 50 ether;
+        b.assets = 160 ether;
+        s.totalAssets = a.assets + b.assets;
+        (out,) = Metapool(address(this)).quote(address(tokenA), address(tokenB), 10 ether);
+        assertEq(out, 19_392_877_225_583_231_203, "case 2 failed");
 
-        tokenB.mint(address(this), 0.33 ether);
-        tokenB.approve(address(mp), 0.33 ether);
-
-        mp.deposit(address(tokenB), 0.33 ether);
-
-        tokenA.mint(address(this), 0.22 ether);
-        tokenA.approve(address(mp), 0.22 ether);
-        uint128 minOut = mp.quote(address(tokenA), address(tokenB), 0.03 ether);
-        uint128 out = mp.swap(address(tokenA), address(tokenB), 0.03 ether, minOut);
-        console.log("out from swap ", out);
-        uint128 quoteNext = mp.quote(address(tokenB), address(tokenA), 0.03 ether);
-        console.log("Quote for next swap ", quoteNext);
-        uint128 slip = (0.03 ether - out);
-        console.log("diff ", slip - (quoteNext - 0.03 ether));
+        // Case 3
+        a.assets = 353 ether;
+        a.liabilities = 269 ether;
+        b.assets = 10_345 ether;
+        b.liabilities = 10_415 ether;
+        s.totalAssets = a.assets + b.assets;
+        s.totalLiabilities = a.liabilities + b.liabilities;
+        (out,) = Metapool(address(this)).quote(address(tokenA), address(tokenB), 41 ether);
+        assertEq(out, 39_152_097_041_008_618_632, "case 3 failed");
     }
 }
