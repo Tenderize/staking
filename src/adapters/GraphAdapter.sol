@@ -111,7 +111,7 @@ contract GraphAdapter is Adapter {
         _processWithdrawals(validator);
     }
 
-    function withdraw(address validator, uint256 unlockID) public override {
+    function withdraw(address validator, uint256 unlockID) public override returns (uint256 amount) {
         _processWithdrawals(validator);
         Withdrawals storage w = _loadWithdrawalsSlot();
         Withdrawal memory withdrawal = w.unlocks[unlockID];

@@ -69,7 +69,8 @@ contract LivepeerAdapter is Adapter {
         LIVEPEER.unbond(amount);
     }
 
-    function withdraw(address, /*validator*/ uint256 unlockID) public {
+    function withdraw(address, /*validator*/ uint256 unlockID) public returns (uint256 amount) {
+        (amount,) = LIVEPEER.getDelegatorUnbondingLock(address(this), unlockID);
         LIVEPEER.withdrawStake(unlockID);
     }
 
