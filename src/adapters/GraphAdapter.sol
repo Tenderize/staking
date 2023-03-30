@@ -97,12 +97,12 @@ contract GraphAdapter is Adapter {
         return delShares * totalTokens / totalShares;
     }
 
-    function stake(address validator, uint256 amount) public override {
+    function stake(address validator, uint256 amount) external override {
         GRT.safeApprove(address(GRAPH), amount);
         GRAPH.delegate(validator, amount);
     }
 
-    function unstake(address validator, uint256 amount) public override returns (uint256 unlockID) {
+    function unstake(address validator, uint256 amount) external override returns (uint256 unlockID) {
         Unlocks storage u = _loadUnlocksSlot();
         Epoch storage e = u.epochs[u.currentEpoch];
 
@@ -116,7 +116,7 @@ contract GraphAdapter is Adapter {
         _processWithdrawals(validator);
     }
 
-    function withdraw(address validator, uint256 unlockID) public override returns (uint256 amount) {
+    function withdraw(address validator, uint256 unlockID) external override returns (uint256 amount) {
         _processWithdrawals(validator);
         Unlocks storage u = _loadUnlocksSlot();
         Unlock memory unlock = u.unlocks[unlockID];
@@ -136,7 +136,7 @@ contract GraphAdapter is Adapter {
         delete u.unlocks[unlockID];
     }
 
-    function claimRewards(address validator, uint256 currentStake) public override returns (uint256 newStake) {
+    function claimRewards(address validator, uint256 currentStake) external override returns (uint256 newStake) {
         Unlocks storage u = _loadUnlocksSlot();
         // TODO: Change to use totalStaked() after https://github.com/Tenderize/staking/issues/20
         IGraphStaking.Delegation memory delegation = GRAPH.getDelegation(validator, address(this));
