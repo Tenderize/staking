@@ -55,8 +55,8 @@ contract TTokenTest is TokenSetup {
 
         // non-zero supply and shares
         s._totalShares = totalShares;
-        assertEq(convertToShares(amount), (amount * totalShares) / totalSupply, "invalid share conversion");
-        assertEq(convertToAssets(amount), (amount * totalSupply) / totalShares, "invalid asset conversion");
+        assertEq(convertToShares(amount), amount * totalShares / totalSupply, "invalid share conversion");
+        assertEq(convertToAssets(amount), amount * totalSupply / totalShares, "invalid asset conversion");
 
         // zero supply
         s._totalSupply = 0;
@@ -75,7 +75,7 @@ contract TTokenTest is TokenSetup {
         s._totalSupply = totalSupply;
         s._totalShares = totalShares;
 
-        assertEq(balanceOf(account1), (shares * totalSupply) / totalShares, "invalid balance");
+        assertEq(balanceOf(account1), shares * totalSupply / totalShares, "invalid balance");
         assertEq(balanceOf(account2), 0, "invalid balance - no tokens");
     }
 
