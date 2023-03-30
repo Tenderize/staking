@@ -35,11 +35,11 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
 
     uint256 private constant MAX_FEE = 0.005 ether; // 0.5%
 
-    function name() public view override returns (string memory) {
+    function name() external view override returns (string memory) {
         return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
     }
 
-    function symbol() public view override returns (string memory) {
+    function symbol() external view override returns (string memory) {
         return string(abi.encodePacked("t", ERC20(asset()).symbol(), "_", validator()));
     }
 
@@ -51,7 +51,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
         return _adapter().unlockMaturity(unlockID);
     }
 
-    function previewWithdraw(uint256 unlockID) public view returns (uint256) {
+    function previewWithdraw(uint256 unlockID) external view returns (uint256) {
         return _adapter().previewWithdraw(unlockID);
     }
 
@@ -69,13 +69,12 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
         // mint tokens to receiver
         _mint(receiver, actualAssets);
 
-        // get *exact* tToken output amount
+        // TODO get *exact* tToken output amount
         // can be different from `actualAssets` due to rounding
-        uint256 tTokenOut = balanceOf(receiver);
         // emit Deposit event
-        emit Deposit(msg.sender, receiver, assets, tTokenOut);
+        emit Deposit(msg.sender, receiver, assets, actualAssets);
 
-        return tTokenOut;
+        return actualAssets;
     }
 
     function unlock(uint256 assets) external returns (uint256 unlockID) {

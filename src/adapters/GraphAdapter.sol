@@ -84,7 +84,7 @@ contract GraphAdapter is Adapter {
         return unlock.shares * epoch.amount / epoch.totalShares;
     }
 
-    function getTotalStaked(address validator) public view override returns (uint256) {
+    function getTotalStaked(address validator) external view override returns (uint256) {
         IGraphStaking.Delegation memory delegation = GRAPH.getDelegation(validator, msg.sender);
         IGraphStaking.DelegationPool memory delPool = GRAPH.delegationPools(validator);
 
