@@ -47,13 +47,13 @@ contract Unlocks is ERC721 {
         renderer = Renderer(_renderer);
     }
 
-    function createUnlock(address receiver, uint256 id) public virtual isValidTenderizer(msg.sender) returns (uint256 tokenId) {
+    function createUnlock(address receiver, uint256 id) external virtual isValidTenderizer(msg.sender) returns (uint256 tokenId) {
         if (id >= 1 << 96) revert InvalidID();
         tokenId = _encodeTokenId(msg.sender, uint96(id));
         _safeMint(receiver, tokenId);
     }
 
-    function useUnlock(address owner, uint256 id) public virtual isValidTenderizer(msg.sender) {
+    function useUnlock(address owner, uint256 id) external virtual isValidTenderizer(msg.sender) {
         if (id >= 1 << 96) revert InvalidID();
         uint256 tokenId = _encodeTokenId(msg.sender, uint96(id));
         if (ownerOf(tokenId) != owner) revert NotOwnerOf(id, ownerOf(tokenId), owner);
@@ -65,7 +65,7 @@ contract Unlocks is ERC721 {
         return renderer.json(id);
     }
 
-    function getMetadata(uint256 tokenId) public view returns (Metadata memory metadata) {
+    function getMetadata(uint256 tokenId) external view returns (Metadata memory metadata) {
         (address tenderizer, uint256 id) = _decodeTokenId(tokenId);
         address asset = Tenderizer(tenderizer).asset();
 

@@ -29,7 +29,7 @@ contract Renderer is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function initialize() public initializer {
+    function initialize() external initializer {
         __Ownable_init();
     }
 

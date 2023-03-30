@@ -29,15 +29,15 @@ contract LivepeerAdapter is Adapter {
     ISwapRouter private constant UNISWAP_ROUTER = ISwapRouter(address(0));
     uint24 private constant UNISWAP_POOL_FEE = 10_000;
 
-    function previewDeposit(uint256 assets) public pure returns (uint256) {
+    function previewDeposit(uint256 assets) external pure returns (uint256) {
         return assets;
     }
 
-    function previewWithdraw(uint256 unlockID) public view returns (uint256 amount) {
+    function previewWithdraw(uint256 unlockID) external view returns (uint256 amount) {
         (amount,) = LIVEPEER.getDelegatorUnbondingLock(msg.sender, unlockID);
     }
 
-    function unlockMaturity(uint256 unlockID) public view returns (uint256 maturity) {
+    function unlockMaturity(uint256 unlockID) external view returns (uint256 maturity) {
         // calculate unlock maturity in block number
         // in Livepeer this is expressed in rounds with a fixed amount of blocks
         // roundLength = n
@@ -62,19 +62,19 @@ contract LivepeerAdapter is Adapter {
         LIVEPEER.bond(amount, validator);
     }
 
-    function unstake(address, /*validator*/ uint256 amount) public returns (uint256 unlockID) {
+    function unstake(address, /*validator*/ uint256 amount) external returns (uint256 unlockID) {
         // returns the *next* Livepeer unbonding lock ID for the delegator
         // this will be the `unlockID` after calling unbond
         (,,,,,, unlockID) = LIVEPEER.getDelegator(address(this));
         LIVEPEER.unbond(amount);
     }
 
-    function withdraw(address, /*validator*/ uint256 unlockID) public returns (uint256 amount) {
+    function withdraw(address, /*validator*/ uint256 unlockID) external returns (uint256 amount) {
         (amount,) = LIVEPEER.getDelegatorUnbondingLock(address(this), unlockID);
         LIVEPEER.withdrawStake(unlockID);
     }
 
-    function claimRewards(address validator, uint256) public returns (uint256 newStake) {
+    function claimRewards(address validator, uint256) external returns (uint256 newStake) {
         _livepeerClaimFees();
 
         // restake

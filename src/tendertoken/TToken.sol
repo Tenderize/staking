@@ -32,15 +32,15 @@ abstract contract TToken is TTokenStorage, IERC20 {
     bytes32 private constant PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
-    uint8 public constant DECIMALS = 18;
+    uint8 private constant DECIMALS = 18;
 
     function decimals() public pure returns (uint8) {
         return DECIMALS;
     }
 
-    function name() public view virtual returns (string memory);
+    function name() external view virtual returns (string memory);
 
-    function symbol() public view virtual returns (string memory);
+    function symbol() external view virtual returns (string memory);
 
     function convertToAssets(uint256 shares) public view returns (uint256) {
         ERC20Data storage s = _loadERC20Slot();
@@ -165,10 +165,6 @@ abstract contract TToken is TTokenStorage, IERC20 {
 
     // solhint-disable-next-line func-name-mixedcase
     function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
-        return computeDomainSeparator();
-    }
-
-    function computeDomainSeparator() internal view virtual returns (bytes32) {
         return keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)"),
@@ -179,9 +175,6 @@ abstract contract TToken is TTokenStorage, IERC20 {
         );
     }
 
-    // TODO: consider using int256 and calling it updateTotalSupply
-    // or 2 arguments (uint8 sign, uint256 amount) where `sign` is 0 for subtract, 1 for add
-    // this is the same as (bool increase, uint256 amount) but with better naming
     function _setTotalSupply(uint256 supply) internal virtual {
         ERC20Data storage s = _loadERC20Slot();
         s._totalSupply = supply;

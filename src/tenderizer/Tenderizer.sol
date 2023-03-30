@@ -35,11 +35,11 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
 
     uint256 private constant MAX_FEE = 0.005 ether; // 0.5%
 
-    function name() public view override returns (string memory) {
+    function name() external view override returns (string memory) {
         return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
     }
 
-    function symbol() public view override returns (string memory) {
+    function symbol() external view override returns (string memory) {
         return string(abi.encodePacked("t", ERC20(asset()).symbol(), "_", validator()));
     }
 
@@ -47,15 +47,15 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
         return _adapter().previewDeposit(assets);
     }
 
-    function unlockMaturity(uint256 unlockID) public view returns (uint256) {
+    function unlockMaturity(uint256 unlockID) external view returns (uint256) {
         return _adapter().unlockMaturity(unlockID);
     }
 
-    function previewWithdraw(uint256 unlockID) public view returns (uint256) {
+    function previewWithdraw(uint256 unlockID) external view returns (uint256) {
         return _adapter().previewWithdraw(unlockID);
     }
 
-    function deposit(address receiver, uint256 assets) public returns (uint256) {
+    function deposit(address receiver, uint256 assets) external returns (uint256) {
         // transfer tokens before minting (or ERC777's could re-enter)
         ERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
 
@@ -69,16 +69,15 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
         // mint tokens to receiver
         _mint(receiver, actualAssets);
 
-        // get *exact* tToken output amount
+        // TODO get *exact* tToken output amount
         // can be different from `actualAssets` due to rounding
-        uint256 tTokenOut = balanceOf(receiver);
         // emit Deposit event
-        emit Deposit(msg.sender, receiver, assets, tTokenOut);
+        emit Deposit(msg.sender, receiver, assets, actualAssets);
 
-        return tTokenOut;
+        return actualAssets;
     }
 
-    function unlock(uint256 assets) public returns (uint256 unlockID) {
+    function unlock(uint256 assets) external returns (uint256 unlockID) {
         // burn tTokens before creating an `unlock`
         _burn(msg.sender, assets);
 
@@ -92,7 +91,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
         emit Unlock(msg.sender, assets, unlockID);
     }
 
-    function withdraw(address receiver, uint256 unlockID) public returns (uint256) {
+    function withdraw(address receiver, uint256 unlockID) external returns (uint256) {
         // Redeem unlock if mature
         _unlocks().useUnlock(msg.sender, unlockID);
 
@@ -108,7 +107,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
         return amount;
     }
 
-    function rebase() public {
+    function rebase() external {
         uint256 currentStake = totalSupply();
         uint256 newStake = _claimRewards(validator(), currentStake);
 
