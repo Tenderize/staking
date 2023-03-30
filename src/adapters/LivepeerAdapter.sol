@@ -34,7 +34,7 @@ contract LivepeerAdapter is Adapter {
     }
 
     function previewWithdraw(uint256 unlockID) public view returns (uint256 amount) {
-        (amount,) = LIVEPEER.getDelegatorUnbondingLock(address(this), unlockID);
+        (amount,) = LIVEPEER.getDelegatorUnbondingLock(msg.sender, unlockID);
     }
 
     function unlockMaturity(uint256 unlockID) public view returns (uint256 maturity) {
@@ -45,7 +45,7 @@ contract LivepeerAdapter is Adapter {
         // withdrawRound = w
         // blockRemainingInCurrentRound = b = roungLength - (block.number - currentRoundStartBlock)
         // maturity = n*(w - r - 1) + b
-        (, uint256 withdrawRound) = LIVEPEER.getDelegatorUnbondingLock(address(this), unlockID);
+        (, uint256 withdrawRound) = LIVEPEER.getDelegatorUnbondingLock(msg.sender, unlockID);
         uint256 currentRound = LIVEPEER_ROUNDS.currentRound();
         uint256 roundLength = LIVEPEER_ROUNDS.roundLength();
         uint256 currentRoundStartBlock = LIVEPEER_ROUNDS.currentRoundStartBlock();
@@ -69,7 +69,8 @@ contract LivepeerAdapter is Adapter {
         LIVEPEER.unbond(amount);
     }
 
-    function withdraw(address, /*validator*/ uint256 unlockID) public {
+    function withdraw(address, /*validator*/ uint256 unlockID) public returns (uint256 amount) {
+        (amount,) = LIVEPEER.getDelegatorUnbondingLock(address(this), unlockID);
         LIVEPEER.withdrawStake(unlockID);
     }
 

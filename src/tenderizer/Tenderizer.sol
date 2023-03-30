@@ -93,22 +93,19 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
     }
 
     function withdraw(address receiver, uint256 unlockID) public returns (uint256) {
-        // retrieve amount of assets withdrawable for `unlockID`
-        uint256 assets = previewWithdraw(unlockID);
-
         // Redeem unlock if mature
         _unlocks().useUnlock(msg.sender, unlockID);
 
         // withdraw assets to send to `receiver`
-        _withdraw(validator(), unlockID);
+        uint256 amount = _withdraw(validator(), unlockID);
 
         // transfer assets to `receiver`
-        ERC20(asset()).safeTransfer(receiver, assets);
+        ERC20(asset()).safeTransfer(receiver, amount);
 
         // emit Withdraw event
-        emit Withdraw(receiver, assets, unlockID);
+        emit Withdraw(receiver, amount, unlockID);
 
-        return assets;
+        return amount;
     }
 
     function rebase() public {
@@ -134,7 +131,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
     function _calculateFees(uint256 rewards) internal view returns (uint256 fees) {
         uint256 fee = Router(_router()).fee(asset());
         fee = fee > MAX_FEE ? MAX_FEE : fee;
-        fees = (rewards * (1 ether - fee)) / 1 ether;
+        fees = rewards * fee / 1 ether;
     }
 
     function _adapter() internal view returns (Adapter) {
@@ -156,7 +153,9 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
             abi.decode(_adapter()._delegatecall(abi.encodeWithSelector(_adapter().unstake.selector, validator, amount)), (uint256));
     }
 
-    function _withdraw(address validator, uint256 unlockID) internal {
-        _adapter()._delegatecall(abi.encodeWithSelector(_adapter().withdraw.selector, validator, unlockID));
+    function _withdraw(address validator, uint256 unlockID) internal returns (uint256 withdrawAmount) {
+        withdrawAmount = abi.decode(
+            _adapter()._delegatecall(abi.encodeWithSelector(_adapter().withdraw.selector, validator, unlockID)), (uint256)
+        );
     }
 }

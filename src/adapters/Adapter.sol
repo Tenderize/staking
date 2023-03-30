@@ -24,7 +24,7 @@ interface Adapter {
 
     function unstake(address validator, uint256 amount) external returns (uint256 unlockID);
 
-    function withdraw(address validator, uint256 unlockID) external;
+    function withdraw(address validator, uint256 unlockID) external returns (uint256 amount);
 
     function claimRewards(address validator, uint256 currentStake) external returns (uint256 newStake);
 }
