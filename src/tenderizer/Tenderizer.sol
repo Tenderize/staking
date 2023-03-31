@@ -117,7 +117,9 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
                 uint256 fees = _calculateFees(rewards);
                 _setTotalSupply(newStake - fees);
                 // mint fees
-                _mint(Router(_router()).treasury(), fees);
+                if (fees > 0) {
+                    _mint(Router(_router()).treasury(), fees);
+                }
             }
         } else {
             _setTotalSupply(newStake);

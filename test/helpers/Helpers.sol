@@ -32,6 +32,10 @@ contract TestHelpers {
         return r;
     }
 
+    function absDiff(uint256 x, uint256 y) public pure returns (uint256) {
+        return x > y ? x - y : y - x;
+    }
+
     function _signPermit(
         Vm vm,
         bytes32 domainSeparator,
