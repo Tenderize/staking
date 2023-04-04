@@ -112,7 +112,7 @@ contract LivepeerAdapter is Adapter {
         });
 
         (bool success, bytes memory returnData) =
-            address(UNISWAP_ROUTER).staticcall(abi.encodeWithSelector(UNISWAP_ROUTER.exactInputSingle.selector, params));
+            address(UNISWAP_ROUTER).staticcall(abi.encodeCall(UNISWAP_ROUTER.exactInputSingle, (params)));
 
         if (!success) return;
 

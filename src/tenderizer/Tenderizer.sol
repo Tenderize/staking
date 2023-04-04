@@ -140,23 +140,19 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
     }
 
     function _claimRewards(address validator, uint256 currentStake) internal returns (uint256 newStake) {
-        newStake = abi.decode(
-            _adapter()._delegatecall(abi.encodeWithSelector(_adapter().claimRewards.selector, validator, currentStake)), (uint256)
-        );
+        newStake =
+            abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().claimRewards, (validator, currentStake))), (uint256));
     }
 
     function _stake(address validator, uint256 amount) internal {
-        _adapter()._delegatecall(abi.encodeWithSelector(_adapter().stake.selector, validator, amount));
+        _adapter()._delegatecall(abi.encodeCall(_adapter().stake, (validator, amount)));
     }
 
     function _unstake(address validator, uint256 amount) internal returns (uint256 unlockID) {
-        unlockID =
-            abi.decode(_adapter()._delegatecall(abi.encodeWithSelector(_adapter().unstake.selector, validator, amount)), (uint256));
+        unlockID = abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().unstake, (validator, amount))), (uint256));
     }
 
     function _withdraw(address validator, uint256 unlockID) internal returns (uint256 withdrawAmount) {
-        withdrawAmount = abi.decode(
-            _adapter()._delegatecall(abi.encodeWithSelector(_adapter().withdraw.selector, validator, unlockID)), (uint256)
-        );
+        withdrawAmount = abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().withdraw, (validator, unlockID))), (uint256));
     }
 }

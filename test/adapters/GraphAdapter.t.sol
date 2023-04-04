@@ -33,13 +33,13 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
     uint256 private MAX_UINT_SQRT = sqrt(MAX_UINT - 1);
 
     function setUp() public {
-        vm.mockCall(staking, abi.encodeWithSelector(IGraphStaking.delegationTaxPercentage.selector), abi.encode(DELEGATION_TAX));
-        vm.mockCall(staking, abi.encodeWithSelector(IGraphStaking.thawingPeriod.selector), abi.encode(THAWING_PERIOD));
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationTaxPercentage, ()), abi.encode(DELEGATION_TAX));
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.thawingPeriod, ()), abi.encode(THAWING_PERIOD));
     }
 
     function testFuzz_PreviewDeposit(uint256 amount) public {
         amount = bound(amount, 0, MAX_UINT / DELEGATION_TAX);
-        vm.expectCall(staking, abi.encodeWithSelector(IGraphStaking.delegationTaxPercentage.selector));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationTaxPercentage, ()));
         assertEq(this.previewDeposit(amount), amount - amount * DELEGATION_TAX / MAX_PPM);
     }
 
@@ -56,7 +56,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         u.unlocks[unlockId].epoch = userEpoch;
         u.lastEpochUnlockedAt = lastEpochUnlockedAt;
 
-        vm.expectCall(staking, abi.encodeWithSelector(IGraphStaking.thawingPeriod.selector));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.thawingPeriod, ()));
 
         if (userEpoch == currentEpoch) {
             assertEq(this.unlockMaturity(unlockId), u.lastEpochUnlockedAt + 2 * THAWING_PERIOD, "invalid when yet to process");
@@ -86,33 +86,28 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         totalTokens = bound(totalTokens, 0, MAX_UINT_SQRT);
         totalShares = bound(totalShares, 0, MAX_UINT_SQRT);
 
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(shares, 0, 0));
         vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)),
-            abi.encode(shares, 0, 0)
+            staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, totalTokens, totalShares)
         );
-        vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.delegationPools.selector, validator),
-            abi.encode(0, 0, 0, 0, totalTokens, totalShares)
-        );
-        vm.expectCall(staking, abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)));
-        vm.expectCall(staking, abi.encodeWithSelector(IGraphStaking.delegationPools.selector, validator));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
         uint256 exp = totalShares == 0 ? 0 : shares * totalTokens / totalShares;
         assertEq(this.getTotalStaked(validator), exp);
     }
 
     function test_Stake() public {
         uint256 amount = 1 ether;
-        vm.mockCall(token, abi.encodeWithSelector(IERC20.approve.selector, staking, amount), abi.encode(true));
-        vm.mockCall(staking, abi.encodeWithSelector(IGraphStaking.delegate.selector, validator, amount), abi.encode(amount));
-        vm.expectCall(token, abi.encodeWithSelector(IERC20.approve.selector, staking, amount));
-        vm.expectCall(staking, abi.encodeWithSelector(IGraphStaking.delegate.selector, validator, amount));
+        vm.mockCall(token, abi.encodeCall(IERC20.approve, (staking, amount)), abi.encode(true));
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegate, (validator, amount)), abi.encode(amount));
+        vm.expectCall(token, abi.encodeCall(IERC20.approve, (staking, amount)));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegate, (validator, amount)));
         this.stake(validator, amount);
     }
 
     function test_Stake_RevertIfApproveFails() public {
-        vm.mockCall(token, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(false));
+        vm.mockCall(token, abi.encodeCall(IERC20.approve, (address(staking), 1 ether)), abi.encode(false));
+
         vm.expectRevert("APPROVE_FAILED");
         this.stake(validator, 1 ether);
     }
@@ -129,7 +124,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         // prevent unlock processing by setting the mocked value for `Delegation.tokensLockedUntil` to `block.number + 1`
         vm.mockCall(
             staking,
-            abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)),
+            abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))),
             abi.encode(10 ether, 1 ether, block.number + 1)
         );
 
@@ -160,19 +155,15 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         uint256 lastUnlockID = 1;
 
         vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)),
-            abi.encode(stakedShares, 0, 0)
+            staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(stakedShares, 0, 0)
         );
         vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.delegationPools.selector, validator),
-            abi.encode(0, 0, 0, 0, stakedAmount, stakedShares)
+            staking, abi.encodeCall(IGraphStaking.delegationPools, validator), abi.encode(0, 0, 0, 0, stakedAmount, stakedShares)
         );
 
         uint256 expShares = (currentEpochAmount + amount) * stakedShares / stakedAmount;
         expShares = expShares > stakedShares ? stakedShares : expShares;
-        vm.mockCall(staking, abi.encodeWithSelector(IGraphStaking.undelegate.selector, validator, expShares), abi.encode(expShares));
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, expShares)), abi.encode(expShares));
 
         Unlocks storage u = _loadUnlocksSlot();
         u.currentEpoch = epoch;
@@ -180,7 +171,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         u.epochs[epoch].totalShares = currentEpochAmount;
         u.lastUnlockID = lastUnlockID;
 
-        vm.expectCall(staking, abi.encodeWithSelector(IGraphStaking.undelegate.selector, validator, expShares));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, expShares)));
         this.unstake(validator, amount);
         assertEq(u.currentEpoch, epoch + 1, "invalid epoch");
         assertEq(u.lastEpochUnlockedAt, block.number, "invalid lastEpochUnlockedAt");
@@ -193,11 +184,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
     function test_Withdraw_LastTwoEpochsEmpty() public {
         uint256 amount = 1 ether;
         // should neither call `undelegate` nor `withdrawDelegation`
-        vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)),
-            abi.encode(amount, 0, 0)
-        );
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(amount, 0, 0));
 
         Unlocks storage u = _loadUnlocksSlot();
         uint256 epoch = 2;
@@ -211,18 +198,10 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         uint256 amount = 1 ether;
 
         // should call `undelegate` but not `withdrawDelegation`
-        vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)),
-            abi.encode(amount, 0, 0)
-        );
-        vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.delegationPools.selector, validator),
-            abi.encode(0, 0, 0, 0, amount, amount)
-        );
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(amount, 0, 0));
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, amount, amount));
 
-        vm.mockCall(staking, abi.encodeWithSelector(IGraphStaking.undelegate.selector, validator, amount), abi.encode(0));
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, amount)), abi.encode(0));
 
         Unlocks storage u = _loadUnlocksSlot();
         // set unlock id 0 for epoch 0
@@ -235,7 +214,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         u.epochs[epoch].amount = amount;
         u.epochs[epoch].totalShares = amount;
 
-        vm.expectCall(staking, abi.encodeWithSelector(IGraphStaking.undelegate.selector, validator, amount));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, amount)));
         this.withdraw(validator, 0);
         assertEq(u.currentEpoch, epoch + 1, "invalid epoch");
         assertEq(u.lastEpochUnlockedAt, block.number, "invalid lastEpochUnlockedAt");
@@ -253,27 +232,19 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         uint256 tokensLockedUntil = rand(1, 1, 0, currentBlock - 1);
         vm.mockCall(
             staking,
-            abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)),
+            abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))),
             abi.encode(10 ether, tokensLocked, tokensLockedUntil)
         );
-        vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.delegationPools.selector, validator),
-            abi.encode(0, 0, 0, 0, 10 ether, 10 ether)
-        );
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, validator), abi.encode(0, 0, 0, 0, 10 ether, 10 ether));
 
-        vm.mockCall(staking, abi.encodeWithSelector(IGraphStaking.undelegate.selector, validator, amount), abi.encode(0));
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, amount)), abi.encode(0));
 
-        vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.withdrawDelegated.selector, validator, address(0)),
-            abi.encode(tokensLocked)
-        );
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.withdrawDelegated, (validator, address(0))), abi.encode(tokensLocked));
 
         uint256 epoch = 1;
         _loadUnlocksSlot().currentEpoch = epoch;
 
-        vm.expectCall(staking, abi.encodeWithSelector(IGraphStaking.withdrawDelegated.selector, validator, address(0)));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.withdrawDelegated, (validator, address(0))));
         uint256 unlockID = this.unstake(validator, amount);
 
         Unlocks storage u = _loadUnlocksSlot();
@@ -295,14 +266,10 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         // unlock processing
         vm.mockCall(
             staking,
-            abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)),
+            abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))),
             abi.encode(10 ether, 1 ether, block.number + 1)
         );
-        vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.delegationPools.selector, validator),
-            abi.encode(0, 0, 0, 0, 10 ether, 10 ether)
-        );
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, 10 ether, 10 ether));
 
         Unlocks storage u = _loadUnlocksSlot();
         u.unlocks[unlockID].epoch = unlockEpoch;
@@ -333,14 +300,10 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         // unlock processing
         vm.mockCall(
             staking,
-            abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)),
+            abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))),
             abi.encode(10 ether, 1 ether, block.number + 1)
         );
-        vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.delegationPools.selector, validator),
-            abi.encode(0, 0, 0, 0, 10 ether, 10 ether)
-        );
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, validator), abi.encode(0, 0, 0, 0, 10 ether, 10 ether));
 
         Unlocks storage u = _loadUnlocksSlot();
         u.unlocks[unlockID].epoch = unlockEpoch;
@@ -358,15 +321,9 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         uint256 currentEpochRatio = 0.33 ether;
         uint256 currentEpochAmountStart = startStake * currentEpochRatio / 1 ether;
 
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(1, 1 ether, 0));
         vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)),
-            abi.encode(1, 1 ether, 0)
-        );
-        vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.delegationPools.selector, validator),
-            abi.encode(0, 0, 0, 0, startStake + reward, 1)
+            staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, startStake + reward, 1)
         );
 
         Unlocks storage u = _loadUnlocksSlot();
@@ -391,13 +348,9 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         uint256 currentEpochRatio = 0.33 ether;
         uint256 currentEpochAmountStart = startStake * currentEpochRatio / 1 ether;
 
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(1, 0, 0));
         vm.mockCall(
-            staking, abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)), abi.encode(1, 0, 0)
-        );
-        vm.mockCall(
-            staking,
-            abi.encodeWithSelector(IGraphStaking.delegationPools.selector, validator),
-            abi.encode(0, 0, 0, 0, startStake - penalty, 1)
+            staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, startStake - penalty, 1)
         );
 
         Unlocks storage u = _loadUnlocksSlot();
@@ -417,12 +370,8 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         uint256 currentEpochRatio = 0.33 ether;
         uint256 currentEpochAmount = staked * currentEpochRatio / 1 ether;
 
-        vm.mockCall(
-            staking, abi.encodeWithSelector(IGraphStaking.getDelegation.selector, validator, address(this)), abi.encode(1, 0, 0)
-        );
-        vm.mockCall(
-            staking, abi.encodeWithSelector(IGraphStaking.delegationPools.selector, validator), abi.encode(0, 0, 0, 0, staked, 1)
-        );
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(1, 0, 0));
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, staked, 1));
 
         Unlocks storage u = _loadUnlocksSlot();
         u.currentEpoch = currentEpoch;
