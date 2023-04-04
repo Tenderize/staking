@@ -147,7 +147,7 @@ contract GraphAdapter is Adapter {
         uint256 oldStake = currentStake + u.epochs[u.currentEpoch].amount;
 
         // Last epoch amount should be synced with Delegation.tokensLocked
-        if (u.currentEpoch > 0) u.epochs[u.currentEpoch - 1].amount = GRAPH.getDelegation(validator, address(this)).tokensLocked;
+        if (u.currentEpoch > 0) u.epochs[u.currentEpoch - 1].amount = delegation.tokensLocked;
 
         if (staked < oldStake) {
             // handle a potential slash
