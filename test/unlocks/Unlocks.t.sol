@@ -14,10 +14,10 @@ pragma solidity 0.8.17;
 import { Test, stdError } from "forge-std/Test.sol";
 
 import { IERC20Metadata } from "core/interfaces/IERC20.sol";
-import { Router } from "core/router/Router.sol";
+import { Renderer } from "core/unlocks/Renderer.sol";
+import { Registry } from "core/registry/Registry.sol";
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { TenderizerImmutableArgs } from "core/tenderizer/TenderizerBase.sol";
-import { Renderer } from "core/unlocks/Renderer.sol";
 import { Unlocks } from "core/unlocks/Unlocks.sol";
 
 // solhint-disable func-name-mixedcase
@@ -25,13 +25,13 @@ contract UnlockTest is Test {
     Unlocks private unlocks;
     address private receiver = vm.addr(1);
     address private asset = vm.addr(2);
-    address private router = vm.addr(3);
+    address private registry = vm.addr(3);
     address private renderer = vm.addr(4);
     address private impostor = vm.addr(5);
     address private validator = vm.addr(6);
 
     function setUp() public {
-        unlocks = new Unlocks(router, renderer);
+        unlocks = new Unlocks(registry, renderer);
     }
 
     function test_Metadata() public {
@@ -41,11 +41,11 @@ contract UnlockTest is Test {
 
     function testFuzz_createUnlock_Success(address owner, uint256 lockId) public {
         lockId = bound(lockId, 0, type(uint96).max);
-        vm.assume(owner != address(0) && owner != router && !_isContract(owner));
+        vm.assume(owner != address(0) && owner != registry && !_isContract(owner));
         uint256 balanceBefore = unlocks.balanceOf(owner);
 
-        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
-        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
+        vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))), abi.encode(true));
+        vm.expectCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))));
         uint256 tokenId = unlocks.createUnlock(owner, lockId);
 
         (address tenderizer, uint256 decodedLockIndex) = _decodeTokenId(tokenId);
@@ -56,29 +56,29 @@ contract UnlockTest is Test {
     }
 
     function test_createUnlock_RevertIfNotTenderizer() public {
-        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(false));
+        vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))), abi.encode(false));
 
         vm.expectRevert(abi.encodeWithSelector(Unlocks.NotTenderizer.selector, address(this)));
-        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
+        vm.expectCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))));
         unlocks.createUnlock(receiver, 1);
     }
 
     function test_createUnlock_RevertIfTooLargeId() public {
-        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
+        vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))), abi.encode(true));
 
-        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
+        vm.expectCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))));
         vm.expectRevert(abi.encodeWithSelector(Unlocks.InvalidID.selector));
         unlocks.createUnlock(receiver, 1 << 96);
     }
 
     function testFuzz_useUnlock_Success(address owner, uint256 lockId) public {
         lockId = bound(lockId, 0, type(uint96).max);
-        vm.assume(owner != address(0) && owner != router && !_isContract(owner));
-        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
+        vm.assume(owner != address(0) && owner != registry && !_isContract(owner));
+        vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))), abi.encode(true));
         uint256 tokenId = unlocks.createUnlock(owner, lockId);
         uint256 balanceBefore = unlocks.balanceOf(owner);
 
-        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
+        vm.expectCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))));
         unlocks.useUnlock(owner, lockId);
 
         assertEq(unlocks.balanceOf(owner), balanceBefore - 1, "user balance should decrease by 1");
@@ -89,30 +89,30 @@ contract UnlockTest is Test {
 
     function test_useUnlock_RevertIfNotTenderizer() public {
         uint256 lockId = 1;
-        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
+        vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))), abi.encode(true));
         unlocks.createUnlock(receiver, lockId);
 
         vm.expectRevert(abi.encodeWithSelector(Unlocks.NotTenderizer.selector, address(this)));
 
-        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(false));
+        vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))), abi.encode(false));
 
-        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
+        vm.expectCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))));
         unlocks.useUnlock(receiver, lockId);
     }
 
     function test_useUnlock_RevertIfNotOwnerOf() public {
         uint256 lockId = 1;
-        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
+        vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))), abi.encode(true));
         unlocks.createUnlock(receiver, lockId);
 
-        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
+        vm.expectCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))));
         vm.expectRevert(abi.encodeWithSelector(Unlocks.NotOwnerOf.selector, lockId, receiver, impostor));
         unlocks.useUnlock(impostor, lockId);
     }
 
     function test_useUnlock_RevertIfTooLargeId() public {
-        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
-        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
+        vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))), abi.encode(true));
+        vm.expectCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))));
 
         vm.expectRevert(abi.encodeWithSelector(Unlocks.InvalidID.selector));
         unlocks.useUnlock(receiver, 1 << 96);
@@ -120,11 +120,11 @@ contract UnlockTest is Test {
 
     function test_tokenURI_Success() public {
         uint256 lockId = 1;
-        vm.mockCall(router, abi.encodeWithSelector(Router.isTenderizer.selector), abi.encode(true));
-        vm.mockCall(renderer, abi.encodeWithSelector(Renderer.json.selector), abi.encode("token uri"));
-        vm.expectCall(router, abi.encodeCall(Router.isTenderizer, (address(this))));
+        vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))), abi.encode(true));
+        vm.expectCall(registry, abi.encodeCall(Registry.isTenderizer, (address(this))));
         uint256 tokenId = unlocks.createUnlock(receiver, lockId);
 
+        vm.mockCall(renderer, abi.encodeCall(Renderer.json, (tokenId)), abi.encode("token uri"));
         vm.expectCall(renderer, abi.encodeCall(Renderer.json, (tokenId)));
         string memory expURI = unlocks.tokenURI(tokenId);
         assertEq(expURI, "token uri");

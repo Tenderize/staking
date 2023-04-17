@@ -16,7 +16,7 @@ import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 
 import { Adapter, AdapterDelegateCall } from "core/adapters/Adapter.sol";
-import { Router } from "core/router/Router.sol";
+import { Registry } from "core/registry/Registry.sol";
 import { TenderizerImmutableArgs, TenderizerEvents, TenderizerStorage } from "core/tenderizer/TenderizerBase.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 
@@ -118,7 +118,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
                 _setTotalSupply(newStake - fees);
                 // mint fees
                 if (fees > 0) {
-                    _mint(Router(_router()).treasury(), fees);
+                    _mint(Registry(_registry()).treasury(), fees);
                 }
             }
         } else {
@@ -130,13 +130,13 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEve
     }
 
     function _calculateFees(uint256 rewards) internal view returns (uint256 fees) {
-        uint256 fee = Router(_router()).fee(asset());
+        uint256 fee = Registry(_registry()).fee(asset());
         fee = fee > MAX_FEE ? MAX_FEE : fee;
         fees = rewards * fee / 1 ether;
     }
 
     function _adapter() internal view returns (Adapter) {
-        return Adapter(Router(_router()).adapter(asset()));
+        return Adapter(Registry(_registry()).adapter(asset()));
     }
 
     function _claimRewards(address validator, uint256 currentStake) internal returns (uint256 newStake) {

@@ -21,8 +21,8 @@ contract TenderizerHarness is Tenderizer {
         return _adapter();
     }
 
-    function exposed_router() public pure returns (address) {
-        return _router();
+    function exposed_registry() public pure returns (address) {
+        return _registry();
     }
 
     function exposed_unlocks() public pure returns (Unlocks) {

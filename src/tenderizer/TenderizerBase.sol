@@ -28,7 +28,7 @@ abstract contract TenderizerImmutableArgs is Clone {
         return _getArgAddress(20); // start: 20 end: 39
     }
 
-    function _router() internal pure returns (address) {
+    function _registry() internal pure returns (address) {
         return _getArgAddress(40); // start: 40 end: 59
     }
 
