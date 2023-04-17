@@ -174,6 +174,10 @@ contract GraphAdapter is Adapter {
         newStake = staked - u.epochs[u.currentEpoch].amount;
     }
 
+    function isValidator(address validator) public view override returns (bool) {
+        return GRAPH.hasStake(validator);
+    }
+
     function _processWithdrawals(address validator) internal {
         // process possible withdrawals before unstakes
         _processWithdraw(validator);
