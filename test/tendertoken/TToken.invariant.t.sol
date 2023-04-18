@@ -37,13 +37,13 @@ contract TestTToken is TToken {
     }
 
     function totalShares() public view returns (uint256) {
-        ERC20Data storage s = _loadERC20Slot();
-        return s._totalShares;
+        Storage storage $ = _loadStorage();
+        return $._totalShares;
     }
 
     function shares(address owner) public view returns (uint256) {
-        ERC20Data storage s = _loadERC20Slot();
-        return s.shares[owner];
+        Storage storage $ = _loadStorage();
+        return $.shares[owner];
     }
 
     function setTotalSupply(uint256 amount) public {

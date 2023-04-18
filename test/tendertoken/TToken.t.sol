@@ -45,21 +45,21 @@ contract TTokenTest is TokenSetup {
         assertEq(convertToShares(amount), amount, "invalid share conversion - no shares/supply");
         assertEq(convertToAssets(amount), amount, "invalid asset conversion - no shares/supply");
 
-        ERC20Data storage s = _loadERC20Slot();
+        Storage storage $ = _loadStorage();
 
         // zero shares
-        s._totalShares = 0;
-        s._totalSupply = totalSupply;
+        $._totalShares = 0;
+        $._totalSupply = totalSupply;
         assertEq(convertToShares(amount), amount, "invalid share conversion - no shares");
         assertEq(convertToAssets(amount), amount, "invalid asset conversion - no shares");
 
         // non-zero supply and shares
-        s._totalShares = totalShares;
+        $._totalShares = totalShares;
         assertEq(convertToShares(amount), amount * totalShares / totalSupply, "invalid share conversion");
         assertEq(convertToAssets(amount), amount * totalSupply / totalShares, "invalid asset conversion");
 
         // zero supply
-        s._totalSupply = 0;
+        $._totalSupply = 0;
         assertEq(convertToAssets(amount), 0, "invalid asset conversion - no supply");
         vm.expectRevert();
         convertToShares(amount);
@@ -70,10 +70,10 @@ contract TTokenTest is TokenSetup {
         totalShares = bound(shares, 1, MAX_UINT_SQRT / 2);
         totalSupply = bound(shares, 1, MAX_UINT_SQRT / 2);
 
-        ERC20Data storage s = _loadERC20Slot();
-        s.shares[account1] = shares;
-        s._totalSupply = totalSupply;
-        s._totalShares = totalShares;
+        Storage storage $ = _loadStorage();
+        $.shares[account1] = shares;
+        $._totalSupply = totalSupply;
+        $._totalShares = totalShares;
 
         assertEq(balanceOf(account1), shares * totalSupply / totalShares, "invalid balance");
         assertEq(balanceOf(account2), 0, "invalid balance - no tokens");
@@ -277,21 +277,21 @@ contract TTokenTest is TokenSetup {
         uint256 amount1 = rand(amountSeed, 0, 1, MAX_UINT_SQRT / 2);
         uint256 amount2 = rand(amountSeed, 1, 1, MAX_UINT_SQRT / 2);
 
-        ERC20Data storage s = _loadERC20Slot();
+        Storage storage $ = _loadStorage();
 
         _mint(account1, amount1);
         assertEq(balanceOf(account1), amount1, "invalid balance");
         assertEq(totalSupply(), amount1, "invalid supply");
-        assertEq(s.shares[account1], amount1, "invalid account1 shares");
-        assertEq(s._totalShares, amount1, "invalid total shares");
-        assertEq(s._totalSupply, amount1, "invalid total supply");
+        assertEq($.shares[account1], amount1, "invalid account1 shares");
+        assertEq($._totalShares, amount1, "invalid total shares");
+        assertEq($._totalSupply, amount1, "invalid total supply");
 
         _mint(account2, amount2);
         assertEq(balanceOf(account2), amount2, "invalid balance");
         assertEq(totalSupply(), amount1 + amount2, "invalid supply - second mint");
-        assertEq(s.shares[account2], amount2, "invalid account1 shares");
-        assertEq(s._totalShares, amount1 + amount2, "invalid total shares");
-        assertEq(s._totalSupply, amount1 + amount2, "invalid total supply");
+        assertEq($.shares[account2], amount2, "invalid account1 shares");
+        assertEq($._totalShares, amount1 + amount2, "invalid total shares");
+        assertEq($._totalSupply, amount1 + amount2, "invalid total supply");
     }
 
     function test_Mint_RevertsIfZeroAmount() public {
@@ -301,8 +301,8 @@ contract TTokenTest is TokenSetup {
 
     function test_Mint_AmountBelowFXRate() public {
         _mint(account1, 1 ether);
-        ERC20Data storage s = _loadERC20Slot();
-        s._totalSupply = 2 ether;
+        Storage storage $ = _loadStorage();
+        $._totalSupply = 2 ether;
 
         _mint(account2, 1);
 
@@ -317,12 +317,12 @@ contract TTokenTest is TokenSetup {
         _mint(account2, mintAmount);
         _burn(account1, burnAmount);
 
-        ERC20Data storage s = _loadERC20Slot();
+        Storage storage $ = _loadStorage();
         assertEq(balanceOf(account1), mintAmount - burnAmount, "invalid account1 balance");
         assertEq(balanceOf(account2), mintAmount, "invalid account2 balance");
         assertEq(totalSupply(), mintAmount * 2 - burnAmount, "invalid supply");
-        assertEq(s._totalShares, mintAmount * 2 - burnAmount, "invalid total shares");
-        assertEq(s._totalSupply, mintAmount * 2 - burnAmount, "invalid total supply");
+        assertEq($._totalShares, mintAmount * 2 - burnAmount, "invalid total shares");
+        assertEq($._totalSupply, mintAmount * 2 - burnAmount, "invalid total supply");
     }
 
     function testFuzz_Burn_RevertIfNotEnoughBalance(uint256 mintAmount, uint256 burnAmount) public {
@@ -342,9 +342,9 @@ contract TTokenTest is TokenSetup {
     function test_Burn_RevertIfZeroTotalSupply(uint256 amount, uint256 totalShares) public {
         amount = bound(amount, 1, MAX_UINT_SQRT);
         totalShares = bound(totalShares, 1, MAX_UINT_SQRT);
-        ERC20Data storage s = _loadERC20Slot();
-        s._totalShares = totalShares;
-        s._totalSupply = 0;
+        Storage storage $ = _loadStorage();
+        $._totalShares = totalShares;
+        $._totalSupply = 0;
 
         vm.expectRevert();
         _burn(account1, amount);
@@ -353,8 +353,8 @@ contract TTokenTest is TokenSetup {
     function test_Burn_AmountBelowFXRate() public {
         _mint(account1, 1 ether);
         _mint(account2, 1 ether);
-        ERC20Data storage s = _loadERC20Slot();
-        s._totalSupply = 4 ether;
+        Storage storage $ = _loadStorage();
+        $._totalSupply = 4 ether;
 
         _burn(account2, 1);
 

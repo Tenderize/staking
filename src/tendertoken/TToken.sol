@@ -43,36 +43,36 @@ abstract contract TToken is TTokenStorage, IERC20 {
     function symbol() external view virtual returns (string memory);
 
     function convertToAssets(uint256 shares) public view returns (uint256) {
-        ERC20Data storage s = _loadERC20Slot();
+        Storage storage $ = _loadStorage();
 
-        uint256 _totalShares = s._totalShares; // Saves an extra SLOAD if slot is non-zero
-        return _totalShares == 0 ? shares : shares.mulDivDown(s._totalSupply, _totalShares);
+        uint256 _totalShares = $._totalShares; // Saves an extra SLOAD if slot is non-zero
+        return _totalShares == 0 ? shares : shares.mulDivDown($._totalSupply, _totalShares);
     }
 
     function convertToShares(uint256 assets) public view returns (uint256) {
-        ERC20Data storage s = _loadERC20Slot();
+        Storage storage $ = _loadStorage();
 
-        uint256 _totalShares = s._totalShares; // Saves an extra SLOAD if slot is non-zero
-        return _totalShares == 0 ? assets : assets.mulDivDown(_totalShares, s._totalSupply);
+        uint256 _totalShares = $._totalShares; // Saves an extra SLOAD if slot is non-zero
+        return _totalShares == 0 ? assets : assets.mulDivDown(_totalShares, $._totalSupply);
     }
 
     function balanceOf(address account) public view virtual returns (uint256) {
-        return convertToAssets(_loadERC20Slot().shares[account]);
+        return convertToAssets(_loadStorage().shares[account]);
     }
 
     function totalSupply() public view virtual returns (uint256) {
-        ERC20Data storage s = _loadERC20Slot();
-        return s._totalSupply;
+        Storage storage $ = _loadStorage();
+        return $._totalSupply;
     }
 
     function nonces(address owner) external view returns (uint256) {
-        ERC20Data storage s = _loadERC20Slot();
-        return s.nonces[owner];
+        Storage storage $ = _loadStorage();
+        return $.nonces[owner];
     }
 
     function approve(address spender, uint256 amount) public virtual returns (bool) {
-        ERC20Data storage s = _loadERC20Slot();
-        s.allowance[msg.sender][spender] = amount;
+        Storage storage $ = _loadStorage();
+        $.allowance[msg.sender][spender] = amount;
 
         emit Approval(msg.sender, spender, amount);
 
@@ -80,15 +80,15 @@ abstract contract TToken is TTokenStorage, IERC20 {
     }
 
     function transfer(address to, uint256 amount) public virtual returns (bool) {
-        ERC20Data storage s = _loadERC20Slot();
+        Storage storage $ = _loadStorage();
         uint256 shares = convertToShares(amount);
         // underflows if insufficient balance
-        s.shares[msg.sender] -= shares;
+        $.shares[msg.sender] -= shares;
 
         // Cannot overflow because the sum of all user
         // balances can't exceed the max uint256 value.
         unchecked {
-            s.shares[to] += shares;
+            $.shares[to] += shares;
         }
 
         emit Transfer(msg.sender, to, amount);
@@ -97,26 +97,26 @@ abstract contract TToken is TTokenStorage, IERC20 {
     }
 
     function allowance(address owner, address spender) external view returns (uint256) {
-        ERC20Data storage s = _loadERC20Slot();
-        return s.allowance[owner][spender];
+        Storage storage $ = _loadStorage();
+        return $.allowance[owner][spender];
     }
 
     function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
-        ERC20Data storage s = _loadERC20Slot();
-        uint256 allowed = s.allowance[from][msg.sender]; // Saves gas for limited approvals.
+        Storage storage $ = _loadStorage();
+        uint256 allowed = $.allowance[from][msg.sender]; // Saves gas for limited approvals.
 
         if (allowed != type(uint256).max) {
-            s.allowance[from][msg.sender] = allowed - amount;
+            $.allowance[from][msg.sender] = allowed - amount;
         }
 
         uint256 shares = convertToShares(amount);
 
-        s.shares[from] -= shares;
+        $.shares[from] -= shares;
 
         // Cannot overflow because the sum of all user
         // balances can't exceed the max uint256 value.
         unchecked {
-            s.shares[to] += shares;
+            $.shares[to] += shares;
         }
 
         emit Transfer(from, to, amount);
@@ -147,7 +147,7 @@ abstract contract TToken is TTokenStorage, IERC20 {
                     abi.encodePacked(
                         "\x19\x01",
                         DOMAIN_SEPARATOR(),
-                        keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, _loadERC20Slot().nonces[owner]++, deadline))
+                        keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, _loadStorage().nonces[owner]++, deadline))
                     )
                 ),
                 v,
@@ -157,7 +157,7 @@ abstract contract TToken is TTokenStorage, IERC20 {
 
             if (recoveredAddress == address(0) || recoveredAddress != owner) revert InvalidSignature();
 
-            _loadERC20Slot().allowance[recoveredAddress][spender] = value;
+            _loadStorage().allowance[recoveredAddress][spender] = value;
         }
 
         emit Approval(owner, spender, value);
@@ -176,8 +176,8 @@ abstract contract TToken is TTokenStorage, IERC20 {
     }
 
     function _setTotalSupply(uint256 supply) internal virtual {
-        ERC20Data storage s = _loadERC20Slot();
-        s._totalSupply = supply;
+        Storage storage $ = _loadStorage();
+        $._totalSupply = supply;
     }
 
     function _mint(address to, uint256 assets) internal virtual {
@@ -186,14 +186,14 @@ abstract contract TToken is TTokenStorage, IERC20 {
         if (assets == 0) revert ZeroAmount();
         if ((shares = convertToShares(assets)) == 0) return;
 
-        ERC20Data storage s = _loadERC20Slot();
-        s._totalSupply += assets;
-        s._totalShares += shares;
+        Storage storage $ = _loadStorage();
+        $._totalSupply += assets;
+        $._totalShares += shares;
 
         // Cannot overflow because the sum of all user
         // balances can't exceed the max uint256 value.
         unchecked {
-            s.shares[to] += shares;
+            $.shares[to] += shares;
         }
     }
 
@@ -203,14 +203,14 @@ abstract contract TToken is TTokenStorage, IERC20 {
         if (assets == 0) revert ZeroAmount();
         if ((shares = convertToShares(assets)) == 0) return;
 
-        ERC20Data storage s = _loadERC20Slot();
-        s._totalSupply -= assets;
-        s.shares[from] -= shares;
+        Storage storage $ = _loadStorage();
+        $._totalSupply -= assets;
+        $.shares[from] -= shares;
 
         // Cannot underflow because a user's balance
         // will never be larger than the total supply.
         unchecked {
-            s._totalShares -= shares;
+            $._totalShares -= shares;
         }
     }
 }

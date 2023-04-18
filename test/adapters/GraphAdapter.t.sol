@@ -51,18 +51,18 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
 
         lastEpochUnlockedAt = bound(lastEpochUnlockedAt, block.number - THAWING_PERIOD, block.number);
 
-        Unlocks storage u = _loadUnlocksSlot();
-        u.currentEpoch = currentEpoch;
-        u.unlocks[unlockId].epoch = userEpoch;
-        u.lastEpochUnlockedAt = lastEpochUnlockedAt;
+        Storage storage $ = _loadStorage();
+        $.currentEpoch = currentEpoch;
+        $.unlocks[unlockId].epoch = userEpoch;
+        $.lastEpochUnlockedAt = lastEpochUnlockedAt;
 
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.thawingPeriod, ()));
 
         if (userEpoch == currentEpoch) {
-            assertEq(this.unlockMaturity(unlockId), u.lastEpochUnlockedAt + 2 * THAWING_PERIOD, "invalid when yet to process");
+            assertEq(this.unlockMaturity(unlockId), $.lastEpochUnlockedAt + 2 * THAWING_PERIOD, "invalid when yet to process");
         }
         if (userEpoch == currentEpoch - 1) {
-            assertEq(this.unlockMaturity(unlockId), u.lastEpochUnlockedAt + THAWING_PERIOD, "invalid when processing");
+            assertEq(this.unlockMaturity(unlockId), $.lastEpochUnlockedAt + THAWING_PERIOD, "invalid when processing");
         }
         if (userEpoch < currentEpoch - 1) assertEq(this.unlockMaturity(unlockId), 0, "invalid when processed");
     }
@@ -73,11 +73,11 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         vm.assume(epochTotalShares > 0);
         unlockShares = bound(unlockShares, 0, MAX_UINT_SQRT);
         epochAmount = bound(epochAmount, 0, MAX_UINT_SQRT);
-        Unlocks storage u = _loadUnlocksSlot();
-        u.unlocks[unlockID].shares = unlockShares;
-        u.unlocks[unlockID].epoch = unlockEpoch;
-        u.epochs[unlockEpoch].amount = epochAmount;
-        u.epochs[unlockEpoch].totalShares = epochTotalShares;
+        Storage storage $ = _loadStorage();
+        $.unlocks[unlockID].shares = unlockShares;
+        $.unlocks[unlockID].epoch = unlockEpoch;
+        $.epochs[unlockEpoch].amount = epochAmount;
+        $.epochs[unlockEpoch].totalShares = epochTotalShares;
         assertEq(this.previewWithdraw(unlockID), unlockShares * epochAmount / epochTotalShares);
     }
 
@@ -128,22 +128,22 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
             abi.encode(10 ether, 1 ether, block.number + 1)
         );
 
-        Unlocks storage u = _loadUnlocksSlot();
-        u.currentEpoch = epoch;
-        u.epochs[epoch].amount = epochAmount;
-        u.epochs[epoch].totalShares = epochShares;
-        u.lastUnlockID = lastUnlockID;
+        Storage storage $ = _loadStorage();
+        $.currentEpoch = epoch;
+        $.epochs[epoch].amount = epochAmount;
+        $.epochs[epoch].totalShares = epochShares;
+        $.lastUnlockID = lastUnlockID;
 
         uint256 unlockID = this.unstake(validator, amount);
 
         uint256 expShares = epochAmount == 0 ? amount : amount * epochShares / epochAmount;
         assertEq(unlockID, lastUnlockID + 1, "invalid unlock ID returned");
-        assertEq(u.epochs[epoch].amount, epochAmount + amount, "invalid epoch amount");
-        assertEq(u.epochs[epoch].totalShares, epochShares + expShares, "invalid epoch shares");
-        assertEq(u.unlocks[unlockID].shares, expShares, "invalid unlock shrares");
-        assertEq(u.unlocks[unlockID].epoch, 1, "invalid unlock epoch");
-        assertEq(u.lastUnlockID, lastUnlockID + 1, "invalid nextUnlockID");
-        assertEq(u.currentEpoch, epoch, "invalid epoch");
+        assertEq($.epochs[epoch].amount, epochAmount + amount, "invalid epoch amount");
+        assertEq($.epochs[epoch].totalShares, epochShares + expShares, "invalid epoch shares");
+        assertEq($.unlocks[unlockID].shares, expShares, "invalid unlock shrares");
+        assertEq($.unlocks[unlockID].epoch, 1, "invalid unlock epoch");
+        assertEq($.lastUnlockID, lastUnlockID + 1, "invalid nextUnlockID");
+        assertEq($.currentEpoch, epoch, "invalid epoch");
     }
 
     function testFuzz_Unstake(uint256 currentEpochAmount, uint256 stakedAmount, uint256 stakedShares) public {
@@ -165,20 +165,20 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         expShares = expShares > stakedShares ? stakedShares : expShares;
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, expShares)), abi.encode(expShares));
 
-        Unlocks storage u = _loadUnlocksSlot();
-        u.currentEpoch = epoch;
-        u.epochs[epoch].amount = currentEpochAmount;
-        u.epochs[epoch].totalShares = currentEpochAmount;
-        u.lastUnlockID = lastUnlockID;
+        Storage storage $ = _loadStorage();
+        $.currentEpoch = epoch;
+        $.epochs[epoch].amount = currentEpochAmount;
+        $.epochs[epoch].totalShares = currentEpochAmount;
+        $.lastUnlockID = lastUnlockID;
 
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, expShares)));
         this.unstake(validator, amount);
-        assertEq(u.currentEpoch, epoch + 1, "invalid epoch");
-        assertEq(u.lastEpochUnlockedAt, block.number, "invalid lastEpochUnlockedAt");
-        assertEq(u.unlocks[lastUnlockID + 1].shares, amount, "invalid unlock shares");
-        assertEq(u.unlocks[lastUnlockID + 1].epoch, epoch, "invalid unlock epoch");
-        assertEq(u.epochs[epoch].amount, currentEpochAmount + amount, "invalid epoch amount");
-        assertEq(u.epochs[epoch].totalShares, currentEpochAmount + amount, "invalid epoch shares");
+        assertEq($.currentEpoch, epoch + 1, "invalid epoch");
+        assertEq($.lastEpochUnlockedAt, block.number, "invalid lastEpochUnlockedAt");
+        assertEq($.unlocks[lastUnlockID + 1].shares, amount, "invalid unlock shares");
+        assertEq($.unlocks[lastUnlockID + 1].epoch, epoch, "invalid unlock epoch");
+        assertEq($.epochs[epoch].amount, currentEpochAmount + amount, "invalid epoch amount");
+        assertEq($.epochs[epoch].totalShares, currentEpochAmount + amount, "invalid epoch shares");
     }
 
     function test_Withdraw_LastTwoEpochsEmpty() public {
@@ -186,12 +186,12 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         // should neither call `undelegate` nor `withdrawDelegation`
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(amount, 0, 0));
 
-        Unlocks storage u = _loadUnlocksSlot();
+        Storage storage $ = _loadStorage();
         uint256 epoch = 2;
-        u.currentEpoch = epoch;
+        $.currentEpoch = epoch;
         this.withdraw(validator, 0);
-        assertEq(u.currentEpoch, epoch, "invalid epoch");
-        assertEq(u.lastEpochUnlockedAt, 0, "invalid lastEpochUnlockedAt");
+        assertEq($.currentEpoch, epoch, "invalid epoch");
+        assertEq($.lastEpochUnlockedAt, 0, "invalid lastEpochUnlockedAt");
     }
 
     function test_Withdraw_PreviousEpochEmpty() public {
@@ -203,24 +203,24 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
 
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, amount)), abi.encode(0));
 
-        Unlocks storage u = _loadUnlocksSlot();
+        Storage storage $ = _loadStorage();
         // set unlock id 0 for epoch 0
-        u.unlocks[0].shares = amount;
-        u.epochs[0].totalShares = amount;
-        u.epochs[0].amount = amount;
+        $.unlocks[0].shares = amount;
+        $.epochs[0].totalShares = amount;
+        $.epochs[0].amount = amount;
 
         uint256 epoch = 2;
-        u.currentEpoch = epoch;
-        u.epochs[epoch].amount = amount;
-        u.epochs[epoch].totalShares = amount;
+        $.currentEpoch = epoch;
+        $.epochs[epoch].amount = amount;
+        $.epochs[epoch].totalShares = amount;
 
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, amount)));
         this.withdraw(validator, 0);
-        assertEq(u.currentEpoch, epoch + 1, "invalid epoch");
-        assertEq(u.lastEpochUnlockedAt, block.number, "invalid lastEpochUnlockedAt");
-        assertEq(u.epochs[0].amount, 0, "invalid unlock epoch amount");
-        assertEq(u.epochs[0].totalShares, 0, "invalid unlock epoch shares");
-        assertEq(u.epochs[epoch - 1].amount, 0, "invalid previous epoch amount");
+        assertEq($.currentEpoch, epoch + 1, "invalid epoch");
+        assertEq($.lastEpochUnlockedAt, block.number, "invalid lastEpochUnlockedAt");
+        assertEq($.epochs[0].amount, 0, "invalid unlock epoch amount");
+        assertEq($.epochs[0].totalShares, 0, "invalid unlock epoch shares");
+        assertEq($.epochs[epoch - 1].amount, 0, "invalid previous epoch amount");
     }
 
     function test_ProcessWithdraw() public {
@@ -242,18 +242,18 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.withdrawDelegated, (validator, address(0))), abi.encode(tokensLocked));
 
         uint256 epoch = 1;
-        _loadUnlocksSlot().currentEpoch = epoch;
+        _loadStorage().currentEpoch = epoch;
 
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.withdrawDelegated, (validator, address(0))));
         uint256 unlockID = this.unstake(validator, amount);
 
-        Unlocks storage u = _loadUnlocksSlot();
+        Storage storage $ = _loadStorage();
 
-        assertEq(u.currentEpoch, epoch, "invalid epoch");
-        assertEq(u.unlocks[unlockID].shares, amount, "invalid unlock shares");
-        assertEq(u.unlocks[unlockID].epoch, epoch, "invalid unlock epoch");
-        assertEq(u.epochs[epoch].amount, amount, "invalid epoch amount");
-        assertEq(u.epochs[epoch].totalShares, amount, "invalid epoch shares");
+        assertEq($.currentEpoch, epoch, "invalid epoch");
+        assertEq($.unlocks[unlockID].shares, amount, "invalid unlock shares");
+        assertEq($.unlocks[unlockID].epoch, epoch, "invalid unlock epoch");
+        assertEq($.epochs[epoch].amount, amount, "invalid epoch amount");
+        assertEq($.epochs[epoch].totalShares, amount, "invalid epoch shares");
     }
 
     function testFuzz_Withdraw_WithoutProcessing(uint256 unlockShares, uint256 epochAmount, uint256 epochShares) public {
@@ -271,24 +271,24 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         );
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, 10 ether, 10 ether));
 
-        Unlocks storage u = _loadUnlocksSlot();
-        u.unlocks[unlockID].epoch = unlockEpoch;
-        u.currentEpoch = unlockEpoch + 2;
-        u.unlocks[unlockID].shares = unlockShares;
-        u.epochs[unlockEpoch].totalShares = epochShares;
-        u.epochs[unlockEpoch].amount = epochAmount;
+        Storage storage $ = _loadStorage();
+        $.unlocks[unlockID].epoch = unlockEpoch;
+        $.currentEpoch = unlockEpoch + 2;
+        $.unlocks[unlockID].shares = unlockShares;
+        $.epochs[unlockEpoch].totalShares = epochShares;
+        $.epochs[unlockEpoch].amount = epochAmount;
 
         uint256 returnedAmount = this.withdraw(validator, unlockID);
 
         uint256 expAmount = unlockShares * epochAmount / epochShares;
         assertEq(returnedAmount, expAmount, "invalid return value");
-        assertEq(u.epochs[unlockEpoch].totalShares, epochShares - unlockShares, "invalid epoch shares");
-        assertEq(u.epochs[unlockEpoch].amount, epochAmount - expAmount, "invalid epoch shares");
-        assertEq(u.unlocks[unlockID].epoch, 0, "unlock not deleted");
-        assertEq(u.unlocks[unlockID].shares, 0, "unlock not deleted");
+        assertEq($.epochs[unlockEpoch].totalShares, epochShares - unlockShares, "invalid epoch shares");
+        assertEq($.epochs[unlockEpoch].amount, epochAmount - expAmount, "invalid epoch shares");
+        assertEq($.unlocks[unlockID].epoch, 0, "unlock not deleted");
+        assertEq($.unlocks[unlockID].shares, 0, "unlock not deleted");
 
-        if (u.epochs[unlockEpoch].amount == 0) {
-            assertEq(u.epochs[unlockEpoch].totalShares, 0, "epoch not deleted");
+        if ($.epochs[unlockEpoch].amount == 0) {
+            assertEq($.epochs[unlockEpoch].totalShares, 0, "epoch not deleted");
         }
     }
 
@@ -305,9 +305,9 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         );
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, validator), abi.encode(0, 0, 0, 0, 10 ether, 10 ether));
 
-        Unlocks storage u = _loadUnlocksSlot();
-        u.unlocks[unlockID].epoch = unlockEpoch;
-        u.currentEpoch = currnetEpoch;
+        Storage storage $ = _loadStorage();
+        $.unlocks[unlockID].epoch = unlockEpoch;
+        $.currentEpoch = currnetEpoch;
 
         vm.expectRevert(WithdrawPending.selector);
         this.withdraw(validator, unlockID);
@@ -326,18 +326,18 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
             staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, startStake + reward, 1)
         );
 
-        Unlocks storage u = _loadUnlocksSlot();
+        Storage storage $ = _loadStorage();
         uint256 currentEpoch = 1;
-        u.currentEpoch = currentEpoch;
-        u.epochs[currentEpoch].amount = currentEpochAmountStart;
+        $.currentEpoch = currentEpoch;
+        $.epochs[currentEpoch].amount = currentEpochAmountStart;
 
         uint256 newStake = this.claimRewards(validator, startStake - currentEpochAmountStart);
 
         uint256 rewardForUnlocks = reward * currentEpochAmountStart / startStake;
         uint256 rewardForStake = reward - rewardForUnlocks;
         assertEq(newStake, startStake + rewardForStake - currentEpochAmountStart, "invalid new stake");
-        assertEq(u.epochs[currentEpoch].amount, currentEpochAmountStart + rewardForUnlocks, "invalid current epoch amount");
-        assertEq(u.epochs[currentEpoch - 1].amount, 1 ether, "invalid previous epoch amount");
+        assertEq($.epochs[currentEpoch].amount, currentEpochAmountStart + rewardForUnlocks, "invalid current epoch amount");
+        assertEq($.epochs[currentEpoch - 1].amount, 1 ether, "invalid previous epoch amount");
     }
 
     function testFuzz_claimRewards_Negative(uint256 startStake, uint256 penalty) public {
@@ -353,15 +353,15 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
             staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, startStake - penalty, 1)
         );
 
-        Unlocks storage u = _loadUnlocksSlot();
+        Storage storage $ = _loadStorage();
         uint256 currentEpoch = 1;
-        u.currentEpoch = currentEpoch;
-        u.epochs[currentEpoch].amount = currentEpochAmountStart;
+        $.currentEpoch = currentEpoch;
+        $.epochs[currentEpoch].amount = currentEpochAmountStart;
 
         uint256 newStake = this.claimRewards(validator, startStake - currentEpochAmountStart);
         uint256 slashForUnlocks = penalty * currentEpochAmountStart / startStake;
-        assertEq(newStake, startStake - penalty - u.epochs[currentEpoch].amount, "invalid new stake");
-        assertEq(u.epochs[currentEpoch].amount, currentEpochAmountStart - slashForUnlocks, "invalid current epoch amount");
+        assertEq(newStake, startStake - penalty - $.epochs[currentEpoch].amount, "invalid new stake");
+        assertEq($.epochs[currentEpoch].amount, currentEpochAmountStart - slashForUnlocks, "invalid current epoch amount");
     }
 
     function test_ClaimRewards_NoChangeInStake() public {
@@ -373,9 +373,9 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(1, 0, 0));
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, staked, 1));
 
-        Unlocks storage u = _loadUnlocksSlot();
-        u.currentEpoch = currentEpoch;
-        u.epochs[currentEpoch].amount = currentEpochAmount;
+        Storage storage $ = _loadStorage();
+        $.currentEpoch = currentEpoch;
+        $.epochs[currentEpoch].amount = currentEpochAmount;
 
         uint256 newStake = this.claimRewards(validator, staked - currentEpochAmount);
         assertEq(newStake, staked - currentEpochAmount, "invalid new stake");

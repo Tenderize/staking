@@ -12,9 +12,9 @@
 pragma solidity 0.8.17;
 
 abstract contract TTokenStorage {
-    uint256 private constant ERC20_SLOT = uint256(keccak256("xyz.tenderize.tToken.storage.location")) - 1;
+    uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.tToken.storage.location")) - 1;
 
-    struct ERC20Data {
+    struct Storage {
         uint256 _totalShares;
         uint256 _totalSupply;
         mapping(address => uint256) shares;
@@ -22,8 +22,8 @@ abstract contract TTokenStorage {
         mapping(address => uint256) nonces;
     }
 
-    function _loadERC20Slot() internal pure returns (ERC20Data storage s) {
-        uint256 slot = ERC20_SLOT;
+    function _loadStorage() internal pure returns (Storage storage s) {
+        uint256 slot = STORAGE;
 
         // solhint-disable-next-line no-inline-assembly
         assembly {

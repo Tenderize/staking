@@ -48,22 +48,3 @@ abstract contract TenderizerEvents {
 
     event Withdraw(address indexed receiver, uint256 assets, uint256 unlockID);
 }
-
-/// @title TenderizerStorage
-/// @notice Unstructured storage for Tenderizer
-abstract contract TenderizerStorage {
-    uint256 private constant TENDERIZER_SLOT = uint256(keccak256("xyz.tenderize.tenderizer.storage.location")) - 1;
-
-    struct TenderizerData {
-        uint256 totalAssets;
-    }
-
-    function _loadTenderizeSlot() internal pure returns (TenderizerData storage s) {
-        uint256 slot = TENDERIZER_SLOT;
-
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            s.slot := slot
-        }
-    }
-}
