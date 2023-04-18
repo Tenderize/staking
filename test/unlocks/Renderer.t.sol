@@ -12,6 +12,7 @@ import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/
 import { Renderer } from "core/unlocks/Renderer.sol";
 import { Unlocks } from "core/unlocks/Unlocks.sol";
 import { Base64 } from "core/unlocks/Base64.sol";
+import { UUPSTestHelper } from "test/helpers/UUPSTestHelper.sol";
 
 // solhint-disable quotes
 // solhint-disable func-name-mixedcase
@@ -36,6 +37,20 @@ contract RendererV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _authorizeUpgrade(address) internal override onlyOwner { }
 }
 
+contract RendererUpgradeTest is UUPSTestHelper {
+    constructor() UUPSTestHelper(address(new RendererV1())) { }
+
+    function test_upgradeTo_RevertIfNotOwner() public {
+        vm.startPrank(nonAuthorized);
+
+        Renderer rendererV2 = new Renderer();
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        RendererV1(address(proxy)).upgradeTo(address(rendererV2));
+        vm.stopPrank();
+    }
+}
+
 contract RendererTest is Test {
     ERC1967Proxy private proxy;
     address private owner = vm.addr(1);
@@ -57,69 +72,6 @@ contract RendererTest is Test {
         vm.stopPrank();
     }
 
-    function test_implInitializerDisabled() public {
-        vm.startPrank(owner);
-        vm.expectRevert("Initializable: contract is already initialized");
-        rendererV1.initialize();
-        vm.stopPrank();
-    }
-
-    function test_implInitializerDisabledAfterUpgrade() public {
-        vm.startPrank(owner);
-        Renderer rendererV2 = new Renderer();
-        RendererV1(address(proxy)).upgradeTo(address(rendererV2));
-        vm.expectRevert("Initializable: contract is already initialized");
-        rendererV2.initialize();
-        vm.stopPrank();
-    }
-
-    function test_unauthorizedUpgradeAttack() public {
-        vm.startPrank(nonAuthorized);
-
-        Renderer rendererV2 = new Renderer();
-        ERC1967Proxy proxy2 = new ERC1967Proxy(address(rendererV1), "");
-
-        vm.expectRevert("Function must be called through delegatecall");
-        rendererV1.upgradeTo(address(rendererV2));
-
-        (bool success,) = address(proxy2).delegatecall(abi.encodeWithSignature("upgradeTo(address)", address(rendererV2)));
-        assertTrue(success);
-
-        address implClone = ClonesUpgradeable.clone(address(rendererV1));
-        vm.expectRevert("Function must be called through active proxy");
-        RendererV1(implClone).upgradeTo(address(rendererV2));
-
-        vm.stopPrank();
-    }
-
-    function test_upgradeTo_RevertIfNotOwner() public {
-        vm.startPrank(nonAuthorized);
-
-        Renderer rendererV2 = new Renderer();
-
-        vm.expectRevert("Ownable: caller is not the owner");
-        RendererV1(address(proxy)).upgradeTo(address(rendererV2));
-        vm.stopPrank();
-    }
-
-    function test_upgradeTo() public {
-        vm.startPrank(owner);
-        Renderer rendererV2 = new Renderer();
-
-        bytes32 proxySlotBefore = vm.load(address(proxy), IMPL_SLOT);
-        assertEq(proxySlotBefore, bytes32(uint256(uint160(address(rendererV1)))));
-
-        RendererV1(address(proxy)).upgradeTo(address(rendererV2));
-
-        bytes32 proxySlotAfter = vm.load(address(proxy), IMPL_SLOT);
-        assertEq(proxySlotAfter, bytes32(uint256(uint160(address(rendererV2)))));
-    }
-
-    function test_proxyImplSlot() public {
-        bytes32 proxySlot = vm.load(address(proxy), IMPL_SLOT);
-        assertEq(proxySlot, bytes32(uint256(uint160(address(rendererV1)))));
-    }
-
     function test_V1Json() public {
         string memory json = RendererV1(address(proxy)).json(1);
         assertEq(json, "test json response");
@@ -130,8 +82,8 @@ contract RendererTest is Test {
         Renderer rendererV2 = new Renderer();
         RendererV1(address(proxy)).upgradeTo(address(rendererV2));
         vm.stopPrank();
-        vm.mockCall(address(this), abi.encodeWithSignature("getMetadata(uint256)", id), abi.encode(metadata));
-        vm.expectCall(address(this), abi.encodeWithSignature("getMetadata(uint256)", id));
+        vm.mockCall(address(this), abi.encodeCall(Unlocks.getMetadata, (id)), abi.encode(metadata));
+        vm.expectCall(address(this), abi.encodeCall(Unlocks.getMetadata, (id)));
         string memory data = Renderer(address(proxy)).json(id);
         string memory encodedJson = substring(data, 29, bytes(data).length);
 

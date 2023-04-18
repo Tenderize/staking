@@ -13,7 +13,7 @@ import { ERC721 } from "solmate/tokens/ERC721.sol";
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
-import { Router } from "core/router/Router.sol";
+import { Registry } from "core/registry/Registry.sol";
 import { Renderer } from "core/unlocks/Renderer.sol";
 
 pragma solidity 0.8.17;
@@ -30,7 +30,7 @@ contract Unlocks is ERC721 {
         address validator;
     }
 
-    Router private immutable router;
+    Registry private immutable registry;
     Renderer private immutable renderer;
 
     error NotOwnerOf(uint256 id, address owner, address sender);
@@ -42,8 +42,8 @@ contract Unlocks is ERC721 {
         _;
     }
 
-    constructor(address _router, address _renderer) ERC721("Tenderize Unlocks", "TUNL") {
-        router = Router(_router);
+    constructor(address _registry, address _renderer) ERC721("Tenderize Unlocks", "TUNL") {
+        registry = Registry(_registry);
         renderer = Renderer(_renderer);
     }
 
@@ -80,7 +80,7 @@ contract Unlocks is ERC721 {
     }
 
     function _isValidTenderizer(address sender) internal view virtual {
-        if (!router.isTenderizer(sender)) revert NotTenderizer(sender);
+        if (!registry.isTenderizer(sender)) revert NotTenderizer(sender);
     }
 
     function _encodeTokenId(address tenderizer, uint96 id) internal pure virtual returns (uint256) {

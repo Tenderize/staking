@@ -51,4 +51,6 @@ interface IGraphStaking {
     function thawingPeriod() external view returns (uint256);
 
     function delegationTaxPercentage() external view returns (uint32);
+
+    function hasStake(address _indexer) external view returns (bool);
 }

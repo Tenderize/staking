@@ -89,6 +89,10 @@ contract LivepeerAdapter is Adapter {
         newStake = LIVEPEER.pendingStake(address(this), 0);
     }
 
+    function isValidator(address validator) public view override returns (bool) {
+        return LIVEPEER.isRegisteredTranscoder(validator);
+    }
+
     /// @notice function for swapping ETH fees to LPT
     function _livepeerClaimFees() internal {
         // get pending fees
