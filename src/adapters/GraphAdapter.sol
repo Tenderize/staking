@@ -23,7 +23,7 @@ contract GraphAdapter is Adapter {
     ERC20 private constant GRT = ERC20(0xc944E90C64B2c07662A292be6244BDf05Cda44a7);
     uint256 private constant MAX_PPM = 1_000_000;
 
-    uint256 private constant UNLOCKS_SLOT = uint256(keccak256("xyz.tenderize.graph.withdrawals.storage.location")) - 1;
+    uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.graph.withdrawals.storage.location")) - 1;
 
     error WithdrawPending();
 
@@ -37,7 +37,7 @@ contract GraphAdapter is Adapter {
         uint256 totalShares;
     }
 
-    struct Unlocks {
+    struct Storage {
         uint256 lastUnlockID;
         uint256 currentEpoch;
         uint256 lastEpochUnlockedAt;
@@ -45,8 +45,8 @@ contract GraphAdapter is Adapter {
         mapping(uint256 => Unlock) unlocks;
     }
 
-    function _loadUnlocksSlot() internal pure returns (Unlocks storage s) {
-        uint256 slot = UNLOCKS_SLOT;
+    function _loadStorage() internal pure returns (Storage storage s) {
+        uint256 slot = STORAGE;
 
         // solhint-disable-next-line no-inline-assembly
         assembly {
@@ -59,18 +59,18 @@ contract GraphAdapter is Adapter {
     }
 
     function unlockMaturity(uint256 unlockID) external view override returns (uint256) {
-        Unlocks storage u = _loadUnlocksSlot();
-        Unlock memory unlock = u.unlocks[unlockID];
+        Storage storage $ = _loadStorage();
+        Unlock memory unlock = $.unlocks[unlockID];
         // if userEpoch == currentEpoch, it is yet to unlock
         // => unlockTime + thawingPeriod
         // if userEpoch == currentEpoch - 1, it is processing
         // => unlockTime
         // if userEpoch < currentEpoch - 1, it has been processed
         // => 0
-        uint256 tokensLockedUntil = u.lastEpochUnlockedAt + GRAPH.thawingPeriod();
-        if (unlock.epoch == u.currentEpoch) {
+        uint256 tokensLockedUntil = $.lastEpochUnlockedAt + GRAPH.thawingPeriod();
+        if (unlock.epoch == $.currentEpoch) {
             return GRAPH.thawingPeriod() + tokensLockedUntil;
-        } else if (unlock.epoch == u.currentEpoch - 1) {
+        } else if (unlock.epoch == $.currentEpoch - 1) {
             return tokensLockedUntil;
         } else {
             return 0;
@@ -78,9 +78,9 @@ contract GraphAdapter is Adapter {
     }
 
     function previewWithdraw(uint256 unlockID) external view override returns (uint256) {
-        Unlocks storage u = _loadUnlocksSlot();
-        Unlock memory unlock = u.unlocks[unlockID];
-        Epoch memory epoch = u.epochs[unlock.epoch];
+        Storage storage $ = _loadStorage();
+        Unlock memory unlock = $.unlocks[unlockID];
+        Epoch memory epoch = $.epochs[unlock.epoch];
         return unlock.shares * epoch.amount / epoch.totalShares;
     }
 
@@ -103,51 +103,54 @@ contract GraphAdapter is Adapter {
     }
 
     function unstake(address validator, uint256 amount) external override returns (uint256 unlockID) {
-        Unlocks storage u = _loadUnlocksSlot();
-        Epoch storage e = u.epochs[u.currentEpoch];
+        Storage storage $ = _loadStorage();
+        Epoch memory e = $.epochs[$.currentEpoch];
 
         uint256 shares = e.amount == 0 ? amount : amount * e.totalShares / e.amount;
 
         e.amount += amount;
         e.totalShares += shares;
-        unlockID = ++u.lastUnlockID;
-        u.unlocks[unlockID] = Unlock({ shares: shares, epoch: u.currentEpoch });
+        $.epochs[$.currentEpoch] = e;
+
+        unlockID = ++$.lastUnlockID;
+        $.unlocks[unlockID] = Unlock({ shares: shares, epoch: $.currentEpoch });
 
         _processWithdrawals(validator);
     }
 
     function withdraw(address validator, uint256 unlockID) external override returns (uint256 amount) {
         _processWithdrawals(validator);
-        Unlocks storage u = _loadUnlocksSlot();
-        Unlock memory unlock = u.unlocks[unlockID];
-        Epoch storage epoch = u.epochs[unlock.epoch];
+        Storage storage $ = _loadStorage();
+        Unlock memory unlock = $.unlocks[unlockID];
+        Epoch memory epoch = $.epochs[unlock.epoch];
 
-        if (unlock.epoch >= u.currentEpoch - 1) revert WithdrawPending();
+        if (unlock.epoch >= $.currentEpoch - 1) revert WithdrawPending();
 
         if (unlock.shares == epoch.totalShares) {
             amount = epoch.amount;
-            delete u.epochs[unlock.epoch];
+            delete $.epochs[unlock.epoch];
         } else {
             amount = unlock.shares * epoch.amount / epoch.totalShares;
             epoch.amount -= amount;
             epoch.totalShares -= unlock.shares;
+            $.epochs[unlock.epoch] = epoch;
         }
 
-        delete u.unlocks[unlockID];
+        delete $.unlocks[unlockID];
     }
 
     function claimRewards(address validator, uint256 currentStake) external override returns (uint256 newStake) {
-        Unlocks storage u = _loadUnlocksSlot();
-        // TODO: Change to use totalStaked() after https://github.com/Tenderize/staking/issues/20
+        Storage storage $ = _loadStorage();
+        Epoch memory currentEpoch = $.epochs[$.currentEpoch];
         IGraphStaking.Delegation memory delegation = GRAPH.getDelegation(validator, address(this));
         IGraphStaking.DelegationPool memory delPool = GRAPH.delegationPools(validator);
         uint256 staked = delegation.shares * delPool.tokens / delPool.shares;
 
         // account for stake still to unstake
-        uint256 oldStake = currentStake + u.epochs[u.currentEpoch].amount;
+        uint256 oldStake = currentStake + currentEpoch.amount;
 
         // Last epoch amount should be synced with Delegation.tokensLocked
-        if (u.currentEpoch > 0) u.epochs[u.currentEpoch - 1].amount = delegation.tokensLocked;
+        if ($.currentEpoch > 0) $.epochs[$.currentEpoch - 1].amount = GRAPH.getDelegation(validator, address(this)).tokensLocked;
 
         if (staked < oldStake) {
             // handle a potential slash
@@ -158,20 +161,22 @@ contract GraphAdapter is Adapter {
 
             // Slash for the current epoch slashCurrent is calculated as
             // slashCurrent = (slash - slashLast) * currentEpochAmount / ( currentEpochAmount + currentStake)
-            uint256 slashCurrent = slash * u.epochs[u.currentEpoch].amount / oldStake;
-            u.epochs[u.currentEpoch].amount -= slashCurrent;
+            uint256 slashCurrent = slash * currentEpoch.amount / oldStake;
+            currentEpoch.amount -= slashCurrent;
+            $.epochs[$.currentEpoch] = currentEpoch;
         } else if (staked > oldStake) {
             // handle rewards
             // To reduce long waiting periods we want to still reward users
             // for which their stake is still to be unlocked
             // because technically it is not unlocked from the Graph either
             // We do this by adding the rewards to the current epoch
-            uint256 currentEpochAmount = (staked - oldStake) * u.epochs[u.currentEpoch].amount / oldStake;
-            u.epochs[u.currentEpoch].amount += currentEpochAmount;
+            uint256 currentEpochAmount = (staked - oldStake) * currentEpoch.amount / oldStake;
+            currentEpoch.amount += currentEpochAmount;
+            $.epochs[$.currentEpoch] = currentEpoch;
         }
 
-        // slash/rewards is already accounted for in u.epochs[u.currentEpoch].amount
-        newStake = staked - u.epochs[u.currentEpoch].amount;
+        // slash/rewards is already accounted for in $.epochs[$.currentEpoch].amount
+        newStake = staked - currentEpoch.amount;
     }
 
     function isValidator(address validator) public view override returns (bool) {
@@ -189,8 +194,8 @@ contract GraphAdapter is Adapter {
         // undelegation already ungoing: no-op
         if (del.tokensLockedUntil != 0) return;
 
-        Unlocks storage u = _loadUnlocksSlot();
-        Epoch storage e = u.epochs[u.currentEpoch];
+        Storage storage $ = _loadStorage();
+        uint256 currentEpochAmount = $.epochs[$.currentEpoch].amount;
 
         // if current epoch amount is non-zero
         // => progress epoch and undelegate from underlying
@@ -200,38 +205,38 @@ contract GraphAdapter is Adapter {
         // if current and previous epoch are zero
         // => no-op - optimization, no need to progress epochs if last two are emtpy
         // => ie. no pending unlocks, no unlocks processing
-        if (e.amount != 0) {
-            ++u.currentEpoch;
-            u.lastEpochUnlockedAt = block.number;
+        if (currentEpochAmount != 0) {
+            ++$.currentEpoch;
+            $.lastEpochUnlockedAt = block.number;
 
             // calculate shares to undelegate from The Graph
             IGraphStaking.DelegationPool memory delPool = GRAPH.delegationPools(validator);
-            uint256 undelegationShares = e.amount * delPool.shares / delPool.tokens;
+            uint256 undelegationShares = currentEpochAmount * delPool.shares / delPool.tokens;
 
             // account for possible rounding error
             undelegationShares = del.shares < undelegationShares ? del.shares : undelegationShares;
 
             // undelegate
             GRAPH.undelegate(validator, undelegationShares);
-        } else if (u.epochs[u.currentEpoch - 1].amount != 0) {
-            ++u.currentEpoch;
-            u.lastEpochUnlockedAt = block.number;
+        } else if ($.epochs[$.currentEpoch - 1].amount != 0) {
+            ++$.currentEpoch;
+            $.lastEpochUnlockedAt = block.number;
         }
     }
 
     function _processWithdraw(address validator) internal {
         // withdrawal isn't ready: no-op
-        IGraphStaking.Delegation memory del = GRAPH.getDelegation(validator, address(this));
-        if (del.tokensLockedUntil == 0 || del.tokensLockedUntil > block.number) return;
+        uint256 tokensLockedUntil = GRAPH.getDelegation(validator, address(this)).tokensLockedUntil;
+        if (tokensLockedUntil == 0 || tokensLockedUntil > block.number) return;
 
-        Unlocks storage u = _loadUnlocksSlot();
+        Storage storage $ = _loadStorage();
 
         // withdraw undelegated
         unchecked {
-            // u.currentEpoch - 1 is safe as we only call this function after at least 1 _processUnstake
-            // which increments u.currentEpoch, otherwise del.tokensLockedUntil would still be 0 and we would
+            // $.currentEpoch - 1 is safe as we only call this function after at least 1 _processUnstake
+            // which increments $.currentEpoch, otherwise del.tokensLockedUntil would still be 0 and we would
             // not reach this branch
-            u.epochs[u.currentEpoch - 1].amount = GRAPH.withdrawDelegated(validator, address(0));
+            $.epochs[$.currentEpoch - 1].amount = GRAPH.withdrawDelegated(validator, address(0));
         }
     }
 }

@@ -17,7 +17,7 @@ import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 
 import { Adapter, AdapterDelegateCall } from "core/adapters/Adapter.sol";
 import { Registry } from "core/registry/Registry.sol";
-import { TenderizerImmutableArgs, TenderizerEvents, TenderizerStorage } from "core/tenderizer/TenderizerBase.sol";
+import { TenderizerImmutableArgs, TenderizerEvents } from "core/tenderizer/TenderizerBase.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 
 // TODO: Fee parameter: Constant as immutable arg or read from router ?
@@ -28,7 +28,7 @@ import { TToken } from "core/tendertoken/TToken.sol";
 /// @dev Delegates calls to a stateless Adapter contract which is responsible for interacting with a third-party staking
 /// protocol
 
-contract Tenderizer is TenderizerImmutableArgs, TenderizerStorage, TenderizerEvents, TToken {
+contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
     using AdapterDelegateCall for Adapter;
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
