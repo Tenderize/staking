@@ -131,11 +131,7 @@ contract LivepeerIntegrationTest is Test, TestHelpers, TenderizerEvents {
         );
         vm.mockCall(roundsManager, abi.encodeCall(ILivepeerRoundsManager.currentRound, ()), abi.encode(currentRound));
         vm.mockCall(roundsManager, abi.encodeCall(ILivepeerRoundsManager.roundLength, ()), abi.encode(roundLength));
-        vm.mockCall(
-            roundsManager,
-            abi.encodeCall(ILivepeerRoundsManager.currentRoundStartBlock, ()),
-            abi.encode(roundStartBlock)
-        );
+        vm.mockCall(roundsManager, abi.encodeCall(ILivepeerRoundsManager.currentRoundStartBlock, ()), abi.encode(roundStartBlock));
 
         uint256 expMaturity;
         // TODO: Create separate scenarios for each case?
@@ -144,8 +140,7 @@ contract LivepeerIntegrationTest is Test, TestHelpers, TenderizerEvents {
         }
 
         vm.expectCall(
-            bondingManager,
-            abi.encodeCall(ILivepeerBondingManager.getDelegatorUnbondingLock, (address(tenderizer), unlockID))
+            bondingManager, abi.encodeCall(ILivepeerBondingManager.getDelegatorUnbondingLock, (address(tenderizer), unlockID))
         );
         vm.expectCall(roundsManager, abi.encodeCall(ILivepeerRoundsManager.currentRoundStartBlock, ()));
         vm.expectCall(roundsManager, abi.encodeCall(ILivepeerRoundsManager.currentRound, ()));
@@ -199,19 +194,17 @@ contract LivepeerIntegrationTest is Test, TestHelpers, TenderizerEvents {
     }
 
     function test_Deposit_RevertsIfBondReverts() public {
-      uint256 amount = 1 ether;
-      string memory revertMessage = "BOND_FAILED";
+        uint256 amount = 1 ether;
+        string memory revertMessage = "BOND_FAILED";
 
-      vm.mockCall(
-        asset,
-        abi.encodeCall(IERC20.transferFrom, (address(this), address(tenderizer), amount)),
-        abi.encode(true)
-      );
-      vm.mockCall(asset, abi.encodeCall(IERC20.approve, (bondingManager, amount)), abi.encode(true));
-      vm.mockCallRevert(bondingManager, abi.encodeCall(ILivepeerBondingManager.bond, (amount, validator)), abi.encode(revertMessage));
+        vm.mockCall(asset, abi.encodeCall(IERC20.transferFrom, (address(this), address(tenderizer), amount)), abi.encode(true));
+        vm.mockCall(asset, abi.encodeCall(IERC20.approve, (bondingManager, amount)), abi.encode(true));
+        vm.mockCallRevert(
+            bondingManager, abi.encodeCall(ILivepeerBondingManager.bond, (amount, validator)), abi.encode(revertMessage)
+        );
 
-      vm.expectRevert();
-      tenderizer.deposit(account1, amount);
+        vm.expectRevert();
+        tenderizer.deposit(account1, amount);
     }
 
     function testFuzz_Unlock(uint256 amount) public {
@@ -239,7 +232,9 @@ contract LivepeerIntegrationTest is Test, TestHelpers, TenderizerEvents {
 
     function test_Unlock_RevertsIfUnbondFails() public {
         _unlockPreReq(account1, depositAmount, unlockAmount);
-        vm.mockCallRevert(bondingManager, abi.encodeCall(ILivepeerBondingManager.unbond, (unlockAmount)), abi.encode("UNBOND_FAILED"));
+        vm.mockCallRevert(
+            bondingManager, abi.encodeCall(ILivepeerBondingManager.unbond, (unlockAmount)), abi.encode("UNBOND_FAILED")
+        );
         vm.prank(account1);
         vm.expectRevert();
         tenderizer.unlock(unlockAmount);
@@ -255,8 +250,7 @@ contract LivepeerIntegrationTest is Test, TestHelpers, TenderizerEvents {
         unlocks.transferFrom(account1, account2, uint256(bytes32(abi.encodePacked(address(tenderizer), uint96(unlockID)))));
 
         vm.expectCall(
-            bondingManager,
-            abi.encodeCall(ILivepeerBondingManager.getDelegatorUnbondingLock, (address(tenderizer), unlockID))
+            bondingManager, abi.encodeCall(ILivepeerBondingManager.getDelegatorUnbondingLock, (address(tenderizer), unlockID))
         );
         vm.expectCall(bondingManager, abi.encodeCall(ILivepeerBondingManager.withdrawStake, (unlockID)));
         vm.expectCall(asset, abi.encodeCall(IERC20.transfer, (account3, withdrawAmount)));
@@ -287,7 +281,9 @@ contract LivepeerIntegrationTest is Test, TestHelpers, TenderizerEvents {
 
     function test_Withdraw_RevertIfUnderlyingWithdrawFails() public {
         uint256 unlockID = _withdrawPreReq(account1, depositAmount, unlockAmount, unlockAmount);
-        vm.mockCallRevert(bondingManager, abi.encodeCall(ILivepeerBondingManager.withdrawStake, (unlockID)), abi.encode("WITHDRAW_FAILED"));
+        vm.mockCallRevert(
+            bondingManager, abi.encodeCall(ILivepeerBondingManager.withdrawStake, (unlockID)), abi.encode("WITHDRAW_FAILED")
+        );
         vm.prank(account1);
         vm.expectRevert();
         tenderizer.withdraw(account1, unlockID);
@@ -301,11 +297,7 @@ contract LivepeerIntegrationTest is Test, TestHelpers, TenderizerEvents {
         vm.prank(account1);
         tenderizer.deposit(account1, depositAmount);
 
-        vm.mockCall(
-            bondingManager,
-            abi.encodeCall(ILivepeerBondingManager.pendingFees,( address(tenderizer), 0)),
-            abi.encode(0)
-        );
+        vm.mockCall(bondingManager, abi.encodeCall(ILivepeerBondingManager.pendingFees, (address(tenderizer), 0)), abi.encode(0));
         vm.mockCall(asset, abi.encodeCall(IERC20.balanceOf, (address(tenderizer))), abi.encode(0));
         vm.mockCall(
             bondingManager,
@@ -337,9 +329,7 @@ contract LivepeerIntegrationTest is Test, TestHelpers, TenderizerEvents {
         tenderizer.deposit(account1, depositAmount);
 
         vm.mockCall(
-            bondingManager,
-            abi.encodeCall(ILivepeerBondingManager.pendingFees, (address(tenderizer), 0)),
-            abi.encode(ethFees)
+            bondingManager, abi.encodeCall(ILivepeerBondingManager.pendingFees, (address(tenderizer), 0)), abi.encode(ethFees)
         );
         vm.mockCall(
             bondingManager,
@@ -393,11 +383,7 @@ contract LivepeerIntegrationTest is Test, TestHelpers, TenderizerEvents {
         vm.prank(account1);
         tenderizer.deposit(account1, depositAmount);
 
-        vm.mockCall(
-            bondingManager,
-            abi.encodeCall(ILivepeerBondingManager.pendingFees, (address(tenderizer), 0)),
-            abi.encode(0)
-        );
+        vm.mockCall(bondingManager, abi.encodeCall(ILivepeerBondingManager.pendingFees, (address(tenderizer), 0)), abi.encode(0));
         vm.mockCall(
             bondingManager,
             abi.encodeCall(ILivepeerBondingManager.pendingStake, (address(tenderizer), 0)),
@@ -415,9 +401,7 @@ contract LivepeerIntegrationTest is Test, TestHelpers, TenderizerEvents {
     }
 
     function _depositMocks(address account, uint256 amount) internal {
-        vm.mockCall(
-            asset, abi.encodeCall(IERC20.transferFrom, (account, address(tenderizer), amount)), abi.encode(true)
-        );
+        vm.mockCall(asset, abi.encodeCall(IERC20.transferFrom, (account, address(tenderizer), amount)), abi.encode(true));
         vm.mockCall(asset, abi.encodeCall(IERC20.approve, (bondingManager, amount)), abi.encode(true));
         vm.mockCall(bondingManager, abi.encodeCall(ILivepeerBondingManager.bond, (amount, validator)), abi.encode());
     }
