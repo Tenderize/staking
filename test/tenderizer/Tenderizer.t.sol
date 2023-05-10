@@ -47,10 +47,14 @@ contract TenderizerSetup is Test, TestHelpers {
 
     bytes internal constant ERROR_MESSAGE = "ADAPTER_CALL_FAILED";
 
+    string internal symbol = "FOO";
+
     function setUp() public {
         // Setup global mock responses
         vm.mockCall(router, abi.encodeCall(Registry.adapter, (asset)), abi.encode(adapter));
+        vm.mockCall(router, abi.encodeCall(Registry.fee, (asset)), abi.encode(0.05 ether));
         vm.mockCall(router, abi.encodeCall(Registry.treasury, ()), abi.encode(treasury));
+        vm.mockCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()), abi.encode(symbol));
 
         tenderizer = TenderizerHarness(address(new TenderizerHarness()).clone(abi.encodePacked(asset, validator, router, unlocks)));
     }
@@ -58,13 +62,12 @@ contract TenderizerSetup is Test, TestHelpers {
 
 // solhint-disable func-name-mixedcase
 contract TenderizerTest is TenderizerSetup, TenderizerEvents {
-    function test_Metadata() public {
-        string memory symbol = "FOO";
-        vm.mockCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()), abi.encode(symbol));
-
+    function test_Name() public {
         vm.expectCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()));
         assertEq(tenderizer.name(), string(abi.encodePacked("tender", symbol, " ", validator)), "invalid name");
+    }
 
+    function test_Symbol() public {
         vm.expectCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()));
         assertEq(tenderizer.symbol(), string(abi.encodePacked("t", symbol, "_", validator)), "invalid symbol");
     }
