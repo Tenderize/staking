@@ -14,11 +14,9 @@ pragma solidity 0.8.17;
 interface Adapter {
     function previewDeposit(uint256 assets) external view returns (uint256);
 
-    function unlockMaturity(uint256 unlockID) external view returns (uint256);
-
     function previewWithdraw(uint256 unlockID) external view returns (uint256);
 
-    function getTotalStaked(address validator) external view returns (uint256);
+    function unlockMaturity(uint256 unlockID) external view returns (uint256);
 
     function stake(address validator, uint256 amount) external;
 
