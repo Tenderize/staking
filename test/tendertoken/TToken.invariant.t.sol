@@ -9,19 +9,20 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
+// solhint-disable func-name-mixedcase
+// solhint-disable var-name-mixedcase
+// solhint-disable no-empty-blocks
+// solhint-disable no-console
+
 pragma solidity 0.8.17;
 
-import "forge-std/console2.sol";
+import { console2 } from "forge-std/console2.sol";
 
 import { SafeMath } from "openzeppelin-contracts/utils/math/SafeMath.sol";
 
 import { Test } from "forge-std/Test.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 import { TestHelpers, AddressSet, LibAddressSet } from "test/helpers/Helpers.sol";
-
-// solhint-disable func-name-mixedcase
-// solhint-disable var-name-mixedcase
-// solhint-disable no-empty-blocks
 
 contract TestTToken is TToken {
     function name() public view override returns (string memory) { }

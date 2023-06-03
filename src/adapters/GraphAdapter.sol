@@ -43,6 +43,7 @@ contract GraphAdapter is Adapter {
         uint256 lastEpochUnlockedAt;
         mapping(uint256 => Epoch) epochs;
         mapping(uint256 => Unlock) unlocks;
+        uint256 tokensToShares;
     }
 
     function _loadStorage() internal pure returns (Storage storage s) {
@@ -58,25 +59,6 @@ contract GraphAdapter is Adapter {
         return assets - assets * GRAPH.delegationTaxPercentage() / MAX_PPM;
     }
 
-    function unlockMaturity(uint256 unlockID) external view override returns (uint256) {
-        Storage storage $ = _loadStorage();
-        Unlock memory unlock = $.unlocks[unlockID];
-        // if userEpoch == currentEpoch, it is yet to unlock
-        // => unlockTime + thawingPeriod
-        // if userEpoch == currentEpoch - 1, it is processing
-        // => unlockTime
-        // if userEpoch < currentEpoch - 1, it has been processed
-        // => 0
-        uint256 tokensLockedUntil = $.lastEpochUnlockedAt + GRAPH.thawingPeriod();
-        if (unlock.epoch == $.currentEpoch) {
-            return GRAPH.thawingPeriod() + tokensLockedUntil;
-        } else if (unlock.epoch == $.currentEpoch - 1) {
-            return tokensLockedUntil;
-        } else {
-            return 0;
-        }
-    }
-
     function previewWithdraw(uint256 unlockID) external view override returns (uint256) {
         Storage storage $ = _loadStorage();
         Unlock memory unlock = $.unlocks[unlockID];
@@ -84,17 +66,24 @@ contract GraphAdapter is Adapter {
         return unlock.shares * epoch.amount / epoch.totalShares;
     }
 
-    function getTotalStaked(address validator) external view override returns (uint256) {
-        IGraphStaking.Delegation memory delegation = GRAPH.getDelegation(validator, msg.sender);
-        IGraphStaking.DelegationPool memory delPool = GRAPH.delegationPools(validator);
-
-        uint256 delShares = delegation.shares;
-        uint256 totalShares = delPool.shares;
-        uint256 totalTokens = delPool.tokens;
-
-        if (totalShares == 0) return 0;
-
-        return delShares * totalTokens / totalShares;
+    function unlockMaturity(uint256 unlockID) external view override returns (uint256) {
+        Storage storage $ = _loadStorage();
+        Unlock memory unlock = $.unlocks[unlockID];
+        uint256 THAWING_PERIOD = GRAPH.thawingPeriod();
+        // if userEpoch == currentEpoch, it is yet to unlock
+        // => unlockTime + thawingPeriod
+        // if userEpoch == currentEpoch - 1, it is processing
+        // => unlockTime
+        // if userEpoch < currentEpoch - 1, it has been processed
+        // => 0
+        uint256 tokensLockedUntil = $.lastEpochUnlockedAt + THAWING_PERIOD;
+        if (unlock.epoch == $.currentEpoch) {
+            return THAWING_PERIOD + tokensLockedUntil;
+        } else if (unlock.epoch == $.currentEpoch - 1) {
+            return tokensLockedUntil;
+        } else {
+            return 0;
+        }
     }
 
     function stake(address validator, uint256 amount) external override {
@@ -142,15 +131,27 @@ contract GraphAdapter is Adapter {
     function claimRewards(address validator, uint256 currentStake) external override returns (uint256 newStake) {
         Storage storage $ = _loadStorage();
         Epoch memory currentEpoch = $.epochs[$.currentEpoch];
-        IGraphStaking.Delegation memory delegation = GRAPH.getDelegation(validator, address(this));
         IGraphStaking.DelegationPool memory delPool = GRAPH.delegationPools(validator);
-        uint256 staked = delegation.shares * delPool.tokens / delPool.shares;
+
+        uint256 _tokensPerShare = delPool.tokens * 1 ether / delPool.shares;
+        // Account for rounding error of -1 or +1
+        // This occurs due to a slight change in ratio because of new delegations or withdrawals,
+        // rather than an effective reward or loss
+        if (
+            (_tokensPerShare >= $.tokensToShares && _tokensPerShare - $.tokensToShares <= 1)
+                || (_tokensPerShare < $.tokensToShares && $.tokensToShares - _tokensPerShare <= 1)
+        ) {
+            return currentStake;
+        }
+
+        IGraphStaking.Delegation memory delegation = GRAPH.getDelegation(validator, address(this));
+        uint256 staked = delegation.shares * _tokensPerShare / 1 ether;
 
         // account for stake still to unstake
         uint256 oldStake = currentStake + currentEpoch.amount;
 
         // Last epoch amount should be synced with Delegation.tokensLocked
-        if ($.currentEpoch > 0) $.epochs[$.currentEpoch - 1].amount = GRAPH.getDelegation(validator, address(this)).tokensLocked;
+        if ($.currentEpoch > 0) $.epochs[$.currentEpoch - 1].amount = delegation.tokensLocked;
 
         if (staked < oldStake) {
             // handle a potential slash
@@ -163,7 +164,6 @@ contract GraphAdapter is Adapter {
             // slashCurrent = (slash - slashLast) * currentEpochAmount / ( currentEpochAmount + currentStake)
             uint256 slashCurrent = slash * currentEpoch.amount / oldStake;
             currentEpoch.amount -= slashCurrent;
-            $.epochs[$.currentEpoch] = currentEpoch;
         } else if (staked > oldStake) {
             // handle rewards
             // To reduce long waiting periods we want to still reward users
@@ -172,8 +172,10 @@ contract GraphAdapter is Adapter {
             // We do this by adding the rewards to the current epoch
             uint256 currentEpochAmount = (staked - oldStake) * currentEpoch.amount / oldStake;
             currentEpoch.amount += currentEpochAmount;
-            $.epochs[$.currentEpoch] = currentEpoch;
         }
+
+        $.epochs[$.currentEpoch] = currentEpoch;
+        $.tokensToShares = _tokensPerShare;
 
         // slash/rewards is already accounted for in $.epochs[$.currentEpoch].amount
         newStake = staked - currentEpoch.amount;

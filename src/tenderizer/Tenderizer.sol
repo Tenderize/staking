@@ -20,9 +20,6 @@ import { Registry } from "core/registry/Registry.sol";
 import { TenderizerImmutableArgs, TenderizerEvents } from "core/tenderizer/TenderizerBase.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 
-// TODO: Fee parameter: Constant as immutable arg or read from router ?
-// TODO: Rebase automation: rebate to caller turning it into a GDA ?
-
 /// @title Tenderizer
 /// @notice Liquid Staking vault using fixed-point math with full type safety and unstructured storage
 /// @dev Delegates calls to a stateless Adapter contract which is responsible for interacting with a third-party staking
@@ -43,25 +40,25 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
         return string(abi.encodePacked("t", ERC20(asset()).symbol(), "_", validator()));
     }
 
-    function previewDeposit(uint256 assets) public view returns (uint256) {
-        return _adapter().previewDeposit(assets);
+    function transfer(address to, uint256 amount) public override returns (bool) {
+        _rebase();
+        return TToken.transfer(to, amount);
     }
 
-    function unlockMaturity(uint256 unlockID) external view returns (uint256) {
-        return _adapter().unlockMaturity(unlockID);
-    }
-
-    function previewWithdraw(uint256 unlockID) external view returns (uint256) {
-        return _adapter().previewWithdraw(unlockID);
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+        _rebase();
+        return TToken.transferFrom(from, to, amount);
     }
 
     function deposit(address receiver, uint256 assets) external returns (uint256) {
+        _rebase();
+
         // transfer tokens before minting (or ERC777's could re-enter)
         ERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
 
         // preview deposit to get actual assets to mint for
         // deducts any possible third-party protocol taxes or fees
-        uint256 actualAssets = previewDeposit(assets);
+        uint256 actualAssets = _previewDeposit(assets);
 
         // stake assets
         _stake(validator(), assets);
@@ -78,6 +75,8 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
     }
 
     function unlock(uint256 assets) external returns (uint256 unlockID) {
+        _rebase();
+
         // burn tTokens before creating an `unlock`
         _burn(msg.sender, assets);
 
@@ -108,6 +107,10 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
     }
 
     function rebase() external {
+        _rebase();
+    }
+
+    function _rebase() internal {
         uint256 currentStake = totalSupply();
         uint256 newStake = _claimRewards(validator(), currentStake);
 
@@ -139,6 +142,37 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
         return Adapter(Registry(_registry()).adapter(asset()));
     }
 
+    function previewDeposit(uint256 assets) external view returns (uint256) {
+        return abi.decode(_staticcall(address(this), abi.encodeCall(this._previewDeposit, (assets))), (uint256));
+    }
+
+    function previewWithdraw(uint256 unlockID) external view returns (uint256) {
+        return abi.decode(_staticcall(address(this), abi.encodeCall(this._previewWithdraw, (unlockID))), (uint256));
+    }
+
+    function unlockMaturity(uint256 unlockID) external view returns (uint256) {
+        return abi.decode(_staticcall(address(this), abi.encodeCall(this._unlockMaturity, (unlockID))), (uint256));
+    }
+
+    // ===============================================================================================================
+    // NOTE: These functions are marked `public` but considered `internal` (hence the `_` prefix).
+    // This is because the compiler doesn't know whether there is a state change because of `delegatecall``
+    // So for the external API (e.g. used by Unlocks.sol) we wrap these functions in `external` functions
+    // using a `staticcall` to `this`.
+    // This is a hacky workaround while better solidity features are being developed.
+    function _previewDeposit(uint256 assets) public returns (uint256) {
+        return abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().previewDeposit, (assets))), (uint256));
+    }
+
+    function _previewWithdraw(uint256 unlockID) public returns (uint256) {
+        return abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().previewWithdraw, (unlockID))), (uint256));
+    }
+
+    function _unlockMaturity(uint256 unlockID) public returns (uint256) {
+        return abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().unlockMaturity, (unlockID))), (uint256));
+    }
+    // ===============================================================================================================
+
     function _claimRewards(address validator, uint256 currentStake) internal returns (uint256 newStake) {
         newStake =
             abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().claimRewards, (validator, currentStake))), (uint256));
@@ -155,4 +189,21 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
     function _withdraw(address validator, uint256 unlockID) internal returns (uint256 withdrawAmount) {
         withdrawAmount = abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().withdraw, (validator, unlockID))), (uint256));
     }
+}
+
+error StaticCallFailed(address to, bytes data, string message);
+
+function _staticcall(address target, bytes memory data) view returns (bytes memory) {
+    // solhint-disable-next-line avoid-low-level-calls
+    (bool success, bytes memory returnData) = address(target).staticcall(data);
+
+    if (!success) {
+        if (returnData.length < 68) revert StaticCallFailed(address(target), data, "");
+        assembly {
+            returnData := add(returnData, 0x04)
+        }
+        revert StaticCallFailed(address(target), data, abi.decode(returnData, (string)));
+    }
+
+    return returnData;
 }

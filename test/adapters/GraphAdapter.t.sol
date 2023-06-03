@@ -81,21 +81,6 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         assertEq(this.previewWithdraw(unlockID), unlockShares * epochAmount / epochTotalShares);
     }
 
-    function testFuzz_GetTotalStaked(uint256 shares, uint256 totalShares, uint256 totalTokens) public {
-        shares = bound(shares, 0, MAX_UINT_SQRT);
-        totalTokens = bound(totalTokens, 0, MAX_UINT_SQRT);
-        totalShares = bound(totalShares, 0, MAX_UINT_SQRT);
-
-        vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(shares, 0, 0));
-        vm.mockCall(
-            staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, totalTokens, totalShares)
-        );
-        vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
-        vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
-        uint256 exp = totalShares == 0 ? 0 : shares * totalTokens / totalShares;
-        assertEq(this.getTotalStaked(validator), exp);
-    }
-
     function test_Stake() public {
         uint256 amount = 1 ether;
         vm.mockCall(token, abi.encodeCall(IERC20.approve, (staking, amount)), abi.encode(true));
@@ -313,7 +298,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         this.withdraw(validator, unlockID);
     }
 
-    function testFuzz_claimRewards_Positive(uint256 startStake, uint256 reward) public {
+    function testFuzz_ClaimRewards_Positive(uint256 startStake, uint256 reward) public {
         startStake = bound(startStake, 1, MAX_UINT_SQRT);
         reward = bound(reward, 1, MAX_UINT_SQRT);
 
@@ -331,6 +316,8 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         $.currentEpoch = currentEpoch;
         $.epochs[currentEpoch].amount = currentEpochAmountStart;
 
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
         uint256 newStake = this.claimRewards(validator, startStake - currentEpochAmountStart);
 
         uint256 rewardForUnlocks = reward * currentEpochAmountStart / startStake;
@@ -340,9 +327,9 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         assertEq($.epochs[currentEpoch - 1].amount, 1 ether, "invalid previous epoch amount");
     }
 
-    function testFuzz_claimRewards_Negative(uint256 startStake, uint256 penalty) public {
-        startStake = bound(startStake, 1, MAX_UINT_SQRT);
-        penalty = bound(penalty, 1, startStake);
+    function testFuzz_ClaimRewards_Negative(uint256 startStake, uint256 penalty) public {
+        startStake = bound(startStake, 100, MAX_UINT_SQRT);
+        penalty = bound(penalty, 5, startStake - 5);
 
         // percentage of startStake that is epochs[currentEpoch].amount
         uint256 currentEpochRatio = 0.33 ether;
@@ -358,6 +345,8 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         $.currentEpoch = currentEpoch;
         $.epochs[currentEpoch].amount = currentEpochAmountStart;
 
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
         uint256 newStake = this.claimRewards(validator, startStake - currentEpochAmountStart);
         uint256 slashForUnlocks = penalty * currentEpochAmountStart / startStake;
         assertEq(newStake, startStake - penalty - $.epochs[currentEpoch].amount, "invalid new stake");
@@ -377,6 +366,28 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         $.currentEpoch = currentEpoch;
         $.epochs[currentEpoch].amount = currentEpochAmount;
 
+        // TODO: Assert below call not made after https://github.com/foundry-rs/foundry/issues/4513
+        // vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
+        uint256 newStake = this.claimRewards(validator, staked - currentEpochAmount);
+        assertEq(newStake, staked - currentEpochAmount, "invalid new stake");
+    }
+
+    function test_ClaimRewards_NoChangeInStake_ForceRebase() public {
+        uint256 currentEpoch = 1;
+        uint256 staked = 10 ether;
+        uint256 currentEpochRatio = 0.33 ether;
+        uint256 currentEpochAmount = staked * currentEpochRatio / 1 ether;
+
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(1, 0, 0));
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, staked, 1));
+
+        Storage storage $ = _loadStorage();
+        $.currentEpoch = currentEpoch;
+        $.epochs[currentEpoch].amount = currentEpochAmount;
+
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
+        vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
         uint256 newStake = this.claimRewards(validator, staked - currentEpochAmount);
         assertEq(newStake, staked - currentEpochAmount, "invalid new stake");
     }
