@@ -20,10 +20,18 @@ import { Unlocks } from "core/unlocks/Unlocks.sol";
 /// Arguments are appended to calldata when the proxy delegatecals to its implementation,
 /// where these arguments can be read given their memory offset and length.
 abstract contract TenderizerImmutableArgs is Clone {
+    /**
+     * @notice Returns the underlying asset
+     * @return Address of the underlying asset
+     */
     function asset() public pure returns (address) {
         return _getArgAddress(0); // start: 0 end: 19
     }
 
+    /**
+     * @notice Returns the validator
+     * @return Address of the validator
+     */
     function validator() public pure returns (address) {
         return _getArgAddress(20); // start: 20 end: 39
     }

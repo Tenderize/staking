@@ -21,6 +21,11 @@ import { Base64 } from "core/unlocks/Base64.sol";
 
 // solhint-disable quotes
 
+/// @title Renderer
+/// @notice ERC721 metadata renderer for unlock tokens
+/// @dev Renders SVG and JSON metadata for unlock tokens
+/// @dev UUPS upgradeable contract
+
 contract Renderer is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     using Strings for uint256;
 
@@ -33,6 +38,10 @@ contract Renderer is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         __Ownable_init();
     }
 
+    /**
+     * @notice Returns the JSON metadata for a given unlock
+     * @param id ID of the unlock
+     */
     function json(uint256 id) external view returns (string memory) {
         Unlocks.Metadata memory data = Unlocks(msg.sender).getMetadata(id);
 

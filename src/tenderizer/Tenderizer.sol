@@ -25,6 +25,13 @@ import { TToken } from "core/tendertoken/TToken.sol";
 /// @dev Delegates calls to a stateless Adapter contract which is responsible for interacting with a third-party staking
 /// protocol
 
+/**
+ * @title Tenderizer
+ * @author Tenderize Labs Ltd
+ * @notice Liquid staking vault for native liquid staking
+ * @dev Uses full type safety and unstructured storage
+ */
+
 contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
     using AdapterDelegateCall for Adapter;
     using FixedPointMathLib for uint256;
@@ -32,24 +39,33 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
 
     uint256 private constant MAX_FEE = 0.005 ether; // 0.5%
 
+    // @inheritdoc TToken
     function name() external view override returns (string memory) {
         return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
     }
 
+    // @inheritdoc TToken
     function symbol() external view override returns (string memory) {
         return string(abi.encodePacked("t", ERC20(asset()).symbol(), "_", validator()));
     }
 
+    // @inheritdoc TToken
     function transfer(address to, uint256 amount) public override returns (bool) {
         _rebase();
         return TToken.transfer(to, amount);
     }
 
+    // @inheritdoc TToken
     function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
         _rebase();
         return TToken.transferFrom(from, to, amount);
     }
 
+    /**
+     * @notice Deposit assets to mint tTokens
+     * @param receiver address to mint tTokens to
+     * @param assets amount of assets to deposit
+     */
     function deposit(address receiver, uint256 assets) external returns (uint256) {
         _rebase();
 
@@ -74,6 +90,11 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
         return actualAssets;
     }
 
+    /**
+     * @notice Unlock tTokens to withdraw assets at maturity
+     * @param assets amount of assets to unlock
+     * @return unlockID of the unlock
+     */
     function unlock(uint256 assets) external returns (uint256 unlockID) {
         _rebase();
 
@@ -90,22 +111,30 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
         emit Unlock(msg.sender, assets, unlockID);
     }
 
-    function withdraw(address receiver, uint256 unlockID) external returns (uint256) {
+    /**
+     * @notice Redeem an unlock to withdraw assets after maturity
+     * @param receiver address to withdraw assets to
+     * @param unlockID ID of the unlock to redeem
+     * @return amount of assets withdrawn
+     */
+    function withdraw(address receiver, uint256 unlockID) external returns (uint256 amount) {
         // Redeem unlock if mature
         _unlocks().useUnlock(msg.sender, unlockID);
 
         // withdraw assets to send to `receiver`
-        uint256 amount = _withdraw(validator(), unlockID);
+        amount = _withdraw(validator(), unlockID);
 
         // transfer assets to `receiver`
         ERC20(asset()).safeTransfer(receiver, amount);
 
         // emit Withdraw event
         emit Withdraw(receiver, amount, unlockID);
-
-        return amount;
     }
 
+    /**
+     * @notice Rebase tToken supply
+     * @dev Rebase can be called by anyone, is also forced to be called before any action or transfer
+     */
     function rebase() external {
         _rebase();
     }
