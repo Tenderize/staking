@@ -25,6 +25,7 @@ contract UpgradeableContract is Initializable, UUPSUpgradeable {
         _disableInitializers();
     }
 
+    // solhint-disable no-empty-blocks
     function initialize() public initializer { }
     function _authorizeUpgrade(address) internal override { }
 }
@@ -75,7 +76,8 @@ contract UUPSTestHelper is Test {
         vm.expectRevert("Function must be called through delegatecall");
         currentVersion.upgradeTo(address(nextVersion));
 
-        (bool success,) = address(proxy2).delegatecall(abi.encodeWithSignature("upgradeTo(address)", address(nextVersion)));
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success,) = address(proxy2).delegatecall(abi.encodeCall(UUPSUpgradeable.upgradeTo, address(nextVersion)));
         assertTrue(success);
 
         address implClone = ClonesUpgradeable.clone(address(currentVersion));
