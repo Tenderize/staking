@@ -1,6 +1,8 @@
 # Tenderize - Liquid Native Staking
 
-The Tenderize protocol enables **liquid native staking**, each validator on a network can have its own permissionless liquid staking vault and ERC20 token for itself and its delegators. It is designed to be fully credibly neutral and autonomous, while enabling more flexibility to users when staking.
+The Tenderize protocol enables **liquid native staking**, each validator on a network can have its own permissionless
+liquid staking vault and ERC20 token for itself and its delegators. It is designed to be fully credibly neutral and
+autonomous, while enabling more flexibility to users when staking.
 
 ## What's Inside
 
