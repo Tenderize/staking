@@ -34,14 +34,31 @@ abstract contract TToken is TTokenStorage, IERC20 {
 
     uint8 private constant DECIMALS = 18;
 
+    /**
+     * @notice Returns the number of decimals
+     * @return Number of decimals
+     */
     function decimals() public pure returns (uint8) {
         return DECIMALS;
     }
 
+    /**
+     * @notice Returns the name of the tToken
+     * @return Name of the tToken
+     */
     function name() external view virtual returns (string memory);
 
+    /**
+     * @notice Returns the symbol of the tToken
+     * @return Symbol of the tToken
+     */
     function symbol() external view virtual returns (string memory);
 
+    /**
+     * @notice converts shares to assets
+     * @param shares Amount of shares to convert
+     * @return Amount of assets representing the shares
+     */
     function convertToAssets(uint256 shares) public view returns (uint256) {
         Storage storage $ = _loadStorage();
 
@@ -49,6 +66,11 @@ abstract contract TToken is TTokenStorage, IERC20 {
         return _totalShares == 0 ? shares : shares.mulDivDown($._totalSupply, _totalShares);
     }
 
+    /**
+     * @notice converts assets to shares
+     * @param assets Amount of assets to convert
+     * @return Amount of shares representing the assets
+     */
     function convertToShares(uint256 assets) public view returns (uint256) {
         Storage storage $ = _loadStorage();
 
@@ -56,20 +78,39 @@ abstract contract TToken is TTokenStorage, IERC20 {
         return _totalShares == 0 ? assets : assets.mulDivDown(_totalShares, $._totalSupply);
     }
 
+    /**
+     * @notice Returns the tToken balance of an account
+     * @param account address to get balance of
+     * @return Balance of account
+     */
     function balanceOf(address account) public view virtual returns (uint256) {
         return convertToAssets(_loadStorage().shares[account]);
     }
 
+    /**
+     * @notice Returns the total supply of the tToken
+     * @return Total supply of the tToken
+     */
     function totalSupply() public view virtual returns (uint256) {
         Storage storage $ = _loadStorage();
         return $._totalSupply;
     }
 
+    /**
+     * @notice returns the EIP-2612 permit nonce for an address
+     * @param owner address to get nonce for
+     */
     function nonces(address owner) external view returns (uint256) {
         Storage storage $ = _loadStorage();
         return $.nonces[owner];
     }
 
+    /**
+     * @notice Approve an address to spend your tokens
+     * @param spender address to approve
+     * @param amount amount of tokens to approve
+     * @return Whether or not the approval succeeded
+     */
     function approve(address spender, uint256 amount) public virtual returns (bool) {
         Storage storage $ = _loadStorage();
         $.allowance[msg.sender][spender] = amount;
@@ -79,6 +120,12 @@ abstract contract TToken is TTokenStorage, IERC20 {
         return true;
     }
 
+    /**
+     * @notice Transfer tokens to another address
+     * @param to address to transfer tokens to
+     * @param amount amount of tokens to transfer
+     * @return Whether or not the transfer succeeded
+     */
     function transfer(address to, uint256 amount) public virtual returns (bool) {
         Storage storage $ = _loadStorage();
         uint256 shares = convertToShares(amount);
@@ -96,11 +143,24 @@ abstract contract TToken is TTokenStorage, IERC20 {
         return true;
     }
 
+    /**
+     * @notice Returns the previously approved amount by an address for a spender
+     * @param owner address that approved spending
+     * @param spender address allowed to spend tokens
+     * @return Amount approved for spending
+     */
     function allowance(address owner, address spender) external view returns (uint256) {
         Storage storage $ = _loadStorage();
         return $.allowance[owner][spender];
     }
 
+    /**
+     * @notice Transfer tokens from one address to another
+     * @param from address to transfer tokens from
+     * @param to address to transfer tokens to
+     * @param amount amount of tokens to transfer
+     * @return Whether or not the transfer succeeded
+     */
     function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
         Storage storage $ = _loadStorage();
         uint256 allowed = $.allowance[from][msg.sender]; // Saves gas for limited approvals.
@@ -124,6 +184,9 @@ abstract contract TToken is TTokenStorage, IERC20 {
         return true;
     }
 
+    /**
+     * @notice EIP-2612 Permit function. For more details, see https://eips.ethereum.org/EIPS/eip-2612
+     */
     function permit(
         address owner,
         address spender,

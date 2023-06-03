@@ -17,6 +17,10 @@ import { Adapter } from "core/adapters/Adapter.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 
+/// @title Factory
+/// @author Tenderize Labs Ltd
+/// @notice Factory for Tenderizer contracts
+
 contract Factory {
     using ClonesWithImmutableArgs for address;
 
@@ -33,6 +37,12 @@ contract Factory {
         unlocks = _unlocks;
     }
 
+    /**
+     * @notice Creates a new Tenderizer
+     * @param asset Address of the underlying asset
+     * @param validator Address of the validator
+     * @return tenderizer Address of the created Tenderizer
+     */
     function newTenderizer(address asset, address validator) external returns (address tenderizer) {
         Adapter adapter = Adapter(Registry(registry).adapter(asset));
 

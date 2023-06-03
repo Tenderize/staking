@@ -20,6 +20,10 @@ pragma solidity 0.8.17;
 
 // solhint-disable quotes
 
+/// @title Unlocks
+/// @notice ERC721 contract for unlock tokens
+/// @dev Creates an NFT for staked tokens pending unlock. Each Unlock has an amount and a maturity date.
+
 contract Unlocks is ERC721 {
     struct Metadata {
         uint256 amount;
@@ -47,12 +51,25 @@ contract Unlocks is ERC721 {
         renderer = Renderer(_renderer);
     }
 
+    /**
+     * @notice Creates a new unlock token
+     * @dev Only callable by a Tenderizer
+     * @param receiver Address of the receiver
+     * @param id ID of the unlock
+     * @return tokenId ID of the created token
+     */
     function createUnlock(address receiver, uint256 id) external virtual isValidTenderizer(msg.sender) returns (uint256 tokenId) {
         if (id >= 1 << 96) revert InvalidID();
         tokenId = _encodeTokenId(msg.sender, uint96(id));
         _safeMint(receiver, tokenId);
     }
 
+    /**
+     * @notice Burns an unlock token
+     * @dev Only callable by a Tenderizer
+     * @param owner Owner of the token
+     * @param id ID of the unlock
+     */
     function useUnlock(address owner, uint256 id) external virtual isValidTenderizer(msg.sender) {
         if (id >= 1 << 96) revert InvalidID();
         uint256 tokenId = _encodeTokenId(msg.sender, uint96(id));
@@ -60,11 +77,21 @@ contract Unlocks is ERC721 {
         _burn(tokenId);
     }
 
+    /**
+     * @notice Returns the tokenURI of an unlock token
+     * @param id ID of the unlock token
+     * @return tokenURI of the unlock token
+     */
     function tokenURI(uint256 id) public view virtual override returns (string memory) {
         require(_ownerOf[id] != address(0), "non-existent token");
         return renderer.json(id);
     }
 
+    /**
+     * @notice Returns the metadata of an unlock token
+     * @param tokenId ID of the unlock token
+     * @return metadata of the unlock token
+     */
     function getMetadata(uint256 tokenId) external view returns (Metadata memory metadata) {
         (address tenderizer, uint256 id) = _decodeTokenId(tokenId);
         address asset = Tenderizer(tenderizer).asset();

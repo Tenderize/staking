@@ -14,8 +14,13 @@ pragma solidity 0.8.17;
 import { AccessControlUpgradeable } from "openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { RegistryStorage } from "core/registry/RegistryStorage.sol";
 
-contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
+/// @title Registry
+/// @author Tenderize
+/// @notice Registry for Tenderizer ecosystem. Role-based access, fee management and adapter updates.
+
+contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, RegistryStorage {
     bytes32 private constant FACTORY_ROLE = keccak256("FACTORY_ROLE");
     bytes32 private constant FEE_GAUGE_ROLE = keccak256("FEE_GAUGE_ROLE");
     bytes32 private constant TENDERIZER_ROLE = keccak256("TENDERIZER_ROLE");
@@ -26,18 +31,6 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     event NewTenderizer(address indexed asset, address indexed validator, address tenderizer);
     event FeeAdjusted(address indexed asset, uint256 newFee, uint256 oldFee);
     event TreasurySet(address indexed treasury);
-
-    struct Protocol {
-        address adapter;
-        uint96 fee;
-    }
-
-    struct Storage {
-        mapping(address => Protocol) protocols;
-        address treasury;
-    }
-
-    uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.registry.storage.location")) - 1;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -60,34 +53,70 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
 
     // Getters
 
+    /**
+     * @notice Returns the address of the adapter for a given asset
+     * @param asset Address of the underlying asset
+     */
     function adapter(address asset) external view returns (address) {
         return _loadStorage().protocols[asset].adapter;
     }
 
+    /**
+     * @notice Returns the fee for a given asset
+     * @param asset Address of the underlying asset
+     */
     function fee(address asset) external view returns (uint96) {
         return _loadStorage().protocols[asset].fee;
     }
 
+    /**
+     * @notice Returns whether a given address is a valid tenderizer
+     * @param tenderizer Address of the tenderizer
+     * @return Whether the address is a valid tenderizer
+     */
     function isTenderizer(address tenderizer) external view returns (bool) {
         return hasRole(TENDERIZER_ROLE, tenderizer);
     }
 
+    /**
+     * @notice Returns the address of the treasury
+     */
     function treasury() external view returns (address) {
         return _loadStorage().treasury;
     }
 
     // Setters
 
+    /**
+     * @notice Registers a new adapter for a given asset
+     * @dev Can only be called by a member of the GOVERNANCE_ROLE
+     * @param asset Address of the underlying asset
+     * @param adapter Address of the adapter
+     */
     function registerAdapter(address asset, address adapter) external onlyRole(GOVERNANCE_ROLE) {
-        _loadStorage().protocols[asset].adapter = adapter;
+        Storage storage $ = _loadStorage();
+        $.protocols[asset].adapter = adapter;
         emit AdapterRegistered(asset, adapter);
     }
 
+    /**
+     * @notice Registers a new tenderizer for a given asset
+     * @dev Can only be called by a member of the FACTORY_ROLE
+     * @param asset Address of the underlying asset
+     * @param validator Address of the validator
+     * @param tenderizer Address of the tenderizer
+     */
     function registerTenderizer(address asset, address validator, address tenderizer) external onlyRole(FACTORY_ROLE) {
         _grantRole(TENDERIZER_ROLE, tenderizer);
         emit NewTenderizer(asset, validator, tenderizer);
     }
 
+    /**
+     * @notice Sets the fee for a given asset
+     * @dev Can only be called by a member of the FEE_GAUGE_ROLE
+     * @param asset Address of the underlying asset
+     * @param fee New fee
+     */
     function setFee(address asset, uint96 fee) external onlyRole(FEE_GAUGE_ROLE) {
         Storage storage $ = _loadStorage();
         uint256 oldFee = $.protocols[asset].fee;
@@ -95,6 +124,11 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
         emit FeeAdjusted(asset, fee, oldFee);
     }
 
+    /**
+     * @notice Sets the treasury
+     * @dev Can only be called by a member of the GOVERNANCE_ROLE
+     * @param treasury Address of the treasury
+     */
     function setTreasury(address treasury) external onlyRole(GOVERNANCE_ROLE) {
         _loadStorage().treasury = treasury;
         emit TreasurySet(treasury);
@@ -103,13 +137,4 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     ///@dev required by the OZ UUPS module
     // solhint-disable-next-line no-empty-blocks
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADE_ROLE) { }
-
-    function _loadStorage() internal pure returns (Storage storage s) {
-        uint256 slot = STORAGE;
-
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            s.slot := slot
-        }
-    }
 }
