@@ -46,7 +46,7 @@ contract Unlocks is ERC721 {
         _;
     }
 
-    constructor(address _registry, address _renderer) ERC721("Tenderize Unlocks", "TUNL") {
+    constructor(address _registry, address _renderer) ERC721("TenderUnlocks", "UNLOCK") {
         registry = Registry(_registry);
         renderer = Renderer(_renderer);
     }

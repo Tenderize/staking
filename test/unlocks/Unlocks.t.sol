@@ -35,8 +35,8 @@ contract UnlockTest is Test {
     }
 
     function test_Metadata() public {
-        assertEq(unlocks.name(), "Tenderize Unlocks");
-        assertEq(unlocks.symbol(), "TUNL");
+        assertEq(unlocks.name(), "TenderUnlocks");
+        assertEq(unlocks.symbol(), "UNLOCK");
     }
 
     function testFuzz_createUnlock_Success(address owner, uint256 lockId) public {
