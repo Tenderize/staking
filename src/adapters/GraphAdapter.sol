@@ -43,7 +43,7 @@ contract GraphAdapter is Adapter {
         uint256 lastEpochUnlockedAt;
         mapping(uint256 => Epoch) epochs;
         mapping(uint256 => Unlock) unlocks;
-        uint256 tokensToShares;
+        uint256 tokensPerShare;
     }
 
     function _loadStorage() internal pure returns (Storage storage s) {
@@ -138,8 +138,8 @@ contract GraphAdapter is Adapter {
         // This occurs due to a slight change in ratio because of new delegations or withdrawals,
         // rather than an effective reward or loss
         if (
-            (_tokensPerShare >= $.tokensToShares && _tokensPerShare - $.tokensToShares <= 1)
-                || (_tokensPerShare < $.tokensToShares && $.tokensToShares - _tokensPerShare <= 1)
+            (_tokensPerShare >= $.tokensPerShare && _tokensPerShare - $.tokensPerShare <= 1)
+                || (_tokensPerShare < $.tokensPerShare && $.tokensPerShare - _tokensPerShare <= 1)
         ) {
             return currentStake;
         }
@@ -175,7 +175,7 @@ contract GraphAdapter is Adapter {
         }
 
         $.epochs[$.currentEpoch] = currentEpoch;
-        $.tokensToShares = _tokensPerShare;
+        $.tokensPerShare = _tokensPerShare == 0 ? 1 ether : _tokensPerShare;
 
         // slash/rewards is already accounted for in $.epochs[$.currentEpoch].amount
         newStake = staked - currentEpoch.amount;
@@ -212,8 +212,7 @@ contract GraphAdapter is Adapter {
             $.lastEpochUnlockedAt = block.number;
 
             // calculate shares to undelegate from The Graph
-            IGraphStaking.DelegationPool memory delPool = GRAPH.delegationPools(validator);
-            uint256 undelegationShares = currentEpochAmount * delPool.shares / delPool.tokens;
+            uint256 undelegationShares = currentEpochAmount * 1 ether / $.tokensPerShare;
 
             // account for possible rounding error
             undelegationShares = del.shares < undelegationShares ? del.shares : undelegationShares;

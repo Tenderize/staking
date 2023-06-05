@@ -133,28 +133,27 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
 
     function testFuzz_Unstake(uint256 currentEpochAmount, uint256 stakedAmount, uint256 stakedShares) public {
         uint256 amount = 1 ether;
-        currentEpochAmount = bound(currentEpochAmount, 1, MAX_UINT_SQRT - amount);
+        currentEpochAmount = bound(currentEpochAmount, amount, MAX_UINT_SQRT - amount);
         stakedAmount = bound(stakedAmount, 1, MAX_UINT_SQRT);
-        stakedShares = bound(stakedShares, 1, MAX_UINT_SQRT);
+        stakedShares = bound(stakedShares, stakedAmount, MAX_UINT_SQRT);
         uint256 epoch = 1;
         uint256 lastUnlockID = 1;
-
-        vm.mockCall(
-            staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(stakedShares, 0, 0)
-        );
-        vm.mockCall(
-            staking, abi.encodeCall(IGraphStaking.delegationPools, validator), abi.encode(0, 0, 0, 0, stakedAmount, stakedShares)
-        );
-
-        uint256 expShares = (currentEpochAmount + amount) * stakedShares / stakedAmount;
-        expShares = expShares > stakedShares ? stakedShares : expShares;
-        vm.mockCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, expShares)), abi.encode(expShares));
 
         Storage storage $ = _loadStorage();
         $.currentEpoch = epoch;
         $.epochs[epoch].amount = currentEpochAmount;
         $.epochs[epoch].totalShares = currentEpochAmount;
         $.lastUnlockID = lastUnlockID;
+        $.tokensPerShare = stakedAmount * 1 ether / stakedShares;
+        $.tokensPerShare = $.tokensPerShare == 0 ? 1 ether : $.tokensPerShare;
+
+        vm.mockCall(
+            staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(stakedShares, 0, 0)
+        );
+
+        uint256 expShares = (currentEpochAmount + amount) * 1 ether / $.tokensPerShare;
+        expShares = expShares > stakedShares ? stakedShares : expShares;
+        vm.mockCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, expShares)), abi.encode(expShares));
 
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, expShares)));
         this.unstake(validator, amount);
@@ -184,7 +183,6 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
 
         // should call `undelegate` but not `withdrawDelegation`
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(amount, 0, 0));
-        vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, amount, amount));
 
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, amount)), abi.encode(0));
 
@@ -193,6 +191,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         $.unlocks[0].shares = amount;
         $.epochs[0].totalShares = amount;
         $.epochs[0].amount = amount;
+        $.tokensPerShare = 1 ether;
 
         uint256 epoch = 2;
         $.currentEpoch = epoch;
