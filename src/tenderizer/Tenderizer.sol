@@ -37,7 +37,8 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
 
-    uint256 private constant MAX_FEE = 0.005 ether; // 0.5%
+    uint256 private constant MAX_FEE = 0.005e6; // 0.5%
+    uint256 private constant FEE_BASE = 1e6;
 
     // @inheritdoc TToken
     function name() external view override returns (string memory) {
@@ -164,7 +165,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
     function _calculateFees(uint256 rewards) internal view returns (uint256 fees) {
         uint256 fee = Registry(_registry()).fee(asset());
         fee = fee > MAX_FEE ? MAX_FEE : fee;
-        fees = rewards * fee / 1 ether;
+        fees = rewards * fee / FEE_BASE;
     }
 
     function _adapter() internal view returns (Adapter) {

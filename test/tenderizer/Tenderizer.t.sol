@@ -30,7 +30,7 @@ contract TenderizerSetup is Test, TestHelpers {
     uint256 internal constant MAX_UINT = type(uint256).max;
     uint256 internal MAX_UINT_SQRT = sqrt(MAX_UINT - 1);
 
-    uint256 internal constant MAX_FEE = 0.005 ether;
+    uint256 internal constant MAX_FEE = 0.005e6;
 
     address internal asset = vm.addr(1);
     address internal staking = vm.addr(2);
@@ -328,7 +328,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
         vm.mockCall(router, abi.encodeCall(Registry.fee, (asset)), abi.encode(feeRate));
 
         uint256 cappedFeeRate = feeRate > MAX_FEE ? MAX_FEE : feeRate;
-        uint256 expFees = ((newStake - totalDeposit) * cappedFeeRate) / 1 ether;
+        uint256 expFees = ((newStake - totalDeposit) * cappedFeeRate) / 1e6;
 
         vm.expectEmit(true, true, true, true);
         emit Rebase(totalDeposit, newStake);
