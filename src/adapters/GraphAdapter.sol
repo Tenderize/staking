@@ -21,7 +21,7 @@ contract GraphAdapter is Adapter {
 
     IGraphStaking private constant GRAPH = IGraphStaking(0xF55041E37E12cD407ad00CE2910B8269B01263b9);
     ERC20 private constant GRT = ERC20(0xc944E90C64B2c07662A292be6244BDf05Cda44a7);
-    uint256 private constant MAX_PPM = 1_000_000;
+    uint256 private constant MAX_PPM = 1e6;
 
     uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.graph.withdrawals.storage.location")) - 1;
 
