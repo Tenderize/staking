@@ -297,7 +297,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         this.withdraw(validator, unlockID);
     }
 
-    function testFuzz_ClaimRewards_Positive(uint256 startStake, uint256 reward) public {
+    function testFuzz_Rebase_Positive(uint256 startStake, uint256 reward) public {
         startStake = bound(startStake, 1, MAX_UINT_SQRT);
         reward = bound(reward, 1, MAX_UINT_SQRT);
 
@@ -317,7 +317,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
 
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
-        uint256 newStake = this.claimRewards(validator, startStake - currentEpochAmountStart);
+        uint256 newStake = this.rebase(validator, startStake - currentEpochAmountStart);
 
         uint256 rewardForUnlocks = reward * currentEpochAmountStart / startStake;
         uint256 rewardForStake = reward - rewardForUnlocks;
@@ -326,7 +326,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         assertEq($.epochs[currentEpoch - 1].amount, 1 ether, "invalid previous epoch amount");
     }
 
-    function testFuzz_ClaimRewards_Negative(uint256 startStake, uint256 penalty) public {
+    function testFuzz_Rebase_Negative(uint256 startStake, uint256 penalty) public {
         startStake = bound(startStake, 100, MAX_UINT_SQRT);
         penalty = bound(penalty, 5, startStake - 5);
 
@@ -346,13 +346,13 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
 
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
-        uint256 newStake = this.claimRewards(validator, startStake - currentEpochAmountStart);
+        uint256 newStake = this.rebase(validator, startStake - currentEpochAmountStart);
         uint256 slashForUnlocks = penalty * currentEpochAmountStart / startStake;
         assertEq(newStake, startStake - penalty - $.epochs[currentEpoch].amount, "invalid new stake");
         assertEq($.epochs[currentEpoch].amount, currentEpochAmountStart - slashForUnlocks, "invalid current epoch amount");
     }
 
-    function test_ClaimRewards_NoChangeInStake() public {
+    function test_Rebase_NoChangeInStake() public {
         uint256 currentEpoch = 1;
         uint256 staked = 10 ether;
         uint256 currentEpochRatio = 0.33 ether;
@@ -368,11 +368,11 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         // TODO: Assert below call not made after https://github.com/foundry-rs/foundry/issues/4513
         // vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
-        uint256 newStake = this.claimRewards(validator, staked - currentEpochAmount);
+        uint256 newStake = this.rebase(validator, staked - currentEpochAmount);
         assertEq(newStake, staked - currentEpochAmount, "invalid new stake");
     }
 
-    function test_ClaimRewards_NoChangeInStake_ForceRebase() public {
+    function test_Rebase_NoChangeInStake_ForceRebase() public {
         uint256 currentEpoch = 1;
         uint256 staked = 10 ether;
         uint256 currentEpochRatio = 0.33 ether;
@@ -387,7 +387,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
 
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
-        uint256 newStake = this.claimRewards(validator, staked - currentEpochAmount);
+        uint256 newStake = this.rebase(validator, staked - currentEpochAmount);
         assertEq(newStake, staked - currentEpochAmount, "invalid new stake");
     }
 }

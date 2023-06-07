@@ -21,17 +21,13 @@ import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/In
 import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { UUPSTestHelper } from "test/helpers/UUPSTestHelper.sol";
 import { Registry } from "core/registry/Registry.sol";
+import { FACTORY_ROLE, FEE_GAUGE_ROLE, TENDERIZER_ROLE, UPGRADE_ROLE, GOVERNANCE_ROLE } from "core/registry/Roles.sol";
 
 // solhint-disable quotes
 // solhint-disable func-name-mixedcase
 // solhint-disable avoid-low-level-calls
 // solhint-disable no-empty-blocks
 
-bytes32 constant FACTORY_ROLE = keccak256("FACTORY_ROLE");
-bytes32 constant FEE_GAUGE_ROLE = keccak256("FEE_GAUGE_ROLE");
-bytes32 constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
-bytes32 constant TENDERIZER_ROLE = keccak256("TENDERIZER_ROLE");
-bytes32 constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
 bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
 
 contract RegistryV3 is Registry {
