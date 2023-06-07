@@ -36,17 +36,17 @@ contract UUPSTestHelper is Test {
     address internal nonAuthorized = vm.addr(2);
 
     UpgradeableContract internal currentVersion;
-
+    bytes internal data; // initialize data for proxy
     bytes32 internal constant IMPL_SLOT = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
 
-    constructor(address _currentVersion) {
+    constructor(address _currentVersion, bytes memory _data) {
         currentVersion = UpgradeableContract(_currentVersion);
+        data = _data;
     }
 
     function setUp() public {
         vm.startPrank(owner);
         // currentVersion = new UpgradeableContract();
-        bytes memory data = abi.encodeWithSignature("initialize()");
         proxy = new ERC1967Proxy(address(currentVersion), data);
         vm.stopPrank();
     }
@@ -54,7 +54,7 @@ contract UUPSTestHelper is Test {
     function test_implInitializerDisabled() public {
         vm.startPrank(owner);
         vm.expectRevert("Initializable: contract is already initialized");
-        currentVersion.initialize();
+        address(currentVersion).call(data);
         vm.stopPrank();
     }
 

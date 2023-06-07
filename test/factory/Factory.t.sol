@@ -17,20 +17,23 @@ import { Factory } from "core/factory/Factory.sol";
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { Adapter } from "core/adapters/Adapter.sol";
+import { AccessControlUpgradeable } from "openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 // solhint-disable func-name-mixedcase
 contract FactoryTest is Test {
     Factory private factory;
 
-    Tenderizer private tenderizer = new Tenderizer();
-    address private registry = vm.addr(1);
+    address private tenderizer = address(new Tenderizer());
     address private unlocks = vm.addr(2);
-    address private adapter = vm.addr(4);
+    address private adapter = vm.addr(3);
     address private asset = vm.addr(4);
     address private validator = vm.addr(5);
+    address private registry = vm.addr(6);
 
     function setUp() public {
-        factory = new Factory(registry, address(tenderizer), unlocks);
+        vm.mockCall(registry, abi.encodeCall(Registry.tenderizer, ()), abi.encode(tenderizer));
+        vm.mockCall(registry, abi.encodeCall(Registry.unlocks, ()), abi.encode(unlocks));
+        factory = new Factory(registry);
     }
 
     function test_InitialStorage() public {
@@ -42,13 +45,11 @@ contract FactoryTest is Test {
     function test_NewTenderizer() public {
         vm.mockCall(registry, abi.encodeCall(Registry.adapter, (asset)), abi.encode(adapter));
         vm.mockCall(adapter, abi.encodeCall(Adapter.isValidator, (validator)), abi.encode(true));
-
+        vm.mockCall(registry, abi.encodeCall(Registry.registerTenderizer, (asset, validator, tenderizer)), "");
         vm.expectCall(registry, abi.encodeCall(Registry.adapter, (asset)));
-        // TODO: Assert call to registry
-        // Since deployed tenderizer address cannot be pre-dertermined
-        // we cannot make all the required assertions
-        address newTenderizer = factory.newTenderizer(asset, validator);
 
+        address newTenderizer = factory.newTenderizer(asset, validator);
+        assertEq(newTenderizer, 0xffD4505B3452Dc22f8473616d50503bA9E1710Ac, "tenderizer not created with correct address");
         assertEq(Tenderizer(newTenderizer).asset(), asset, "asset not set");
         assertEq(Tenderizer(newTenderizer).validator(), validator, "validator not set");
     }
