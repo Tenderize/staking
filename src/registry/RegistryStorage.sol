@@ -20,8 +20,10 @@ contract RegistryStorage {
     }
 
     struct Storage {
-        mapping(address => Protocol) protocols;
+        address tenderizer;
+        address unlocks;
         address treasury;
+        mapping(address => Protocol) protocols;
     }
 
     function _loadStorage() internal pure returns (Storage storage s) {

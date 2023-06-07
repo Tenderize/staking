@@ -27,6 +27,9 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
     bytes32 private constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
     bytes32 private constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
 
+    address private TENDERIZER;
+    address private UNLOCKS;
+
     event AdapterRegistered(address indexed asset, address indexed adapter);
     event NewTenderizer(address indexed asset, address indexed validator, address tenderizer);
     event FeeAdjusted(address indexed asset, uint256 newFee, uint256 oldFee);
@@ -37,7 +40,7 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
         _disableInitializers();
     }
 
-    function initialize() public initializer {
+    function initialize(address _tenderizer, address _unlocks) public initializer {
         __AccessControl_init();
         _grantRole(UPGRADE_ROLE, msg.sender);
         _grantRole(GOVERNANCE_ROLE, msg.sender);
@@ -49,9 +52,28 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
         // Only allow UPGRADE_ROLE to add new UPGRADE_ROLE memebers
         // If all members of UPGRADE_ROLE are revoked, contract upgradability is revoked
         _setRoleAdmin(UPGRADE_ROLE, UPGRADE_ROLE);
+        Storage storage $ = _loadStorage();
+        $.tenderizer = _tenderizer;
+        $.unlocks = _unlocks;
     }
 
     // Getters
+
+    /**
+     * @notice Returns the address of the tenderizer implementation
+     */
+    function tenderizer() external view returns (address) {
+        Storage storage $ = _loadStorage();
+        return $.tenderizer;
+    }
+
+    /**
+     * @notice Returns the address of the unlocks contract
+     */
+    function unlocks() external view returns (address) {
+        Storage storage $ = _loadStorage();
+        return $.unlocks;
+    }
 
     /**
      * @notice Returns the address of the adapter for a given asset
@@ -82,7 +104,8 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
      * @notice Returns the address of the treasury
      */
     function treasury() external view returns (address) {
-        return _loadStorage().treasury;
+        Storage storage $ = _loadStorage();
+        return $.treasury;
     }
 
     // Setters
@@ -130,7 +153,8 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
      * @param treasury Address of the treasury
      */
     function setTreasury(address treasury) external onlyRole(GOVERNANCE_ROLE) {
-        _loadStorage().treasury = treasury;
+        Storage storage $ = _loadStorage();
+        $.treasury = treasury;
         emit TreasurySet(treasury);
     }
 

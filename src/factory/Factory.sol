@@ -17,9 +17,11 @@ import { Adapter } from "core/adapters/Adapter.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 
-/// @title Factory
-/// @author Tenderize Labs Ltd
-/// @notice Factory for Tenderizer contracts
+/**
+ * @title Factory
+ * @author Tenderize Labs Ltd
+ * @notice Factory for Tenderizer contracts
+ */
 
 contract Factory {
     using ClonesWithImmutableArgs for address;
@@ -31,10 +33,10 @@ contract Factory {
     address public immutable tenderizerImpl;
     address public immutable unlocks;
 
-    constructor(address _registry, address _tenderizerImpl, address _unlocks) {
+    constructor(address _registry) {
         registry = _registry;
-        tenderizerImpl = _tenderizerImpl;
-        unlocks = _unlocks;
+        tenderizerImpl = Registry(_registry).tenderizer();
+        unlocks = Registry(_registry).unlocks();
     }
 
     /**

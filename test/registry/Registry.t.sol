@@ -44,8 +44,10 @@ contract RegistryV3 is Registry {
 
 contract RegistryUpgradeTest is UUPSTestHelper {
     address private gov = vm.addr(3);
+    address private tenderizer = vm.addr(4);
+    address private unlocks = vm.addr(5);
 
-    constructor() UUPSTestHelper(address(new Registry())) { }
+    constructor() UUPSTestHelper(address(new Registry()), abi.encodeCall(Registry.initialize, (tenderizer, unlocks))) { }
 
     function test_InitialRoles() public {
         assertEq(Registry(address(proxy)).hasRole(UPGRADE_ROLE, owner), true);

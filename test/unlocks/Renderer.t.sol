@@ -38,7 +38,7 @@ contract RendererV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 }
 
 contract RendererUpgradeTest is UUPSTestHelper {
-    constructor() UUPSTestHelper(address(new RendererV1())) { }
+    constructor() UUPSTestHelper(address(new RendererV1()), abi.encodeCall(Renderer.initialize, ())) { }
 
     function test_upgradeTo_RevertIfNotOwner() public {
         vm.startPrank(nonAuthorized);
