@@ -88,7 +88,7 @@ contract LivepeerAdapter is Adapter {
         LIVEPEER.withdrawStake(unlockID);
     }
 
-    function claimRewards(address validator, uint256 currentStake) external returns (uint256 newStake) {
+    function rebase(address validator, uint256 currentStake) external returns (uint256 newStake) {
         uint256 currentRound = LIVEPEER_ROUNDS.currentRound();
 
         Storage storage $ = _loadStorage();

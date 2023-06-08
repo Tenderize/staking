@@ -142,7 +142,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
 
     function _rebase() internal {
         uint256 currentStake = totalSupply();
-        uint256 newStake = _claimRewards(validator(), currentStake);
+        uint256 newStake = _rebase(validator(), currentStake);
 
         if (newStake > currentStake) {
             unchecked {
@@ -203,9 +203,8 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
     }
     // ===============================================================================================================
 
-    function _claimRewards(address validator, uint256 currentStake) internal returns (uint256 newStake) {
-        newStake =
-            abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().claimRewards, (validator, currentStake))), (uint256));
+    function _rebase(address validator, uint256 currentStake) internal returns (uint256 newStake) {
+        newStake = abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().rebase, (validator, currentStake))), (uint256));
     }
 
     function _stake(address validator, uint256 amount) internal {

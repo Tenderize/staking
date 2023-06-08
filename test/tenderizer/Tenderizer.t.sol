@@ -118,10 +118,10 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
     function testFuzz_Transfer(uint256 amount) public {
         amount = bound(amount, 1, MAX_UINT_SQRT);
         _deposit(account1, amount, 0);
-        vm.mockCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, amount)), abi.encode(amount));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, amount)), abi.encode(amount));
 
         vm.prank(account1);
-        vm.expectCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, amount)));
+        vm.expectCall(adapter, abi.encodeCall(Adapter.rebase, (validator, amount)));
         vm.expectCall(address(tenderizer), abi.encodeCall(TToken.transfer, (account2, amount)));
         tenderizer.transfer(account2, amount);
     }
@@ -130,8 +130,8 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
         amount = bound(amount, 1, MAX_UINT_SQRT);
         _deposit(account1, amount, 0);
 
-        vm.mockCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, amount)), abi.encode(amount));
-        vm.expectCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, amount)));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, amount)), abi.encode(amount));
+        vm.expectCall(adapter, abi.encodeCall(Adapter.rebase, (validator, amount)));
         vm.expectCall(address(tenderizer), abi.encodeCall(TToken.transferFrom, (account1, account2, amount)));
         vm.prank(account1);
         tenderizer.approve(account2, amount);
@@ -143,11 +143,11 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
         amountIn = bound(amountIn, 1, MAX_UINT_SQRT);
         amountOut = bound(amountOut, 1, MAX_UINT_SQRT);
 
-        vm.mockCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, 0)), abi.encode(0));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, 0)), abi.encode(0));
         vm.mockCall(adapter, abi.encodeCall(Adapter.previewDeposit, (amountIn)), abi.encode(amountOut));
         vm.mockCall(asset, abi.encodeCall(IERC20.transferFrom, (account1, address(tenderizer), amountIn)), abi.encode(true));
 
-        vm.expectCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, 0)));
+        vm.expectCall(adapter, abi.encodeCall(Adapter.rebase, (validator, 0)));
         vm.expectCall(asset, abi.encodeCall(IERC20.transferFrom, (account1, address(tenderizer), amountIn)));
         vm.expectCall(adapter, abi.encodeCall(Adapter.previewDeposit, (amountIn)));
         vm.expectCall(adapter, abi.encodeCall(Adapter.stake, (validator, amountIn)));
@@ -163,7 +163,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
 
     function test_Deposit_RevertIfStakeReverts() public {
         uint256 depositAmount = 100 ether;
-        vm.mockCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, 0)), abi.encode(0));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, 0)), abi.encode(0));
         vm.mockCall(adapter, abi.encodeCall(Adapter.previewDeposit, (depositAmount)), abi.encode(depositAmount));
         vm.mockCallRevert(
             adapter,
@@ -175,7 +175,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
     }
 
     function test_Deposit_RevertIfZeroAmount() public {
-        vm.mockCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, 0)), abi.encode(0));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, 0)), abi.encode(0));
         vm.mockCall(adapter, abi.encodeCall(Adapter.previewDeposit, (0)), abi.encode(0));
         vm.expectRevert(TToken.ZeroAmount.selector);
         tenderizer.deposit(account1, 0);
@@ -183,7 +183,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
 
     function test_Deposit_RevertIfAssetTransferFails() public {
         uint256 depositAmount = 100 ether;
-        vm.mockCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, 0)), abi.encode(0));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, 0)), abi.encode(0));
         vm.mockCall(adapter, abi.encodeCall(Adapter.previewDeposit, (depositAmount)), abi.encode(depositAmount));
         vm.mockCall(asset, abi.encodeCall(IERC20.transferFrom, (account1, address(tenderizer), depositAmount)), abi.encode(false));
         vm.prank(account1);
@@ -199,7 +199,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
 
         _unlockPreReq(account1, depositAmount, amount, unlockID);
 
-        vm.expectCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, depositAmount)));
+        vm.expectCall(adapter, abi.encodeCall(Adapter.rebase, (validator, depositAmount)));
         vm.expectCall(adapter, abi.encodeCall(Adapter.unstake, (validator, amount)));
         vm.expectCall(unlocks, abi.encodeCall(Unlocks.createUnlock, (account1, unlockID)));
         vm.expectEmit(true, true, true, true);
@@ -323,7 +323,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
         _deposit(account1, deposit1, 0);
         _deposit(account2, deposit2, deposit1);
 
-        vm.mockCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, totalDeposit)), abi.encode(newStake));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, totalDeposit)), abi.encode(newStake));
 
         vm.mockCall(router, abi.encodeCall(Registry.fee, (asset)), abi.encode(feeRate));
 
@@ -354,7 +354,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
         _deposit(account1, deposit1, 0);
         _deposit(account2, deposit2, deposit1);
 
-        vm.mockCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, totalDeposit)), abi.encode(newStake));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, totalDeposit)), abi.encode(newStake));
         vm.mockCall(router, abi.encodeCall(Registry.fee, (asset)), abi.encode(0.01 ether));
 
         vm.expectEmit(true, true, true, true);
@@ -374,7 +374,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
         _deposit(account1, deposit1, 0);
         _deposit(account2, deposit2, deposit1);
 
-        vm.mockCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, totalDeposit)), abi.encode(totalDeposit));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, totalDeposit)), abi.encode(totalDeposit));
         vm.mockCall(router, abi.encodeCall(Registry.fee, (asset)), abi.encode(0.01 ether));
 
         vm.expectEmit(true, true, true, true);
@@ -388,9 +388,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
 
     function _deposit(address account, uint256 amount, uint256 totalPreviousDeposits) internal {
         vm.mockCall(adapter, abi.encodeCall(Adapter.previewDeposit, (amount)), abi.encode(amount));
-        vm.mockCall(
-            adapter, abi.encodeCall(Adapter.claimRewards, (validator, totalPreviousDeposits)), abi.encode(totalPreviousDeposits)
-        );
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, totalPreviousDeposits)), abi.encode(totalPreviousDeposits));
         vm.prank(account);
         tenderizer.deposit(account, amount);
     }
@@ -400,6 +398,6 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
 
         vm.mockCall(adapter, abi.encodeCall(Adapter.unstake, (validator, unlockAmount)), abi.encode(unlockID));
         vm.mockCall(unlocks, abi.encodeCall(Unlocks.createUnlock, (account1, unlockID)), abi.encode(unlockID));
-        vm.mockCall(adapter, abi.encodeCall(Adapter.claimRewards, (validator, depositAmount)), abi.encode(depositAmount));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, depositAmount)), abi.encode(depositAmount));
     }
 }

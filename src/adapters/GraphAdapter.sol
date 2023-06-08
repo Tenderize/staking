@@ -128,7 +128,7 @@ contract GraphAdapter is Adapter {
         delete $.unlocks[unlockID];
     }
 
-    function claimRewards(address validator, uint256 currentStake) external override returns (uint256 newStake) {
+    function rebase(address validator, uint256 currentStake) external override returns (uint256 newStake) {
         Storage storage $ = _loadStorage();
         Epoch memory currentEpoch = $.epochs[$.currentEpoch];
         IGraphStaking.DelegationPool memory delPool = GRAPH.delegationPools(validator);

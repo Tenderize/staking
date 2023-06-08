@@ -15,21 +15,15 @@ import { AccessControlUpgradeable } from "openzeppelin-contracts-upgradeable/acc
 import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { RegistryStorage } from "core/registry/RegistryStorage.sol";
+import { FACTORY_ROLE, FEE_GAUGE_ROLE, TENDERIZER_ROLE, UPGRADE_ROLE, GOVERNANCE_ROLE } from "core/registry/Roles.sol";
 
-/// @title Registry
-/// @author Tenderize
-/// @notice Registry for Tenderizer ecosystem. Role-based access, fee management and adapter updates.
+/**
+ * @title Registry
+ * @author Tenderize Labs Ltd
+ * @notice Registry for Tenderizer ecosystem. Role-based access, fee management and adapter updates.
+ */
 
 contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, RegistryStorage {
-    bytes32 private constant FACTORY_ROLE = keccak256("FACTORY_ROLE");
-    bytes32 private constant FEE_GAUGE_ROLE = keccak256("FEE_GAUGE_ROLE");
-    bytes32 private constant TENDERIZER_ROLE = keccak256("TENDERIZER_ROLE");
-    bytes32 private constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
-    bytes32 private constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
-
-    address private TENDERIZER;
-    address private UNLOCKS;
-
     event AdapterRegistered(address indexed asset, address indexed adapter);
     event NewTenderizer(address indexed asset, address indexed validator, address tenderizer);
     event FeeAdjusted(address indexed asset, uint256 newFee, uint256 oldFee);
@@ -112,7 +106,7 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
 
     /**
      * @notice Registers a new adapter for a given asset
-     * @dev Can only be called by a member of the GOVERNANCE_ROLE
+     * @dev Can only be called by a member of the Roles.GOVERNANCE
      * @param asset Address of the underlying asset
      * @param adapter Address of the adapter
      */
@@ -124,7 +118,7 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
 
     /**
      * @notice Registers a new tenderizer for a given asset
-     * @dev Can only be called by a member of the FACTORY_ROLE
+     * @dev Can only be called by a member of the Roles.FACTORY
      * @param asset Address of the underlying asset
      * @param validator Address of the validator
      * @param tenderizer Address of the tenderizer
@@ -136,7 +130,7 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
 
     /**
      * @notice Sets the fee for a given asset
-     * @dev Can only be called by a member of the FEE_GAUGE_ROLE
+     * @dev Can only be called by a member of the Roles.FEE_GAUGE
      * @param asset Address of the underlying asset
      * @param fee New fee
      */
@@ -149,7 +143,7 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
 
     /**
      * @notice Sets the treasury
-     * @dev Can only be called by a member of the GOVERNANCE_ROLE
+     * @dev Can only be called by a member of the Roles.GOVERNANCE
      * @param treasury Address of the treasury
      */
     function setTreasury(address treasury) external onlyRole(GOVERNANCE_ROLE) {
