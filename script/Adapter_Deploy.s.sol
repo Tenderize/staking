@@ -19,6 +19,11 @@ import { LivepeerAdapter } from "core/adapters/LivepeerAdapter.sol";
 import { GraphAdapter } from "core/adapters/GraphAdapter.sol";
 
 contract Adapter_Deploy is Script {
+    // Contracts are deployed deterministically.
+    // e.g. `foo = new Foo{salt: salt}(constructorArgs)`
+    // The presence of the salt argument tells forge to use https://github.com/Arachnid/deterministic-deployment-proxy
+    bytes32 private constant salt = 0x0;
+
     address private constant LPT = address(0x0);
     address private constant GRT = address(0x0);
     // address private constant MATIC = 0x0;
@@ -36,8 +41,8 @@ contract Adapter_Deploy is Script {
         address adapter;
 
         // check which adapter to deploy
-        if (asset == LPT) adapter = address(new LivepeerAdapter());
-        else if (asset == GRT) adapter = address(new GraphAdapter());
+        if (asset == LPT) adapter = address(new LivepeerAdapter{salt: salt}());
+        else if (asset == GRT) adapter = address(new GraphAdapter{salt: salt}());
 
         // register adapter
         registry.registerAdapter(asset, adapter);
