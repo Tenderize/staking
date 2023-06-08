@@ -1,0 +1,19 @@
+title Rebase
+
+participantspacing 2
+participantgroup Tenderize Protocol
+participant Tenderizer(tToken)
+participant Adapter
+end
+participantgroup XYZ Network
+participant Staking_XYZ
+end
+
+entryspacing 0.3
+note over Tenderizer(tToken): Rebase can be triggered manually,\n or automatically by any contract function
+Tenderizer(tToken)->Adapter: **rebase**\n -address validator \n -uint256 currentStake
+Adapter->Adapter: **shouldRebase**?
+Adapter->Staking_XYZ: **read staked amount**
+Adapter(1)<--Staking_XYZ: new stake
+Adapter-->(1)Tenderizer(tToken): new stake
+note over Tenderizer(tToken): Set tToken supply\nequal to "new stake"

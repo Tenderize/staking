@@ -1,0 +1,26 @@
+title Unlock
+actor Alice
+participantspacing 2
+participantgroup Tenderize Protocol
+participant Tenderizer(tToken)
+participant Adapter
+participant Unlocks(ERC721)
+end
+participantgroup XYZ Network
+participant Staking_XYZ
+participant ERC20_XYZ
+end
+
+
+Alice->Tenderizer(tToken): **unlock**\n -uint256 assets
+Tenderizer(tToken)->Tenderizer(tToken): rebase
+Tenderizer(tToken)->Tenderizer(tToken): **burn tToken**\n -address from\n -uint256 amount
+Tenderizer(tToken)->Adapter:**unstake**\n -address validator\n -uint256 amount
+Adapter->Staking_XYZ: unstake tokens
+note over Staking_XYZ: Tokens become withdrawable\n after unstaking period\n of Staking_XYZ
+note over Adapter: If Staking_XYZ does not\n support native unlocks,\n Adapter will hold the logic\n to create unlocks for\n Tenderizer
+Adapter-->(1)Tenderizer(tToken):unlock ID
+Tenderizer(tToken)->Unlocks(ERC721):**createUnlock**\n -address receiver\n -uint256 unlockID
+note over Unlocks(ERC721): tokenID is msg.sender\n(Tenderizer) ABI Encoded with\nunlockID as a uint256
+Unlocks(ERC721)->Unlocks(ERC721):**mint**\n -address receiver\n -uint256 tokenID
+Tenderizer(tToken)-->(1)Alice:UnlockID

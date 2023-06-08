@@ -1,0 +1,27 @@
+title Withdraw
+
+actor Alice
+participantspacing 2
+participantgroup Tenderize Protocol
+participant Tenderizer(tToken)
+participant Adapter
+participant Unlocks(ERC721)
+end
+participantgroup XYZ Network
+participant Staking_XYZ
+participant ERC20_XYZ
+end
+
+
+Alice->Tenderizer(tToken): **withdraw**\n -address receiver \n -uint256 unlockID
+Tenderizer(tToken)->Unlocks(ERC721):**useUnlock**\n -address owner\n -uint256 unlockID
+note over Unlocks(ERC721): tokenID is msg.sender\n(Tenderizer) ABI Encoded with\nunlockID as a uint256
+Unlocks(ERC721)->Unlocks(ERC721):**burn**\n -address owner\n -uint256 tokenID
+Tenderizer(tToken)->Adapter:**withdraw**\n -address validator\n -uint256 unlockID
+Adapter->(1)Staking_XYZ: Withdraw Assets
+Staking_XYZ--#green:1>Tenderizer(tToken):token transfer
+Adapter-->(1)Tenderizer(tToken): amount withdrawn
+note over Tenderizer(tToken): transfer amount\nwithdrawn to Alice
+Tenderizer(tToken)->ERC20_XYZ:**transfer**\n -address to\n -uint256 amount
+Tenderizer(tToken)--#green:1>Alice:token transfer
+

@@ -1,0 +1,26 @@
+title Deposit
+
+actor Alice
+participantspacing 2
+participantgroup Tenderize Protocol
+participant Tenderizer(tToken)
+participant Adapter
+end
+participantgroup XYZ Network
+participant Staking_XYZ
+participant ERC20_XYZ
+end
+
+entryspacing 0.3
+note over Alice:Approve Token_XYZ to be\n spent by Tenderizer
+Alice->Tenderizer(tToken): **deposit**\n -address receiver\n -uint256 assets
+Tenderizer(tToken)->Tenderizer(tToken): rebase
+Tenderizer(tToken)->ERC20_XYZ: **transferFrom**\n -address sender\n -address recipient\n -uint256 amount
+Alice--#green:1>Tenderizer(tToken):token transfer
+Tenderizer(tToken)->Adapter: **stake**\n -address validator \n -uint256 amount
+Adapter->(2)Staking_XYZ: stake assets to validator
+Tenderizer(tToken)--#green:1>Staking_XYZ:token transfer
+note over Staking_XYZ: Alice's assets are staked
+Adapter-->(2)Tenderizer(tToken): amount staked
+note over Tenderizer(tToken): mint amount staked\n in tTokens for Alice
+Tenderizer(tToken)-->Alice: **mint tToken**\n -address to\n -uint256 amount
