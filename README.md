@@ -44,10 +44,19 @@ forge coverage
 
 ### Deploy
 
-Deploy to Anvil:
+For full deploy flow check out the [deploy document](./script/DEPLOY.md).
+
+Deploy Tenderizer to Anvil:
 
 ```sh
-$ forge script script/Foo.s.sol:FooScript --fork-url http://localhost:8545 \
+$ forge script script/Tenderize_Deploy.s.sol:Tenderize_Deploy --fork-url http://localhost:8545 \
+ --broadcast --private-key $PRIVATE_KEY
+```
+
+Deploy an Adapter to Anvil:
+
+```sh
+forge script deploy/2_Adapter.s.sol  --fork-url http://localhost:8545 \
  --broadcast --private-key $PRIVATE_KEY
 ```
 
@@ -93,6 +102,12 @@ forge test
 - [Adapter](): Interfaces for interacting with Adapters containing external protocol specific logic
 - [Registry](): Registry and Role-Based access control
 - [Factory](): Factory for deploying new Tenderizers for validators
+
+### ERC1967 Storage
+
+Tenderize contracts use [ERC1967](https://eips.ethereum.org/EIPS/eip-1967) storage slots. Each contract has its own
+storage space defined as a `struct` stored at a defined location to avoid storage collisions. Storage slots are
+addressed with a dollar sign, `$`, to improve readability when storage is accessed.
 
 ### Registry
 
@@ -158,11 +173,3 @@ way.
 #### Rebase
 
 ![rebase](./diagrams/rebase.png)
-
-## Notes
-
-1. Foundry piggybacks off [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules) to manage dependencies.
-   There's a [guide](https://book.getfoundry.sh/projects/dependencies.html) about how to work with dependencies in the
-   book.
-2. You don't have to create a `.env` file, but filling in the environment variables may be useful when debugging and
-   testing against a mainnet fork.

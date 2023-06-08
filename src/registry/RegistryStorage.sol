@@ -26,12 +26,12 @@ contract RegistryStorage {
         mapping(address => Protocol) protocols;
     }
 
-    function _loadStorage() internal pure returns (Storage storage s) {
+    function _loadStorage() internal pure returns (Storage storage $) {
         uint256 slot = STORAGE;
 
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            s.slot := slot
+            $.slot := slot
         }
     }
 }
