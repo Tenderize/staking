@@ -26,9 +26,8 @@ This script will execute following calls:
 
 We can deploy adapters for each supported protocol on a network using:
 
-```
-forge script deploy/2_Adapter.s.sol --broadcast --rpc-url $GOERLI_RPC_URL --verify --sig "run(address,string,address)" <REGISTRY>
-<NAME{Graph,Livepeer}> <UNDERYLING_TOKEN>
+```bash
+forge script deploy/2_Adapter.s.sol --broadcast --rpc-url $GOERLI_RPC_URL --verify
 ```
 
 TBD.
