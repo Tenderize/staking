@@ -22,12 +22,12 @@ abstract contract TTokenStorage {
         mapping(address => uint256) nonces;
     }
 
-    function _loadStorage() internal pure returns (Storage storage s) {
+    function _loadStorage() internal pure returns (Storage storage $) {
         uint256 slot = STORAGE;
 
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            s.slot := slot
+            $.slot := slot
         }
     }
 }

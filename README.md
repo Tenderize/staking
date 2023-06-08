@@ -103,6 +103,12 @@ forge test
 - [Registry](): Registry and Role-Based access control
 - [Factory](): Factory for deploying new Tenderizers for validators
 
+### ERC1967 Storage
+
+Tenderize contracts use [ERC1967](https://eips.ethereum.org/EIPS/eip-1967) storage slots.
+Each contract has its own storage space defined as a `struct` stored at a defined location to avoid storage collisions.
+Storage slots are addressed with a dollar sign, `$`, to improve readability when storage is accessed.
+
 ### Registry
 
 The Registry keeps track of entities within the protocol. It is used to update things like `Adapter` for an asset, or

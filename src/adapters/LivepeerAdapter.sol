@@ -28,12 +28,12 @@ contract LivepeerAdapter is Adapter {
 
     uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.livepeer.adapter.storage.location")) - 1;
 
-    function _loadStorage() internal pure returns (Storage storage s) {
+    function _loadStorage() internal pure returns (Storage storage $) {
         uint256 slot = STORAGE;
 
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            s.slot := slot
+            $.slot := slot
         }
     }
 
