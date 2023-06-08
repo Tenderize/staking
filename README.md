@@ -105,9 +105,9 @@ forge test
 
 ### ERC1967 Storage
 
-Tenderize contracts use [ERC1967](https://eips.ethereum.org/EIPS/eip-1967) storage slots.
-Each contract has its own storage space defined as a `struct` stored at a defined location to avoid storage collisions.
-Storage slots are addressed with a dollar sign, `$`, to improve readability when storage is accessed.
+Tenderize contracts use [ERC1967](https://eips.ethereum.org/EIPS/eip-1967) storage slots. Each contract has its own
+storage space defined as a `struct` stored at a defined location to avoid storage collisions. Storage slots are
+addressed with a dollar sign, `$`, to improve readability when storage is accessed.
 
 ### Registry
 
