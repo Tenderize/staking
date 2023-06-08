@@ -5,7 +5,7 @@
 The Tenderizer Factory and all associated components need to be deployed only once per network by setting the vars in
 `.env` and running:
 
-```bash
+```sh
 source env
 forge script deploy/1_Tenderizer.s.sol --broadcast --rpc-url $GOERLI_RPC_URL --verify
 ```
@@ -28,7 +28,7 @@ This script will execute following calls:
 
 We can deploy adapters for each supported protocol on a network using:
 
-```bash
+```sh
 forge script deploy/2_Adapter.s.sol --broadcast --rpc-url $GOERLI_RPC_URL --verify
 ```
 
