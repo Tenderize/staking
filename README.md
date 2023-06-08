@@ -96,37 +96,50 @@ forge test
 
 ### Registry
 
-The Registry keeps track of entities within the protocol. It is used to update things like `Adapter` for an asset, or the fee for an asset. It also uses Role-based access control to manage roles. It is deployed as an ERC1967 UUPS.
+The Registry keeps track of entities within the protocol. It is used to update things like `Adapter` for an asset, or
+the fee for an asset. It also uses Role-based access control to manage roles. It is deployed as an ERC1967 UUPS.
 
 ### Tenderizer
 
 #### Adapter interactions
 
-A `Tenderizer` is a generic contract for Liquid Staking. Protocol specific logic is implemented in an `Adapter`.
-An `Adapter` is essentially a contract that works similar to a library.
+A `Tenderizer` is a generic contract for Liquid Staking. Protocol specific logic is implemented in an `Adapter`. An
+`Adapter` is essentially a contract that works similar to a library.
 
-Each function on the `Adapter` is called by the `Tenderizer` using `delegatecall`, meaning the logic of the `Adapter` is executed in context of the `Tenderizer`. An `Adapter` can have its own storage space, which is stored on the `Tenderizer` contract, but can only be managed by the `Adapter`.
+Each function on the `Adapter` is called by the `Tenderizer` using `delegatecall`, meaning the logic of the `Adapter` is
+executed in context of the `Tenderizer`. An `Adapter` can have its own storage space, which is stored on the
+`Tenderizer` contract, but can only be managed by the `Adapter`.
 
-For view functions a workaround is used by marking the `internal` functions on the `Tenderizer` that interact with the `Adapter` as `public` instead. Then creating a separate `external view` function that wraps a call to these functions in a `staticcall` to the `Tenderizer` itself.
+For view functions a workaround is used by marking the `internal` functions on the `Tenderizer` that interact with the
+`Adapter` as `public` instead. Then creating a separate `external view` function that wraps a call to these functions in
+a `staticcall` to the `Tenderizer` itself.
 
 #### Clones with immutable args
 
-Tenderizers are deployes as lightweight clones (proxies) with immutable argumants to avoid initialization logic and save gas.
-Immutable arguments are appended to the clone's bytecode at creation time, and appended to the calldata on a delegatecall to the proxy. The implementation can then read and deserialize these arguments from the calldata.
+Tenderizers are deployes as lightweight clones (proxies) with immutable argumants to avoid initialization logic and save
+gas. Immutable arguments are appended to the clone's bytecode at creation time, and appended to the calldata on a
+delegatecall to the proxy. The implementation can then read and deserialize these arguments from the calldata.
 
 #### TenderToken
 
-`Tenderizer` inherits the `TToken` contract, which is a rebasing ERC20 token. Its supply always equals the amount staked in the underlying protocol for a validator and its delegators. Rebasing changes the total supply depending on whether the validator earned rewards or got slashed.
+`Tenderizer` inherits the `TToken` contract, which is a rebasing ERC20 token. Its supply always equals the amount staked
+in the underlying protocol for a validator and its delegators. Rebasing changes the total supply depending on whether
+the validator earned rewards or got slashed.
 
 ### Unlocks
 
-`Unlocks` is a ERC-721 NFT contract that represent staked assets in their unstaking period, meaning they have been unstaked by their owner. Each unlock has an amount and a maturity date at which the amount can be withdrawn, this burns the NFT. `Unlocks` is not upgradeable. All assets on the same network use the same `Unlocks` contract.
+`Unlocks` is a ERC-721 NFT contract that represent staked assets in their unstaking period, meaning they have been
+unstaked by their owner. Each unlock has an amount and a maturity date at which the amount can be withdrawn, this burns
+the NFT. `Unlocks` is not upgradeable. All assets on the same network use the same `Unlocks` contract.
 
-Only a valid `Tenderizer` contract can create or destroy Unlocks, which is checked by the `Unlocks` contract through the `Registry`.
+Only a valid `Tenderizer` contract can create or destroy Unlocks, which is checked by the `Unlocks` contract through the
+`Registry`.
 
 #### Renderer
 
-The Renderer is a UUPS (ERC1967) upgradeable proxy contract that contains logic to how these NFTs and their JSON metadata should be rendered by front-end applications, this data does not affect the value represented by the NFT in any way.
+The Renderer is a UUPS (ERC1967) upgradeable proxy contract that contains logic to how these NFTs and their JSON
+metadata should be rendered by front-end applications, this data does not affect the value represented by the NFT in any
+way.
 
 ### Sequence Diagrams
 
