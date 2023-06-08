@@ -14,13 +14,13 @@ This script will execute following calls:
 
 1. Deploy `Tenderizer` Implementation
 2. Deploy `Unlocks`
-    - Deploy `Renderer` Implementation
-    - Deploy `Renderer` ERC-1967 UUPS Proxy
-    - Deploy `Unlocks`
+   - Deploy `Renderer` Implementation
+   - Deploy `Renderer` ERC-1967 UUPS Proxy
+   - Deploy `Unlocks`
 3. Deploy `Registry` with `Tenderizer` implementation address and `Unlocks` address as arguments
-    - Set `Treasury` on `Registry`
+   - Set `Treasury` on `Registry`
 4. Deploy `Factory` with `Registry` address as argument
-    - Set `FACTORY_ROLE` on `Registry` for `Factory`
+   - Set `FACTORY_ROLE` on `Registry` for `Factory`
 
 ## Deploy New Adapter
 

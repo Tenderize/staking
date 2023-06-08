@@ -54,6 +54,7 @@ contract UUPSTestHelper is Test {
     function test_implInitializerDisabled() public {
         vm.startPrank(owner);
         vm.expectRevert("Initializable: contract is already initialized");
+        // solhint-disable-next-line avoid-low-level-calls
         address(currentVersion).call(data);
         vm.stopPrank();
     }
