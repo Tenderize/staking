@@ -18,6 +18,7 @@ import { Adapter } from "core/adapters/Adapter.sol";
 import { ILivepeerBondingManager, ILivepeerRoundsManager } from "core/adapters/interfaces/ILivepeer.sol";
 import { ISwapRouter } from "core/adapters/interfaces/ISwapRouter.sol";
 import { IWETH9 } from "core/adapters/interfaces/IWETH9.sol";
+import { IERC165 } from "core/interfaces/IERC165.sol";
 
 contract LivepeerAdapter is Adapter {
     using SafeTransferLib for ERC20;
@@ -44,6 +45,10 @@ contract LivepeerAdapter is Adapter {
     ISwapRouter private constant UNISWAP_ROUTER = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
     uint24 private constant UNISWAP_POOL_FEE = 10_000;
     uint256 private constant ETH_THRESHOLD = 1e17; // 0.1 ETH
+
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        return interfaceId == type(Adapter).interfaceId || interfaceId == type(IERC165).interfaceId;
+    }
 
     function previewDeposit(uint256 assets) external pure returns (uint256) {
         return assets;
