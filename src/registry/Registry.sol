@@ -115,7 +115,7 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
      * @param adapter Address of the adapter
      */
     function registerAdapter(address asset, address adapter) external onlyRole(GOVERNANCE_ROLE) {
-        if (adapter == address(0) || IERC165(adapter).supportsInterface(type(Adapter).interfaceId)) revert InvalidAdapter(adapter);
+        if (adapter == address(0) || !IERC165(adapter).supportsInterface(type(Adapter).interfaceId)) revert InvalidAdapter(adapter);
         Storage storage $ = _loadStorage();
         $.protocols[asset].adapter = adapter;
         emit AdapterRegistered(asset, adapter);
