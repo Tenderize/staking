@@ -20,11 +20,6 @@ import { Registry } from "core/registry/Registry.sol";
 import { TenderizerImmutableArgs, TenderizerEvents } from "core/tenderizer/TenderizerBase.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 
-/// @title Tenderizer
-/// @notice Liquid Staking vault using fixed-point math with full type safety and unstructured storage
-/// @dev Delegates calls to a stateless Adapter contract which is responsible for interacting with a third-party staking
-/// protocol
-
 /**
  * @title Tenderizer
  * @author Tenderize Labs Ltd
