@@ -23,12 +23,12 @@ import { AccessControlUpgradeable } from "openzeppelin-contracts-upgradeable/acc
 contract FactoryTest is Test {
     Factory private factory;
 
-    address private tenderizer = address(new Tenderizer());
     address private unlocks = vm.addr(2);
     address private adapter = vm.addr(3);
     address private asset = vm.addr(4);
     address private validator = vm.addr(5);
     address private registry = vm.addr(6);
+    address private tenderizer = address(new Tenderizer(registry, unlocks));
 
     function setUp() public {
         vm.mockCall(registry, abi.encodeCall(Registry.tenderizer, ()), abi.encode(tenderizer));
@@ -38,7 +38,6 @@ contract FactoryTest is Test {
 
     function test_InitialStorage() public {
         assertEq(factory.registry(), registry, "registry not set");
-        assertEq(factory.unlocks(), unlocks, "unlocks not set");
         assertEq(factory.tenderizerImpl(), address(tenderizer), "tenderizer not set");
     }
 

@@ -42,11 +42,7 @@ contract Tenderize_Deploy is Script {
         address registryProxy = address(new ERC1967Proxy{salt: salt}(address(registry), ""));
         vm.serializeAddress(json_output, "registry_proxy", registryProxy);
 
-        // 2. Deploy Tenderizer Implementation
-        Tenderizer tenderizer = new Tenderizer{salt: salt}();
-        vm.serializeAddress(json_output, "tenderizer_implementation", address(tenderizer));
-
-        // 3. Deploy Unlocks
+        // 2. Deploy Unlocks
         // - Deploy Renderer Implementation
         Renderer renderer = new Renderer{salt: salt}();
         vm.serializeAddress(json_output, "renderer_implementation", address(renderer));
@@ -56,6 +52,10 @@ contract Tenderize_Deploy is Script {
         // - Deploy Unlocks
         Unlocks unlocks = new Unlocks{salt: salt}(address(rendererProxy), registryProxy);
         vm.serializeAddress(json_output, "unlocks", address(unlocks));
+
+        // 3. Deploy Tenderizer Implementation
+        Tenderizer tenderizer = new Tenderizer{salt: salt}(registryProxy, address(unlocks));
+        vm.serializeAddress(json_output, "tenderizer_implementation", address(tenderizer));
 
         // 4. Initialize Registry
         Registry(registryProxy).initialize(address(tenderizer), address(unlocks));
