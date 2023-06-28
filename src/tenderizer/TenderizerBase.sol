@@ -47,11 +47,11 @@ abstract contract TenderizerImmutableArgs is Clone {
     }
 
     function _registry() internal view returns (Registry) {
-        return Registry(registry); // start: 40 end: 59
+        return Registry(registry);
     }
 
     function _unlocks() internal view returns (Unlocks) {
-        return Unlocks(unlocks); // start: 60 end: 79
+        return Unlocks(unlocks);
     }
 }
 
