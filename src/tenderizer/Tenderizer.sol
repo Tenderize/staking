@@ -33,6 +33,8 @@ import { TToken } from "core/tendertoken/TToken.sol";
  */
 
 contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
+    error InsufficientAssets();
+
     using AdapterDelegateCall for Adapter;
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
@@ -81,14 +83,13 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
         _stake(validator(), assets);
 
         // mint tokens to receiver
-        _mint(receiver, actualAssets);
+        uint256 shares;
+        if ((shares = _mint(receiver, actualAssets)) == 0) revert InsufficientAssets();
 
-        // TODO get *exact* tToken output amount
-        // can be different from `actualAssets` due to rounding
-        // emit Deposit event
-        emit Deposit(msg.sender, receiver, assets, actualAssets);
+        uint256 tTokenOut = convertToAssets(shares);
+        emit Deposit(msg.sender, receiver, assets, tTokenOut);
 
-        return actualAssets;
+        return tTokenOut;
     }
 
     /**
