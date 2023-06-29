@@ -31,12 +31,10 @@ contract Factory {
 
     address public immutable registry;
     address public immutable tenderizerImpl;
-    address public immutable unlocks;
 
     constructor(address _registry) {
         registry = _registry;
         tenderizerImpl = Registry(_registry).tenderizer();
-        unlocks = Registry(_registry).unlocks();
     }
 
     /**
@@ -51,7 +49,7 @@ contract Factory {
         if (address(adapter) == address(0)) revert InvalidAsset(asset);
         if (!adapter.isValidator(validator)) revert NotValidator(validator);
 
-        tenderizer = address(tenderizerImpl).clone(abi.encodePacked(asset, validator, registry, unlocks));
+        tenderizer = address(tenderizerImpl).clone(abi.encodePacked(asset, validator));
 
         // Reverts if caller is not a registered factory
         Registry(registry).registerTenderizer(asset, validator, tenderizer);

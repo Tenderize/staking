@@ -13,13 +13,23 @@ pragma solidity 0.8.17;
 
 import { Clone } from "clones/Clone.sol";
 import { Unlocks } from "core/unlocks/Unlocks.sol";
+import { Registry } from "core/registry/Registry.sol";
 
 /// @title TenderizerImmutableArgs
 /// @notice Immutable arguments for Tenderizer
 /// @dev Immutable arguments are appended to the proxy bytecode at deployment of a clone.
 /// Arguments are appended to calldata when the proxy delegatecals to its implementation,
 /// where these arguments can be read given their memory offset and length.
+
 abstract contract TenderizerImmutableArgs is Clone {
+    constructor(address _registry, address _unlocks) {
+        registry = _registry;
+        unlocks = _unlocks;
+    }
+
+    address private immutable registry;
+    address private immutable unlocks;
+
     /**
      * @notice Returns the underlying asset
      * @return Address of the underlying asset
@@ -36,12 +46,12 @@ abstract contract TenderizerImmutableArgs is Clone {
         return _getArgAddress(20); // start: 20 end: 39
     }
 
-    function _registry() internal pure returns (address) {
-        return _getArgAddress(40); // start: 40 end: 59
+    function _registry() internal view returns (Registry) {
+        return Registry(registry);
     }
 
-    function _unlocks() internal pure returns (Unlocks) {
-        return Unlocks(_getArgAddress(60)); // start: 60 end: 79
+    function _unlocks() internal view returns (Unlocks) {
+        return Unlocks(unlocks);
     }
 }
 

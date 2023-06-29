@@ -36,7 +36,7 @@ contract TenderizerSetup is Test, TestHelpers {
     address internal staking = vm.addr(2);
 
     TenderizerHarness internal tenderizer;
-    address internal router = vm.addr(3);
+    address internal registry = vm.addr(3);
     address internal adapter = vm.addr(4);
     address internal unlocks = vm.addr(5);
 
@@ -52,12 +52,12 @@ contract TenderizerSetup is Test, TestHelpers {
 
     function setUp() public {
         // Setup global mock responses
-        vm.mockCall(router, abi.encodeCall(Registry.adapter, (asset)), abi.encode(adapter));
-        vm.mockCall(router, abi.encodeCall(Registry.fee, (asset)), abi.encode(0.05 ether));
-        vm.mockCall(router, abi.encodeCall(Registry.treasury, ()), abi.encode(treasury));
+        vm.mockCall(registry, abi.encodeCall(Registry.adapter, (asset)), abi.encode(adapter));
+        vm.mockCall(registry, abi.encodeCall(Registry.fee, (asset)), abi.encode(0.05 ether));
+        vm.mockCall(registry, abi.encodeCall(Registry.treasury, ()), abi.encode(treasury));
         vm.mockCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()), abi.encode(symbol));
 
-        tenderizer = TenderizerHarness(address(new TenderizerHarness()).clone(abi.encodePacked(asset, validator, router, unlocks)));
+        tenderizer = TenderizerHarness(address(new TenderizerHarness(registry, unlocks)).clone(abi.encodePacked(asset, validator)));
     }
 }
 
@@ -76,7 +76,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
     function test_InitialVaules() public {
         assertEq(address(tenderizer.asset()), asset, "invalid asset");
         assertEq(address(tenderizer.validator()), validator, "invalid validator");
-        assertEq(address(tenderizer.exposed_registry()), router, "invalid router");
+        assertEq(address(tenderizer.exposed_registry()), registry, "invalid registry");
         assertEq(address(tenderizer.exposed_unlocks()), unlocks, "invalid unlocks");
         assertEq(address(tenderizer.exposed_adapter()), adapter, "invalid adapter");
     }
@@ -325,7 +325,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
 
         vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, totalDeposit)), abi.encode(newStake));
 
-        vm.mockCall(router, abi.encodeCall(Registry.fee, (asset)), abi.encode(feeRate));
+        vm.mockCall(registry, abi.encodeCall(Registry.fee, (asset)), abi.encode(feeRate));
 
         uint256 cappedFeeRate = feeRate > MAX_FEE ? MAX_FEE : feeRate;
         uint256 expFees = ((newStake - totalDeposit) * cappedFeeRate) / 1e6;
@@ -355,7 +355,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
         _deposit(account2, deposit2, deposit1);
 
         vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, totalDeposit)), abi.encode(newStake));
-        vm.mockCall(router, abi.encodeCall(Registry.fee, (asset)), abi.encode(0.01 ether));
+        vm.mockCall(registry, abi.encodeCall(Registry.fee, (asset)), abi.encode(0.01 ether));
 
         vm.expectEmit(true, true, true, true);
         emit Rebase(totalDeposit, newStake);
@@ -375,7 +375,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
         _deposit(account2, deposit2, deposit1);
 
         vm.mockCall(adapter, abi.encodeCall(Adapter.rebase, (validator, totalDeposit)), abi.encode(totalDeposit));
-        vm.mockCall(router, abi.encodeCall(Registry.fee, (asset)), abi.encode(0.01 ether));
+        vm.mockCall(registry, abi.encodeCall(Registry.fee, (asset)), abi.encode(0.01 ether));
 
         vm.expectEmit(true, true, true, true);
         emit Rebase(totalDeposit, totalDeposit);

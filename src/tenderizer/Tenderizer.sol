@@ -40,6 +40,8 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
     uint256 private constant MAX_FEE = 0.005e6; // 0.5%
     uint256 private constant FEE_BASE = 1e6;
 
+    constructor(address _registry, address _unlocks) TenderizerImmutableArgs(_registry, _unlocks) { }
+
     // @inheritdoc TToken
     function name() external view override returns (string memory) {
         return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
@@ -151,7 +153,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
                 _setTotalSupply(newStake - fees);
                 // mint fees
                 if (fees > 0) {
-                    _mint(Registry(_registry()).treasury(), fees);
+                    _mint(_registry().treasury(), fees);
                 }
             }
         } else {
@@ -163,13 +165,13 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
     }
 
     function _calculateFees(uint256 rewards) internal view returns (uint256 fees) {
-        uint256 fee = Registry(_registry()).fee(asset());
+        uint256 fee = _registry().fee(asset());
         fee = fee > MAX_FEE ? MAX_FEE : fee;
         fees = rewards * fee / FEE_BASE;
     }
 
     function _adapter() internal view returns (Adapter) {
-        return Adapter(Registry(_registry()).adapter(asset()));
+        return Adapter(_registry().adapter(asset()));
     }
 
     function previewDeposit(uint256 assets) external view returns (uint256) {
