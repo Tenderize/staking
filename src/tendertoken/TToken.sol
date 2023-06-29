@@ -243,11 +243,9 @@ abstract contract TToken is TTokenStorage, IERC20 {
         $._totalSupply = supply;
     }
 
-    function _mint(address to, uint256 assets) internal virtual {
-        uint256 shares;
-
+    function _mint(address to, uint256 assets) internal virtual returns (uint256 shares) {
         if (assets == 0) revert ZeroAmount();
-        if ((shares = convertToShares(assets)) == 0) return;
+        if ((shares = convertToShares(assets)) == 0) return 0;
 
         Storage storage $ = _loadStorage();
         $._totalSupply += assets;
