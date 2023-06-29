@@ -15,6 +15,7 @@ import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 import { Adapter } from "core/adapters/Adapter.sol";
 import { IGraphStaking } from "core/adapters/interfaces/IGraph.sol";
+import { IERC165 } from "core/interfaces/IERC165.sol";
 
 contract GraphAdapter is Adapter {
     using SafeTransferLib for ERC20;
@@ -53,6 +54,10 @@ contract GraphAdapter is Adapter {
         assembly {
             $.slot := slot
         }
+    }
+
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        return interfaceId == type(Adapter).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
     function previewDeposit(uint256 assets) external view override returns (uint256) {

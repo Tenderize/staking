@@ -9,9 +9,11 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
+import { IERC165 } from "core/interfaces/IERC165.sol";
+
 pragma solidity 0.8.17;
 
-interface Adapter {
+interface Adapter is IERC165 {
     function previewDeposit(uint256 assets) external view returns (uint256);
 
     function previewWithdraw(uint256 unlockID) external view returns (uint256);

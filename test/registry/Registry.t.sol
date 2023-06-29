@@ -22,7 +22,7 @@ import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/
 import { UUPSTestHelper } from "test/helpers/UUPSTestHelper.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { FACTORY_ROLE, FEE_GAUGE_ROLE, TENDERIZER_ROLE, UPGRADE_ROLE, GOVERNANCE_ROLE } from "core/registry/Roles.sol";
-
+import { LivepeerAdapter } from "core/adapters/LivepeerAdapter.sol";
 // solhint-disable quotes
 // solhint-disable func-name-mixedcase
 // solhint-disable avoid-low-level-calls
@@ -146,7 +146,7 @@ contract RegistryTest is Test {
 
     address private owner = vm.addr(1);
     address private account = vm.addr(2);
-    address private adapter = vm.addr(3);
+    address private adapter;
     address private asset = vm.addr(4);
     address private tenderizer = vm.addr(5);
     address private factory = vm.addr(5);
@@ -160,6 +160,7 @@ contract RegistryTest is Test {
     function setUp() public {
         vm.startPrank(owner);
         registry = new InitializedRegistry();
+        adapter = address(new LivepeerAdapter());
         vm.stopPrank();
     }
 
@@ -175,6 +176,21 @@ contract RegistryTest is Test {
         vm.prank(account);
         vm.expectRevert();
         registry.registerAdapter(asset, adapter);
+    }
+
+    function test_RegisterAdapter_ZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(Registry.InvalidAdapter.selector, address(0)));
+        registry.registerAdapter(asset, address(0));
+    }
+
+    function test_RegisterAdapter_ERC165Fail() public {
+        vm.prank(owner);
+
+        address _adapter = vm.addr(0x518);
+        vm.etch(_adapter, address(registry).code);
+        vm.expectRevert(abi.encodeWithSelector(Registry.InvalidAdapter.selector, _adapter));
+        registry.registerAdapter(asset, _adapter);
     }
 
     function test_RegisterTenderizer() public {

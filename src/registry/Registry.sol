@@ -16,7 +16,8 @@ import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/In
 import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { RegistryStorage } from "core/registry/RegistryStorage.sol";
 import { FACTORY_ROLE, FEE_GAUGE_ROLE, TENDERIZER_ROLE, UPGRADE_ROLE, GOVERNANCE_ROLE } from "core/registry/Roles.sol";
-
+import { IERC165 } from "core/interfaces/IERC165.sol";
+import { Adapter } from "core/adapters/Adapter.sol";
 /**
  * @title Registry
  * @author Tenderize Labs Ltd
@@ -24,6 +25,9 @@ import { FACTORY_ROLE, FEE_GAUGE_ROLE, TENDERIZER_ROLE, UPGRADE_ROLE, GOVERNANCE
  */
 
 contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, RegistryStorage {
+    error InvalidAdapter(address adapter);
+    error InvalidTreasury(address treasury);
+
     event AdapterRegistered(address indexed asset, address indexed adapter);
     event NewTenderizer(address indexed asset, address indexed validator, address tenderizer);
     event FeeAdjusted(address indexed asset, uint256 newFee, uint256 oldFee);
@@ -111,6 +115,7 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
      * @param adapter Address of the adapter
      */
     function registerAdapter(address asset, address adapter) external onlyRole(GOVERNANCE_ROLE) {
+        if (adapter == address(0) || !IERC165(adapter).supportsInterface(type(Adapter).interfaceId)) revert InvalidAdapter(adapter);
         Storage storage $ = _loadStorage();
         $.protocols[asset].adapter = adapter;
         emit AdapterRegistered(asset, adapter);
@@ -147,6 +152,7 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
      * @param treasury Address of the treasury
      */
     function setTreasury(address treasury) external onlyRole(GOVERNANCE_ROLE) {
+        if (treasury == address(0)) revert InvalidTreasury(treasury);
         Storage storage $ = _loadStorage();
         $.treasury = treasury;
         emit TreasurySet(treasury);
