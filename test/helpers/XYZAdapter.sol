@@ -36,11 +36,11 @@ contract XYZAdapter is Adapter {
     }
 
     function previewWithdraw(uint256 unlockID) external view returns (uint256 amount) {
-        (amount,) = StakingXYZ(STAKINGXYZ).unlocks(msg.sender, unlockID);
+        (amount,) = StakingXYZ(STAKINGXYZ).unlocks(address(this), unlockID);
     }
 
     function unlockMaturity(uint256 unlockID) external view returns (uint256 maturity) {
-        (, maturity) = StakingXYZ(STAKINGXYZ).unlocks(msg.sender, unlockID);
+        (, maturity) = StakingXYZ(STAKINGXYZ).unlocks(address(this), unlockID);
     }
 
     function stake(address, uint256 amount) external {
@@ -59,7 +59,7 @@ contract XYZAdapter is Adapter {
     function rebase(address, uint256 currentStake) external returns (uint256 newStake) {
         if (block.timestamp < StakingXYZ(STAKINGXYZ).nextRewardTimeStamp()) return currentStake;
         StakingXYZ(STAKINGXYZ).claimrewards();
-        newStake = StakingXYZ(STAKINGXYZ).totalStaked();
+        newStake = StakingXYZ(STAKINGXYZ).staked(address(this));
     }
 
     function isValidator(address) external pure returns (bool) {
