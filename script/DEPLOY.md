@@ -2,7 +2,8 @@
 
 ## Deploying To Anvil
 
-Tenderizer uses `CREATE2` to deploy contracts. Forge expects this contract to be deterministically deployed at `0x4e59b44847b379578588920ca78fbf26c0b4956c`.
+Tenderizer uses `CREATE2` to deploy contracts. Forge expects this contract to be deterministically deployed at
+`0x4e59b44847b379578588920ca78fbf26c0b4956c`.
 
 Anvil by default doesn't have the `CREATE2` proxy deployed. Instead, `anvil_setCode` can be used as a workaround.
 
@@ -10,7 +11,8 @@ Anvil by default doesn't have the `CREATE2` proxy deployed. Instead, `anvil_setC
 curl -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","id":67,"method":"anvil_setCode","params": ["0x4e59b44847b379578588920ca78fbf26c0b4956c","0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3"]}' 127.0.0.1:8545
 ```
 
-As a sanity check you can run `cast code "0x4e59b44847b379578588920ca78fbf26c0b4956c" --rpc-url http://127.0.0.1:8545` to see if this was succesful.
+As a sanity check you can run `cast code "0x4e59b44847b379578588920ca78fbf26c0b4956c" --rpc-url http://127.0.0.1:8545`
+to see if this was succesful.
 
 ## Deploy Tenderizer
 
