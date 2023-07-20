@@ -11,7 +11,7 @@
 
 pragma solidity 0.8.17;
 
-import { Script } from "forge-std/Script.sol";
+import { Script, console2 } from "forge-std/Script.sol";
 import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
@@ -41,6 +41,8 @@ contract Tenderize_Deploy is Script {
         // - Deploy Registry UUPS Proxy
         address registryProxy = address(new ERC1967Proxy{salt: salt}(address(registry), ""));
         vm.serializeAddress(json_output, "registry_proxy", registryProxy);
+        console2.log("Registry Implementation: ", address(registry));
+        console2.log("Registry Proxy: ", registryProxy);
 
         // 2. Deploy Unlocks
         // - Deploy Renderer Implementation
@@ -50,12 +52,16 @@ contract Tenderize_Deploy is Script {
         ERC1967Proxy rendererProxy = new ERC1967Proxy{salt: salt}(address(renderer), abi.encodeCall(renderer.initialize, ()));
         vm.serializeAddress(json_output, "renderer_proxy", address(rendererProxy));
         // - Deploy Unlocks
-        Unlocks unlocks = new Unlocks{salt: salt}(address(rendererProxy), registryProxy);
+        Unlocks unlocks = new Unlocks{salt: salt}(address(registryProxy), address(rendererProxy));
         vm.serializeAddress(json_output, "unlocks", address(unlocks));
+        console2.log("Renderer Implementation: ", address(renderer));
+        console2.log("Renderer Proxy: ", address(rendererProxy));
+        console2.log("Unlocks: ", address(unlocks));
 
         // 3. Deploy Tenderizer Implementation
         Tenderizer tenderizer = new Tenderizer{salt: salt}(registryProxy, address(unlocks));
         vm.serializeAddress(json_output, "tenderizer_implementation", address(tenderizer));
+        console2.log("Tenderizer Implementation: ", address(tenderizer));
 
         // 4. Initialize Registry
         Registry(registryProxy).initialize(address(tenderizer), address(unlocks));
@@ -65,6 +71,7 @@ contract Tenderize_Deploy is Script {
         vm.serializeAddress(json_output, "factory", address(factory));
         // - Grant Factory role to Factory
         Registry(registryProxy).grantRole(FACTORY_ROLE, address(factory));
+        console2.log("Factory: ", address(factory));
 
         vm.stopBroadcast();
 
