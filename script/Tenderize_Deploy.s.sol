@@ -52,7 +52,7 @@ contract Tenderize_Deploy is Script {
         ERC1967Proxy rendererProxy = new ERC1967Proxy{salt: salt}(address(renderer), abi.encodeCall(renderer.initialize, ()));
         vm.serializeAddress(json_output, "renderer_proxy", address(rendererProxy));
         // - Deploy Unlocks
-        Unlocks unlocks = new Unlocks{salt: salt}(address(rendererProxy), registryProxy);
+        Unlocks unlocks = new Unlocks{salt: salt}(address(registryProxy), address(rendererProxy));
         vm.serializeAddress(json_output, "unlocks", address(unlocks));
         console2.log("Renderer Implementation: ", address(renderer));
         console2.log("Renderer Proxy: ", address(rendererProxy));

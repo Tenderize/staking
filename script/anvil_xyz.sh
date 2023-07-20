@@ -10,9 +10,9 @@ export PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f
 export REGISTRY=0x296dB3C224c7f3104f22Be3D4c1FBfFdE4A4431B
 export FACTORY=0x4eF71bD00395C447A43dB077Abe05f0C7910B3A8
 
-forge script script/Tenderize_Deploy.s.sol:Tenderize_Deploy --fork-url http://127.0.0.1:8545 --broadcast --private-key $PRIVATE_KEY
+forge script script/Tenderize_Deploy.s.sol:Tenderize_Deploy --fork-url http://127.0.0.1:8545 --broadcast --private-key $PRIVATE_KEY -vvvv
 
-forge script script/XYZ_Deploy.s.sol:XYZ_Deploy --fork-url http://127.0.0.1:8545 --broadcast --private-key $PRIVATE_KEY
+forge script script/XYZ_Deploy.s.sol:XYZ_Deploy --fork-url http://127.0.0.1:8545 --broadcast --private-key $PRIVATE_KEY -vvvv
 
 read -r -d '' _ </dev/tty
 echo "Closing Down Anvil"

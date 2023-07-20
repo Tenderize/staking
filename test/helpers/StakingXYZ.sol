@@ -44,7 +44,7 @@ contract StakingXYZ {
             if (validators[i] == msg.sender) break;
             if (i == validators.length - 1) validators.push(msg.sender);
         }
-        uint256 s = amount * totalShares / totalStaked;
+        uint256 s = totalStaked == 0 ? amount : amount * totalShares / totalStaked;
         shares[msg.sender] = shares[msg.sender] + s;
         totalShares += s;
         totalStaked += amount;
