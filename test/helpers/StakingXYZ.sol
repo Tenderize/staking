@@ -14,17 +14,13 @@ import { ERC20 } from "solmate/tokens/ERC20.sol";
 pragma solidity 0.8.17;
 
 contract StakingXYZ {
-    mapping(address => uint256) public shares;
-    uint256 public totalShares;
-    uint256 public totalStaked;
+    mapping(address => uint256) public staked;
 
     address immutable token;
     uint256 public nextRewardTimeStamp;
 
     uint256 constant rewardTime = 1 days;
     uint256 constant unlockTime = 2 days;
-
-    address[] public validators;
 
     struct Unlock {
         uint256 amount;
@@ -40,24 +36,14 @@ contract StakingXYZ {
 
     function stake(uint256 amount) external {
         require(amount > 0, "amount must be greater than 0");
-        for (uint256 i = 0; i < validators.length; i++) {
-            if (validators[i] == msg.sender) break;
-            if (i == validators.length - 1) validators.push(msg.sender);
-        }
-        uint256 s = totalStaked == 0 ? amount : amount * totalShares / totalStaked;
-        shares[msg.sender] = shares[msg.sender] + s;
-        totalShares += s;
-        totalStaked += amount;
         ERC20(token).transferFrom(msg.sender, address(this), amount);
+        staked[msg.sender] = staked[msg.sender] + amount;
     }
 
     function unstake(uint256 amount) external returns (uint256 unlockID) {
-        uint256 s = amount * totalShares / totalStaked;
-        shares[msg.sender] = s < shares[msg.sender] ? shares[msg.sender] - s : s;
-        totalShares -= s;
-        totalStaked -= amount;
-        unlocks[msg.sender][unlockCount[msg.sender]] = Unlock(amount, block.timestamp + unlockTime);
+        staked[msg.sender] -= amount;
         unlockID = unlockCount[msg.sender]++;
+        unlocks[msg.sender][unlockID] = Unlock(amount, block.timestamp + unlockTime);
     }
 
     function withdraw(uint256 id) external returns (uint256) {
@@ -70,7 +56,7 @@ contract StakingXYZ {
 
     function claimrewards() external {
         if (block.timestamp < nextRewardTimeStamp) return;
-        totalStaked += totalStaked * 0.007e6 / 1e6;
+        staked[msg.sender] = staked[msg.sender] * 1.007e6 / 1e6;
         nextRewardTimeStamp = block.timestamp;
     }
 }
