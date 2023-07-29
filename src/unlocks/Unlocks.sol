@@ -115,6 +115,7 @@ contract Unlocks is ERC721 {
     }
 
     function _decodeTokenId(uint256 tokenId) internal pure virtual returns (address tenderizer, uint96 id) {
-        return (address(bytes20(bytes32(tokenId))), uint96(bytes12(bytes32(tokenId) << 160)));
+        bytes32 a = bytes32(tokenId);
+        return (address(bytes20(a)), uint96(bytes12(a << 160)));
     }
 }

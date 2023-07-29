@@ -18,7 +18,7 @@ import { Renderer } from "core/unlocks/Renderer.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { TenderizerImmutableArgs } from "core/tenderizer/TenderizerBase.sol";
-import { Unlocks } from "core/unlocks/Unlocks.sol";
+import { Unlocks, Metadata } from "core/unlocks/Unlocks.sol";
 
 // solhint-disable func-name-mixedcase
 contract UnlockTest is Test {
@@ -133,6 +133,31 @@ contract UnlockTest is Test {
     function test_tokenURI_RevertIfIdDoesntExist() public {
         vm.expectRevert("non-existent token");
         unlocks.tokenURI(1);
+    }
+
+    function test_getMetadata() public {
+        address tenderizer = address(this);
+        // create an unlock
+        uint256 lockId = 1337;
+        vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (tenderizer)), abi.encode(true));
+        uint256 tokenId = unlocks.createUnlock(msg.sender, lockId);
+
+        vm.mockCall(tenderizer, abi.encodeCall(Tenderizer.previewWithdraw, (lockId)), abi.encode((1 ether)));
+        vm.mockCall(tenderizer, abi.encodeCall(Tenderizer.unlockMaturity, (lockId)), abi.encode((block.timestamp)));
+        vm.mockCall(tenderizer, abi.encodeCall(TenderizerImmutableArgs.validator, ()), abi.encode((validator)));
+        vm.mockCall(tenderizer, abi.encodeCall(TenderizerImmutableArgs.asset, ()), abi.encode((asset)));
+        vm.mockCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()), abi.encode(("TEST")));
+        vm.mockCall(asset, abi.encodeCall(IERC20Metadata.name, ()), abi.encode(("Test Token")));
+        // get meta data
+
+        Metadata memory d = unlocks.getMetadata(tokenId);
+
+        assertEq(d.tokenId, lockId);
+        assertEq(d.amount, 1 ether);
+        assertEq(d.maturity, block.timestamp);
+        assertEq(d.symbol, "TEST");
+        assertEq(d.name, "Test Token");
+        assertEq(d.validator, validator);
     }
 
     // helpers
