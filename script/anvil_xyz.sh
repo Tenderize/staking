@@ -1,6 +1,6 @@
 #!/bin/bash
 set -x
-nohup bash -c "anvil &" >/dev/null 2>&1 && sleep 5
+nohup bash -c "anvil --chain-id 1337 &" >/dev/null 2>&1 && sleep 5
 
 forge build
 
