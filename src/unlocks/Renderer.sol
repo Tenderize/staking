@@ -16,7 +16,7 @@ import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/In
 import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { OwnableUpgradeable } from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import { Unlocks } from "core/unlocks/Unlocks.sol";
+import { Unlocks, Metadata } from "core/unlocks/Unlocks.sol";
 import { Base64 } from "core/unlocks/Base64.sol";
 
 // solhint-disable quotes
@@ -43,7 +43,7 @@ contract Renderer is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @param id ID of the unlock
      */
     function json(uint256 id) external view returns (string memory) {
-        Unlocks.Metadata memory data = Unlocks(msg.sender).getMetadata(id);
+        Metadata memory data = Unlocks(msg.sender).getMetadata(id);
 
         return string(
             abi.encodePacked(
@@ -64,7 +64,7 @@ contract Renderer is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
     }
 
-    function _serializeMetadata(Unlocks.Metadata memory data) internal pure returns (string memory metadataString) {
+    function _serializeMetadata(Metadata memory data) internal pure returns (string memory metadataString) {
         metadataString = string(
             abi.encodePacked(
                 '{"trait_type": "maturity", "value":',
@@ -83,7 +83,7 @@ contract Renderer is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
     }
 
-    function svg(Unlocks.Metadata memory data) internal pure returns (string memory) {
+    function svg(Metadata memory data) internal pure returns (string memory) {
         return string(
             abi.encodePacked(
                 '<svg width="290" height="500" viewBox="0 0 290 500" xmlns="http://www.w3.org/2000/svg"',

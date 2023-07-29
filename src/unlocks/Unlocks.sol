@@ -24,16 +24,16 @@ pragma solidity 0.8.17;
 /// @notice ERC721 contract for unlock tokens
 /// @dev Creates an NFT for staked tokens pending unlock. Each Unlock has an amount and a maturity date.
 
-contract Unlocks is ERC721 {
-    struct Metadata {
-        uint256 amount;
-        uint256 maturity;
-        uint256 tokenId;
-        string symbol;
-        string name;
-        address validator;
-    }
+struct Metadata {
+    uint256 amount;
+    uint256 maturity;
+    uint256 tokenId;
+    string symbol;
+    string name;
+    address validator;
+}
 
+contract Unlocks is ERC721 {
     Registry private immutable registry;
     Renderer private immutable renderer;
 
