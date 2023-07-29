@@ -10,7 +10,7 @@ import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/In
 import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { Renderer } from "core/unlocks/Renderer.sol";
-import { Unlocks } from "core/unlocks/Unlocks.sol";
+import { Unlocks, Metadata } from "core/unlocks/Unlocks.sol";
 import { Base64 } from "core/unlocks/Base64.sol";
 import { UUPSTestHelper } from "test/helpers/UUPSTestHelper.sol";
 
@@ -58,8 +58,8 @@ contract RendererTest is Test {
     address private tenderizer = vm.addr(3);
     address private validator = vm.addr(4);
     uint256 private id = 1;
-    Unlocks.Metadata private metadata =
-        Unlocks.Metadata({ amount: 100, maturity: 1000, tokenId: id, symbol: "GRT", name: "Graph", validator: validator });
+    Metadata private metadata =
+        Metadata({ amount: 100, maturity: 1000, tokenId: id, symbol: "GRT", name: "Graph", validator: validator });
     RendererV1 private rendererV1;
 
     bytes32 internal constant IMPL_SLOT = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
