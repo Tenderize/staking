@@ -9,7 +9,7 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";

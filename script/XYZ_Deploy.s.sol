@@ -9,7 +9,7 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 import { Script, console2 } from "forge-std/Script.sol";
 import { MockERC20 } from "solmate/test/utils/mocks/MockERC20.sol";

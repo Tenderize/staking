@@ -16,7 +16,7 @@ import { IERC165 } from "core/interfaces/IERC165.sol";
 
 import { StakingXYZ } from "./StakingXYZ.sol";
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 contract XYZAdapter is Adapter {
     address immutable STAKINGXYZ;

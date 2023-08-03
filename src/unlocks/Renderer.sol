@@ -9,7 +9,7 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 import { Strings } from "openzeppelin-contracts/utils/Strings.sol";
 import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";

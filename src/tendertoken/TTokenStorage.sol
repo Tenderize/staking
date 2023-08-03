@@ -9,7 +9,7 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 abstract contract TTokenStorage {
     uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.tToken.storage.location")) - 1;

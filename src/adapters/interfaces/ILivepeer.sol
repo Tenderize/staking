@@ -9,7 +9,7 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 interface ILivepeerBondingManager {
     function bond(uint256 _amount, address _to) external;

@@ -9,7 +9,7 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 import { Test, stdError } from "forge-std/Test.sol";
 import { GraphAdapter } from "core/adapters/GraphAdapter.sol";

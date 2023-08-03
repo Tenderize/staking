@@ -9,7 +9,7 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 contract RegistryStorage {
     uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.registry.storage.location")) - 1;

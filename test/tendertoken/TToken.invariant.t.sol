@@ -14,7 +14,7 @@
 // solhint-disable no-empty-blocks
 // solhint-disable no-console
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 import { console2 } from "forge-std/console2.sol";
 

@@ -16,7 +16,7 @@ import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { Renderer } from "core/unlocks/Renderer.sol";
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 // solhint-disable quotes
 

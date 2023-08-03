@@ -11,7 +11,7 @@
 
 import { IERC165 } from "core/interfaces/IERC165.sol";
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 interface Adapter is IERC165 {
     function previewDeposit(uint256 assets) external view returns (uint256);

@@ -11,7 +11,7 @@
 
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 contract StakingXYZ {
     mapping(address => uint256) public staked;

@@ -9,7 +9,7 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-pragma solidity 0.8.17;
+pragma solidity >=0.8.19;
 
 bytes32 constant FACTORY_ROLE = keccak256("FACTORY");
 bytes32 constant FEE_GAUGE_ROLE = keccak256("FEE_GAUGE");
