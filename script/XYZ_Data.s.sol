@@ -23,16 +23,16 @@ contract XYZ_Data is Script {
     bytes32 private constant salt = 0x0;
 
     function run() public {
-        MockERC20 XYZ = MockERC20(0xed9358918089a858d0af58AC63c93699a67B6b91);
+        MockERC20 XYZ = MockERC20(0xf1C65dFa90eF3B6369f540bC32D7143cA4233c1e);
 
         uint256 privKey = vm.envUint("PRIVATE_KEY");
         address me = vm.addr(privKey);
         vm.startBroadcast(privKey);
 
         XYZ.mint(me, 10_000_000_000 ether);
-        address tenderizer_1 = 0x6f674B27fE58740f14754a34ccd6C636646FA755;
-        address tenderizer_2 = 0x3186a94AA139f420228Bc73D68b448be52bC4106;
-        address tenderizer_3 = 0x2554110E3b2Ad09f0ba7D9392c9845592F55B1E8;
+        address tenderizer_1 = 0x35D2BC5Fc0884a7A24E9B1D723A4d99922d788EB;
+        address tenderizer_2 = 0xD58Fed21106A046093086903909478AD96D310a8;
+        address tenderizer_3 = 0x2eaC4210B90D13666f7E88635096BdC17C51FB70;
         XYZ.approve(tenderizer_1, 10_000_000_000 ether);
         XYZ.approve(tenderizer_2, 10_000_000_000 ether);
         XYZ.approve(tenderizer_3, 10_000_000_000 ether);
