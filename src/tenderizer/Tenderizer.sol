@@ -19,6 +19,8 @@ import { Adapter, AdapterDelegateCall } from "core/adapters/Adapter.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { TenderizerImmutableArgs, TenderizerEvents } from "core/tenderizer/TenderizerBase.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
+import { Multicall } from "core/utils/Multicall.sol";
+import { SelfPermit } from "core/utils/SelfPermit.sol";
 
 /**
  * @title Tenderizer
@@ -27,7 +29,7 @@ import { TToken } from "core/tendertoken/TToken.sol";
  * @dev Uses full type safety and unstructured storage
  */
 
-contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken {
+contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multicall, SelfPermit {
     error InsufficientAssets();
 
     using AdapterDelegateCall for Adapter;
