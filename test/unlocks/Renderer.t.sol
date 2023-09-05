@@ -59,7 +59,7 @@ contract RendererTest is Test {
     address private validator = vm.addr(4);
     uint256 private id = 1;
     Metadata private metadata =
-        Metadata({ amount: 100, maturity: 1000, tokenId: id, symbol: "GRT", name: "Graph", validator: validator });
+        Metadata({ amount: 100, maturity: 1000, unlockId: id, symbol: "GRT", name: "Graph", validator: validator });
     RendererV1 private rendererV1;
 
     bytes32 internal constant IMPL_SLOT = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);

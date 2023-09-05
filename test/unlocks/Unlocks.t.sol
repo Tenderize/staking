@@ -131,7 +131,7 @@ contract UnlockTest is Test {
     }
 
     function test_tokenURI_RevertIfIdDoesntExist() public {
-        vm.expectRevert("non-existent token");
+        vm.expectRevert("NOT_MINTED");
         unlocks.tokenURI(1);
     }
 
@@ -152,7 +152,7 @@ contract UnlockTest is Test {
 
         Metadata memory d = unlocks.getMetadata(tokenId);
 
-        assertEq(d.tokenId, lockId);
+        assertEq(d.unlockId, lockId);
         assertEq(d.amount, 1 ether);
         assertEq(d.maturity, block.timestamp);
         assertEq(d.symbol, "TEST");

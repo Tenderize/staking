@@ -40,10 +40,10 @@ contract Renderer is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     /**
      * @notice Returns the JSON metadata for a given unlock
-     * @param id ID of the unlock
+     * @param tokenId ID of the unlock token
      */
-    function json(uint256 id) external view returns (string memory) {
-        Metadata memory data = Unlocks(msg.sender).getMetadata(id);
+    function json(uint256 tokenId) external view returns (string memory) {
+        Metadata memory data = Unlocks(msg.sender).getMetadata(tokenId);
 
         return string(
             abi.encodePacked(
@@ -100,7 +100,7 @@ contract Renderer is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                         '</text><text x="10" y="60">',
                         data.maturity.toString(),
                         '</text><text x="10" y="80">',
-                        data.tokenId.toString(),
+                        data.unlockId.toString(),
                         "</text>",
                         "</svg>"
                     )
