@@ -14,13 +14,14 @@ pragma solidity >=0.8.19;
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 import { Adapter } from "core/adapters/Adapter.sol";
-import { IGraphStaking } from "core/adapters/interfaces/IGraph.sol";
+import { IGraphStaking, IEpochManager } from "core/adapters/interfaces/IGraph.sol";
 import { IERC165 } from "core/interfaces/IERC165.sol";
 
 contract GraphAdapter is Adapter {
     using SafeTransferLib for ERC20;
 
     IGraphStaking private constant GRAPH = IGraphStaking(0xF55041E37E12cD407ad00CE2910B8269B01263b9);
+    IEpochManager private constant GRAPH_EPOCHS = IEpochManager(0x03541c5cd35953CD447261122F93A5E7b812D697);
     ERC20 private constant GRT = ERC20(0xc944E90C64B2c07662A292be6244BDf05Cda44a7);
     uint256 private constant MAX_PPM = 1e6;
 
@@ -233,7 +234,7 @@ contract GraphAdapter is Adapter {
     function _processWithdraw(address validator) internal {
         // withdrawal isn't ready: no-op
         uint256 tokensLockedUntil = GRAPH.getDelegation(validator, address(this)).tokensLockedUntil;
-        if (tokensLockedUntil == 0 || tokensLockedUntil > block.number) return;
+        if (tokensLockedUntil == 0 || tokensLockedUntil > GRAPH_EPOCHS.currentEpoch()) return;
 
         Storage storage $ = _loadStorage();
 

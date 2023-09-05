@@ -33,7 +33,7 @@ interface IGraphStaking {
     struct Delegation {
         uint256 shares; // Shares owned by a delegator in the pool
         uint256 tokensLocked; // Tokens locked for undelegation
-        uint256 tokensLockedUntil; // Block when locked tokens can be withdrawn
+        uint256 tokensLockedUntil; // Epoch when locked tokens can be withdrawn
     }
 
     function delegate(address _indexer, uint256 _tokens) external returns (uint256);
@@ -53,4 +53,8 @@ interface IGraphStaking {
     function delegationTaxPercentage() external view returns (uint32);
 
     function hasStake(address _indexer) external view returns (bool);
+}
+
+interface IEpochManager {
+    function currentEpoch() external view returns (uint256);
 }
