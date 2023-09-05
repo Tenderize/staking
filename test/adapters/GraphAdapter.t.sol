@@ -14,13 +14,14 @@ pragma solidity >=0.8.19;
 import { Test, stdError } from "forge-std/Test.sol";
 import { GraphAdapter } from "core/adapters/GraphAdapter.sol";
 import { IERC20 } from "core/interfaces/IERC20.sol";
-import { IGraphStaking } from "core/adapters/interfaces/IGraph.sol";
+import { IGraphStaking, IEpochManager } from "core/adapters/interfaces/IGraph.sol";
 import { TestHelpers } from "test/helpers/Helpers.sol";
 
 // solhint-disable func-name-mixedcase
 
 contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
     address private staking = 0xF55041E37E12cD407ad00CE2910B8269B01263b9;
+    address private epochs = 0x03541c5cd35953CD447261122F93A5E7b812D697;
     address private token = 0xc944E90C64B2c07662A292be6244BDf05Cda44a7;
 
     address private validator = vm.addr(1);
@@ -113,6 +114,8 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
             abi.encode(10 ether, 1 ether, block.number + 1)
         );
 
+        vm.mockCall(epochs, abi.encodeCall(IEpochManager.currentEpoch, ()), abi.encode(epoch));
+
         Storage storage $ = _loadStorage();
         $.currentEpoch = epoch;
         $.epochs[epoch].amount = epochAmount;
@@ -150,6 +153,8 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         vm.mockCall(
             staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(stakedShares, 0, 0)
         );
+
+        vm.mockCall(epochs, abi.encodeCall(IEpochManager.currentEpoch, ()), abi.encode(epoch));
 
         uint256 expShares = (currentEpochAmount + amount) * 1 ether / $.tokensPerShare;
         expShares = expShares > stakedShares ? stakedShares : expShares;
@@ -219,6 +224,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
             abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))),
             abi.encode(10 ether, tokensLocked, tokensLockedUntil)
         );
+        vm.mockCall(epochs, abi.encodeCall(IEpochManager.currentEpoch, ()), abi.encode(tokensLockedUntil));
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, validator), abi.encode(0, 0, 0, 0, 10 ether, 10 ether));
 
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.undelegate, (validator, amount)), abi.encode(0));
@@ -251,10 +257,10 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         vm.mockCall(
             staking,
             abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))),
-            abi.encode(10 ether, 1 ether, block.number + 1)
+            abi.encode(10 ether, 1 ether, unlockEpoch)
         );
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, 10 ether, 10 ether));
-
+        vm.mockCall(epochs, abi.encodeCall(IEpochManager.currentEpoch, ()), abi.encode(unlockEpoch - 1));
         Storage storage $ = _loadStorage();
         $.unlocks[unlockID].epoch = unlockEpoch;
         $.currentEpoch = unlockEpoch + 2;
@@ -278,20 +284,21 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
 
     function test_Withdraw_RevertIfPending() public {
         uint256 unlockID = 1;
-        uint256 currnetEpoch = 100;
+        uint256 currentEpoch = 100;
         uint256 unlockEpoch = 101;
 
         // unlock processing
         vm.mockCall(
             staking,
             abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))),
-            abi.encode(10 ether, 1 ether, block.number + 1)
+            abi.encode(10 ether, 1 ether, unlockEpoch)
         );
+        vm.mockCall(epochs, abi.encodeCall(IEpochManager.currentEpoch, ()), abi.encode(currentEpoch));
         vm.mockCall(staking, abi.encodeCall(IGraphStaking.delegationPools, validator), abi.encode(0, 0, 0, 0, 10 ether, 10 ether));
 
         Storage storage $ = _loadStorage();
         $.unlocks[unlockID].epoch = unlockEpoch;
-        $.currentEpoch = currnetEpoch;
+        $.currentEpoch = currentEpoch;
 
         vm.expectRevert(WithdrawPending.selector);
         this.withdraw(validator, unlockID);
