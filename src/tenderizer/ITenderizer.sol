@@ -21,6 +21,8 @@ import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
  * @dev Contains only the necessary API
  */
 interface ITenderizer is IERC20 {
+    function asset() external view returns (IERC20);
+    function validator() external view returns (address);
     function deposit(address receiver, uint256 assets) external returns (uint256);
     function unlock(uint256 assets) external returns (uint256 unlockID);
     function withdraw(address receiver, uint256 unlockID) external returns (uint256 amount);
