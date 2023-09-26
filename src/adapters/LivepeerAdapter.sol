@@ -66,7 +66,7 @@ contract LivepeerAdapter is Adapter {
         // roundLength = n
         // currentRound = r
         // withdrawRound = w
-        // blockRemainingInCurrentRound = b = roungLength - (block.number - currentRoundStartBlock)
+        // blockRemainingInCurrentRound = b = roundLength - (block.number - currentRoundStartBlock)
         // maturity = n*(w - r - 1) + b
         (, uint256 withdrawRound) = LIVEPEER.getDelegatorUnbondingLock(address(this), unlockID);
         uint256 currentRound = LIVEPEER_ROUNDS.currentRound();
@@ -118,7 +118,6 @@ contract LivepeerAdapter is Adapter {
     }
 
     function isValidator(address validator) public view override returns (bool) {
-        // TODO: Change to ACTIVE Orchestrator
         return LIVEPEER.isRegisteredTranscoder(validator);
     }
 
