@@ -43,8 +43,10 @@ contract LivepeerAdapter is Adapter {
     ERC20 private constant LPT = ERC20(0x289ba1701C2F088cf0faf8B3705246331cB8A839);
     IWETH9 private constant WETH = IWETH9(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
     ISwapRouter private constant UNISWAP_ROUTER = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
+    address private constant UNI_POOL = 0x4fD47e5102DFBF95541F64ED6FE13d4eD26D2546;
     uint24 private constant UNISWAP_POOL_FEE = 10_000;
-    uint256 private constant ETH_THRESHOLD = 1e17; // 0.1 ETH
+    uint256 private constant ETH_THRESHOLD = 1e16; // 0.01 ETH
+    uint32 private constant TWAP_INTERVAL = 36_000;
 
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         return interfaceId == type(Adapter).interfaceId || interfaceId == type(IERC165).interfaceId;
