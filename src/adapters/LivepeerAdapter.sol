@@ -19,6 +19,7 @@ import { ILivepeerBondingManager, ILivepeerRoundsManager } from "core/adapters/i
 import { ISwapRouter } from "core/adapters/interfaces/ISwapRouter.sol";
 import { IWETH9 } from "core/adapters/interfaces/IWETH9.sol";
 import { IERC165 } from "core/interfaces/IERC165.sol";
+import { TWAP } from "core/utils/TWAP.sol";
 
 contract LivepeerAdapter is Adapter {
     using SafeTransferLib for ERC20;
@@ -125,34 +126,30 @@ contract LivepeerAdapter is Adapter {
     function _livepeerClaimFees() internal {
         // get pending fees
         uint256 pendingFees;
-        if ((pendingFees = LIVEPEER.pendingFees(address(this), 0)) >= ETH_THRESHOLD) {
-            // withdraw fees
-            LIVEPEER.withdrawFees(payable(address(this)), pendingFees);
-            // convert fees to WETH
-            WETH.deposit{ value: address(this).balance }();
-            ERC20(address(WETH)).safeApprove(address(UNISWAP_ROUTER), address(this).balance);
-            // Create initial params for swap
-            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(WETH),
-                tokenOut: address(address(LPT)),
-                fee: UNISWAP_POOL_FEE,
-                recipient: address(this),
-                deadline: block.timestamp,
-                amountIn: address(this).balance,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
+        if ((pendingFees = LIVEPEER.pendingFees(address(this), 0)) < ETH_THRESHOLD) return;
 
-            (bool success, bytes memory returnData) =
-                address(UNISWAP_ROUTER).staticcall(abi.encodeCall(UNISWAP_ROUTER.exactInputSingle, (params)));
+        // withdraw fees
+        LIVEPEER.withdrawFees(payable(address(this)), pendingFees);
+        // get ETH balance
+        uint256 ethBalance = address(this).balance;
+        // convert fees to WETH
+        WETH.deposit{ value: ethBalance }();
+        ERC20(address(WETH)).safeApprove(address(UNISWAP_ROUTER), address(this).balance);
+        // Calculate Slippage Threshold
+        uint256 twapPrice = TWAP.getPriceX96FromSqrtPriceX96(TWAP.getSqrtTwapX96(UNI_POOL, TWAP_INTERVAL));
+        // Create initial params for swap
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+            tokenIn: address(WETH),
+            tokenOut: address(address(LPT)),
+            fee: UNISWAP_POOL_FEE,
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: ethBalance,
+            amountOutMinimum: ethBalance * twapPrice * 90 / 100, // 10% slippage threshold
+            sqrtPriceLimitX96: 0
+        });
 
-            if (!success) return;
-
-            // set return value of staticcall to minimum LPT value to receive from swap
-            params.amountOutMinimum = abi.decode(returnData, (uint256));
-
-            // execute swap
-            UNISWAP_ROUTER.exactInputSingle(params);
-        }
+        // execute swap
+        UNISWAP_ROUTER.exactInputSingle(params);
     }
 }
