@@ -9,6 +9,8 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
+pragma solidity >=0.8.19;
+
 import "@uniswap/v3-core/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-core/libraries/TickMath.sol";
 import "@uniswap/v3-core/libraries/FixedPoint96.sol";
