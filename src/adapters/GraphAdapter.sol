@@ -77,16 +77,16 @@ contract GraphAdapter is Adapter {
         Unlock memory unlock = $.unlocks[unlockID];
         uint256 THAWING_PERIOD = GRAPH.thawingPeriod();
         // if userEpoch == currentEpoch, it is yet to unlock
-        // => unlockTime + thawingPeriod
+        // => unlockBlock + thawingPeriod
         // if userEpoch == currentEpoch - 1, it is processing
-        // => unlockTime
+        // => unlockBlock
         // if userEpoch < currentEpoch - 1, it has been processed
         // => 0
-        uint256 tokensLockedUntil = $.lastEpochUnlockedAt + THAWING_PERIOD;
+        uint256 unlockBlock = $.lastEpochUnlockedAt + THAWING_PERIOD;
         if (unlock.epoch == $.currentEpoch) {
-            return THAWING_PERIOD + tokensLockedUntil;
+            return THAWING_PERIOD + unlockBlock;
         } else if (unlock.epoch == $.currentEpoch - 1) {
-            return tokensLockedUntil;
+            return unlockBlock;
         } else {
             return 0;
         }
