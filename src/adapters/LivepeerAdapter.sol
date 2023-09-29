@@ -136,7 +136,8 @@ contract LivepeerAdapter is Adapter {
         WETH.deposit{ value: ethBalance }();
         ERC20(address(WETH)).safeApprove(address(UNISWAP_ROUTER), ethBalance);
         // Calculate Slippage Threshold
-        uint256 twapPrice = TWAP.getPriceX96FromSqrtPriceX96(TWAP.getSqrtTwapX96(UNI_POOL, TWAP_INTERVAL));
+        uint256 twapPrice = TWAP.getInversePriceX96(TWAP.getPriceX96(TWAP.getSqrtTwapX96(UNI_POOL, TWAP_INTERVAL)));
+        uint256 amountOut = ethBalance * twapPrice >> 96;
         // Create initial params for swap
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: address(WETH),
@@ -145,7 +146,7 @@ contract LivepeerAdapter is Adapter {
             recipient: address(this),
             deadline: block.timestamp,
             amountIn: ethBalance,
-            amountOutMinimum: ethBalance * twapPrice * 90 / 100, // 10% slippage threshold
+            amountOutMinimum: amountOut * 897 / 1000, // 10% slippage threshold + 0.3% fee
             sqrtPriceLimitX96: 0
         });
 

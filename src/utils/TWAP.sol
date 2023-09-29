@@ -33,7 +33,11 @@ library TWAP {
         }
     }
 
-    function getPriceX96FromSqrtPriceX96(uint160 sqrtPriceX96) internal pure returns (uint256 priceX96) {
+    function getPriceX96(uint160 sqrtPriceX96) internal pure returns (uint256) {
         return FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
+    }
+
+    function getInversePriceX96(uint256 priceX96) internal pure returns (uint256) {
+        return FullMath.mulDiv(2 ** 96, 2 ** 96, priceX96);
     }
 }
