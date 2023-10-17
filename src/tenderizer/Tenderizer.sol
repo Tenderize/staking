@@ -43,12 +43,12 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
 
     // @inheritdoc TToken
     function name() external view override returns (string memory) {
-        return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
+        return string.concat(Tenderizer(address(this)).symbol(), "-", addressToString(validator()));
     }
 
     // @inheritdoc TToken
     function symbol() external view override returns (string memory) {
-        return string(abi.encodePacked("t", ERC20(asset()).symbol(), "_", validator()));
+        return string.concat("t", ERC20(asset()).symbol());
     }
 
     // @inheritdoc TToken
@@ -235,4 +235,20 @@ function _staticcall(address target, bytes memory data) view returns (bytes memo
     }
 
     return returnData;
+}
+
+function addressToString(address _addr) pure returns (string memory) {
+    bytes32 value = bytes32(uint256(uint160(_addr)));
+    bytes memory alphabet = "0123456789abcdef";
+
+    bytes memory str = new bytes(42);
+    str[0] = "0";
+    str[1] = "x";
+
+    for (uint256 i = 0; i < 20; i++) {
+        str[2 + i * 2] = alphabet[uint8(value[i + 12] >> 4)];
+        str[3 + i * 2] = alphabet[uint8(value[i + 12] & 0x0f)];
+    }
+
+    return string(str);
 }
