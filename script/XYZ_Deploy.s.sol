@@ -24,27 +24,28 @@ contract XYZ_Deploy is Script {
 
     function run() public {
         address registry = vm.envAddress("REGISTRY");
-        address factory = vm.envAddress("FACTORY");
 
-        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
+        string memory name = vm.envString("NAME");
+        string memory symbol = vm.envString("SYMBOL");
 
-        MockERC20 XYZ = new MockERC20{salt: salt}("XYZ", "XYZ", 18);
-        console2.log("XYZ Token: ", address(XYZ));
-        StakingXYZ stakingXYZ = new StakingXYZ{salt: salt}(address(XYZ));
-        console2.log("StakingXYZ: ", address(stakingXYZ));
+        uint256 unlockTime = vm.envUint("UNLOCK_TIME");
+        uint256 baseAPR = vm.envUint("BASE_APR");
+        uint256 totalSupply = vm.envUint("TOTAL_SUPPLY");
+
+        uint256 privKey = vm.envUint("PRIVATE_KEY");
+
+        vm.startBroadcast(privKey);
+        address me = vm.addr(privKey);
+
+        MockERC20 XYZ = new MockERC20{salt: salt}(name, symbol, 18);
+        console2.log(string.concat(symbol, " Token: "), address(XYZ));
+        // mint supply
+        XYZ.mint(me, totalSupply);
+        StakingXYZ stakingXYZ = new StakingXYZ{salt: salt}(address(XYZ), unlockTime, baseAPR);
+        console2.log(string.concat(symbol, " Staking :"), address(stakingXYZ));
         XYZAdapter adapter = new XYZAdapter{salt: salt}(address(stakingXYZ), address(XYZ));
-        console2.log("XYZ Adapter: ", address(adapter));
+        console2.log(string.concat(symbol, " Adapter: "), address(adapter));
         // Register XYZ adapter
         Registry(registry).registerAdapter(address(XYZ), address(adapter));
-
-        // Register some mock validators
-        address[] memory validators = new address[](3);
-        validators[0] = 0x597aD7F7A1C9F8d0121a9e949Cca7530F2B25ef6;
-        validators[1] = 0x6C06d3246FbB77C4Ad75480E03d2a0A8eaF68121;
-        validators[2] = 0xf909aC60C647a14DB3663dA5EcF5F8eCbE324395;
-
-        for (uint256 i = 0; i < validators.length; i++) {
-            Factory(factory).newTenderizer(address(XYZ), validators[i]);
-        }
     }
 }

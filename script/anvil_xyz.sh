@@ -12,7 +12,35 @@ export FACTORY=0x3cB1E8d050E126bBE05782c7206Cf53856FDaA77
 
 forge script script/Tenderize_Deploy.s.sol:Tenderize_Deploy --fork-url http://127.0.0.1:8545 --broadcast --private-key $PRIVATE_KEY -vvvv
 
+
+# Deploy Livepeer
+# Parameters
+export NAME="Livepeer"
+export SYMBOL="LPT"
+export BASE_APR="280000"
+export UNLOCK_TIME="604800"
+export TOTAL_SUPPLY="30000000000000000000000000"
+export ID=0
 forge script script/XYZ_Deploy.s.sol:XYZ_Deploy --fork-url http://127.0.0.1:8545 --broadcast --private-key $PRIVATE_KEY -vvvv
+
+# Deploy Graph 
+export NAME="The Graph"
+export SYMBOL="GRT"
+export BASE_APR="170000"
+export UNLOCK_TIME="2419200"
+export TOTAL_SUPPLY="10000000000000000000000000000"
+export ID=1
+forge script script/XYZ_Deploy.s.sol:XYZ_Deploy --fork-url http://127.0.0.1:8545 --broadcast --private-key $PRIVATE_KEY -vvvv
+
+# Deploy Polygon 
+export NAME="Polygon"
+export SYMBOL="POL"
+export BASE_APR="110000"
+export UNLOCK_TIME="201600"
+export TOTAL_SUPPLY="10000000000000000000000000000"
+export ID=2
+forge script script/XYZ_Deploy.s.sol:XYZ_Deploy --fork-url http://127.0.0.1:8545 --broadcast --private-key $PRIVATE_KEY -vvvv
+
 
 read -r -d '' _ </dev/tty
 echo "Closing Down Anvil"

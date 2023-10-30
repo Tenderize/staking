@@ -14,24 +14,29 @@ import { ERC20 } from "solmate/tokens/ERC20.sol";
 pragma solidity >=0.8.19;
 
 contract StakingXYZ {
-    mapping(address => uint256) public staked;
-
     address immutable token;
     uint256 public nextRewardTimeStamp;
 
-    uint256 constant rewardTime = 1 days;
-    uint256 constant unlockTime = 1 minutes;
+    uint256 public immutable APR; // Represents 20% APR
+    uint256 public constant APR_PRECISION = 1e6;
+    uint256 public constant SECONDS_IN_A_YEAR = 31_536_000;
+
+    uint256 immutable unlockTime;
 
     struct Unlock {
         uint256 amount;
         uint256 maturity;
     }
 
+    mapping(address => uint256) public staked;
+    mapping(address => uint256) public lastClaimed;
     mapping(address => mapping(uint256 => Unlock)) public unlocks;
     mapping(address => uint256) public unlockCount;
 
-    constructor(address _token) {
+    constructor(address _token, uint256 _unlockTime, uint256 _baseAPR) {
         token = _token;
+        unlockTime = _unlockTime;
+        APR = _baseAPR;
     }
 
     function stake(uint256 amount) external {
@@ -55,8 +60,12 @@ contract StakingXYZ {
     }
 
     function claimrewards() external {
-        if (block.timestamp < nextRewardTimeStamp) return;
-        staked[msg.sender] = staked[msg.sender] * 1.007e6 / 1e6;
-        nextRewardTimeStamp = block.timestamp;
+        if (block.timestamp == lastClaimed[msg.sender]) return;
+
+        uint256 timeDiff = block.timestamp - lastClaimed[msg.sender];
+        uint256 reward = (staked[msg.sender] * APR * timeDiff) / SECONDS_IN_A_YEAR / APR_PRECISION;
+
+        staked[msg.sender] = staked[msg.sender] + reward;
+        lastClaimed[msg.sender] = block.timestamp;
     }
 }
