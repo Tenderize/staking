@@ -63,7 +63,8 @@ contract StakingXYZ {
         if (block.timestamp == lastClaimed[msg.sender]) return;
 
         uint256 timeDiff = block.timestamp - lastClaimed[msg.sender];
-        uint256 reward = (staked[msg.sender] * APR * timeDiff) / SECONDS_IN_A_YEAR / APR_PRECISION;
+        uint256 extraAPR = block.number % APR;
+        uint256 reward = (staked[msg.sender] * (APR + extraAPR) * timeDiff) / SECONDS_IN_A_YEAR / APR_PRECISION;
 
         staked[msg.sender] = staked[msg.sender] + reward;
         lastClaimed[msg.sender] = block.timestamp;
