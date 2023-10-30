@@ -20,7 +20,7 @@ contract StakingXYZ {
     uint256 public nextRewardTimeStamp;
 
     uint256 constant rewardTime = 1 days;
-    uint256 constant unlockTime = 2 days;
+    uint256 constant unlockTime = 1 minutes;
 
     struct Unlock {
         uint256 amount;
@@ -48,7 +48,7 @@ contract StakingXYZ {
 
     function withdraw(uint256 id) external returns (uint256) {
         Unlock memory unlock = unlocks[msg.sender][id];
-        require(unlock.maturity < block.timestamp, "unlock time not reached");
+        require(unlock.maturity <= block.timestamp, "unlock time not reached");
         delete unlocks[msg.sender][id];
         ERC20(token).transfer(msg.sender, unlock.amount);
         return unlock.amount;

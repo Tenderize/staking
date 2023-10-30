@@ -21,6 +21,8 @@ import { TenderizerImmutableArgs, TenderizerEvents } from "core/tenderizer/Tende
 import { TToken } from "core/tendertoken/TToken.sol";
 import { Multicall } from "core/utils/Multicall.sol";
 import { SelfPermit } from "core/utils/SelfPermit.sol";
+import { _staticcall } from "core/utils/StaticCall.sol";
+import { addressToString } from "core/utils/Utils.sol";
 
 /**
  * @title Tenderizer
@@ -43,12 +45,12 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
 
     // @inheritdoc TToken
     function name() external view override returns (string memory) {
-        return string(abi.encodePacked("tender", ERC20(asset()).symbol(), " ", validator()));
+        return string.concat("tender ", _baseSymbol());
     }
 
     // @inheritdoc TToken
     function symbol() external view override returns (string memory) {
-        return string(abi.encodePacked("t", ERC20(asset()).symbol(), "_", validator()));
+        return string.concat("t", _baseSymbol());
     }
 
     // @inheritdoc TToken
@@ -168,6 +170,10 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
         fees = rewards * fee / FEE_BASE;
     }
 
+    function _baseSymbol() internal view returns (string memory) {
+        return string.concat(ERC20(asset()).symbol(), "-", addressToString(validator()));
+    }
+
     function _adapter() internal view returns (Adapter) {
         return Adapter(_registry().adapter(asset()));
     }
@@ -218,21 +224,4 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
     function _withdraw(address validator, uint256 unlockID) internal returns (uint256 withdrawAmount) {
         withdrawAmount = abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().withdraw, (validator, unlockID))), (uint256));
     }
-}
-
-error StaticCallFailed(address to, bytes data, string message);
-
-function _staticcall(address target, bytes memory data) view returns (bytes memory) {
-    // solhint-disable-next-line avoid-low-level-calls
-    (bool success, bytes memory returnData) = address(target).staticcall(data);
-
-    if (!success) {
-        if (returnData.length < 68) revert StaticCallFailed(address(target), data, "");
-        assembly {
-            returnData := add(returnData, 0x04)
-        }
-        revert StaticCallFailed(address(target), data, abi.decode(returnData, (string)));
-    }
-
-    return returnData;
 }

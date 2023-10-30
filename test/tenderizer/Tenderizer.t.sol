@@ -18,11 +18,12 @@ import { IERC20, IERC20Metadata } from "core/interfaces/IERC20.sol";
 import { Adapter, TenderizerHarness } from "test/tenderizer/Tenderizer.harness.sol";
 import { AdapterDelegateCall } from "core/adapters/Adapter.sol";
 import { TenderizerEvents } from "core/tenderizer/TenderizerBase.sol";
-import { StaticCallFailed } from "core/tenderizer/Tenderizer.sol";
+import { StaticCallFailed } from "core/utils/StaticCall.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 import { Unlocks } from "core/unlocks/Unlocks.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { ClonesWithImmutableArgs } from "clones/ClonesWithImmutableArgs.sol";
+import { addressToString } from "core/utils/Utils.sol";
 
 contract TenderizerSetup is Test, TestHelpers {
     using ClonesWithImmutableArgs for address;
@@ -65,12 +66,12 @@ contract TenderizerSetup is Test, TestHelpers {
 contract TenderizerTest is TenderizerSetup, TenderizerEvents {
     function test_Name() public {
         vm.expectCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()));
-        assertEq(tenderizer.name(), string(abi.encodePacked("tender", symbol, " ", validator)), "invalid name");
+        assertEq(tenderizer.name(), string.concat("tender ", symbol, "-", addressToString(validator)), "invalid name");
     }
 
     function test_Symbol() public {
         vm.expectCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()));
-        assertEq(tenderizer.symbol(), string(abi.encodePacked("t", symbol, "_", validator)), "invalid symbol");
+        assertEq(tenderizer.symbol(), string.concat("t", symbol, "-", addressToString(validator)), "invalid name");
     }
 
     function test_InitialVaules() public {

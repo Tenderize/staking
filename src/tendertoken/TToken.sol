@@ -230,7 +230,8 @@ abstract contract TToken is TTokenStorage, IERC20 {
     function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
         return keccak256(
             abi.encode(
-                keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)"),
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes(TToken(address(this)).name())),
                 keccak256("1"),
                 block.chainid,
                 address(this)
