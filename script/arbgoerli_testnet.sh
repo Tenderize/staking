@@ -11,7 +11,7 @@ source .env
 export REGISTRY=0x8A89ee359EF0C92e3A8c3af11d1D675d3DF16B2f
 export FACTORY=0x3cB1E8d050E126bBE05782c7206Cf53856FDaA77
 
-forge script script/Tenderize_Deploy.s.sol:Tenderize_Deploy --rpc-url ${ARBITRUM_GOERLI_RPC} --broadcast --private-key $PRIVATE_KEY -vvvv
+# forge script script/Tenderize_Deploy.s.sol:Tenderize_Deploy --rpc-url ${ARBITRUM_GOERLI_RPC} --broadcast --private-key $PRIVATE_KEY -vvvv
 
 
 # Deploy Livepeer
@@ -42,7 +42,3 @@ export TOTAL_SUPPLY="10000000000000000000000000000"
 export ID=2
 forge script script/XYZ_Deploy.s.sol:XYZ_Deploy --rpc-url ${ARBITRUM_GOERLI_RPC} --broadcast --private-key $PRIVATE_KEY -vvvv
 
-
-read -r -d '' _ </dev/tty
-echo "Closing Down Anvil"
-pkill -9 anvil

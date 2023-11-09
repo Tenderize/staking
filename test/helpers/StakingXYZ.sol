@@ -10,6 +10,7 @@
 // Copyright (c) Tenderize Labs Ltd
 
 import { ERC20 } from "solmate/tokens/ERC20.sol";
+import { MockERC20 } from "solmate/test/utils/mocks/MockERC20.sol";
 
 pragma solidity >=0.8.19;
 
@@ -17,7 +18,7 @@ contract StakingXYZ {
     address immutable token;
     uint256 public nextRewardTimeStamp;
 
-    uint256 public immutable APR; // Represents 20% APR
+    uint256 public immutable APR;
     uint256 public constant APR_PRECISION = 1e6;
     uint256 public constant SECONDS_IN_A_YEAR = 31_536_000;
 
@@ -42,6 +43,9 @@ contract StakingXYZ {
     function stake(uint256 amount) external {
         require(amount > 0, "amount must be greater than 0");
         ERC20(token).transferFrom(msg.sender, address(this), amount);
+        if (staked[msg.sender] == 0) {
+            lastClaimed[msg.sender] = block.timestamp;
+        }
         staked[msg.sender] = staked[msg.sender] + amount;
     }
 
@@ -66,7 +70,10 @@ contract StakingXYZ {
         uint256 extraAPR = block.number % APR;
         uint256 reward = (staked[msg.sender] * (APR + extraAPR) * timeDiff) / SECONDS_IN_A_YEAR / APR_PRECISION;
 
-        staked[msg.sender] = staked[msg.sender] + reward;
-        lastClaimed[msg.sender] = block.timestamp;
+        if (reward > 0) {
+            staked[msg.sender] = staked[msg.sender] + reward;
+            lastClaimed[msg.sender] = block.timestamp;
+            MockERC20(token).mint(address(this), reward);
+        }
     }
 }
