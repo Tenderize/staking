@@ -159,18 +159,7 @@ contract GraphAdapter is Adapter {
         // Last epoch amount should be synced with Delegation.tokensLocked
         if ($.currentEpoch > 0) $.epochs[$.currentEpoch - 1].amount = delegation.tokensLocked;
 
-        if (staked < oldStake) {
-            // handle a potential slash
-            // A slash needs to be distributed accross 2 parts
-            // - Stake still to unlock (current Unlocks epoch)
-            // - Current Staked amount (total supply)
-            uint256 slash = oldStake - staked;
-
-            // Slash for the current epoch slashCurrent is calculated as
-            // slashCurrent = (slash - slashLast) * currentEpochAmount / ( currentEpochAmount + currentStake)
-            uint256 slashCurrent = slash * currentEpoch.amount / oldStake;
-            currentEpoch.amount -= slashCurrent;
-        } else if (staked > oldStake) {
+        if (staked > oldStake) {
             // handle rewards
             // To reduce long waiting periods we want to still reward users
             // for which their stake is still to be unlocked
@@ -178,6 +167,8 @@ contract GraphAdapter is Adapter {
             // We do this by adding the rewards to the current epoch
             uint256 currentEpochAmount = (staked - oldStake) * currentEpoch.amount / oldStake;
             currentEpoch.amount += currentEpochAmount;
+        } else {
+            return newStake;
         }
 
         $.epochs[$.currentEpoch] = currentEpoch;
