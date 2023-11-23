@@ -59,13 +59,13 @@ library Base64 {
                 let input := mload(dataPtr)
 
                 // write 4 characters
-                mstore8(resultPtr, mload(add(tablePtr, and(shr(18, input), 0x3F))))
+                mstore(resultPtr, shl(248, mload(add(tablePtr, and(shr(18, input), 0x3F)))))
                 resultPtr := add(resultPtr, 1)
-                mstore8(resultPtr, mload(add(tablePtr, and(shr(12, input), 0x3F))))
+                mstore(resultPtr, shl(248, mload(add(tablePtr, and(shr(12, input), 0x3F)))))
                 resultPtr := add(resultPtr, 1)
-                mstore8(resultPtr, mload(add(tablePtr, and(shr(6, input), 0x3F))))
+                mstore(resultPtr, shl(248, mload(add(tablePtr, and(shr(6, input), 0x3F)))))
                 resultPtr := add(resultPtr, 1)
-                mstore8(resultPtr, mload(add(tablePtr, and(input, 0x3F))))
+                mstore(resultPtr, shl(248, mload(add(tablePtr, and(input, 0x3F)))))
                 resultPtr := add(resultPtr, 1)
             }
 
