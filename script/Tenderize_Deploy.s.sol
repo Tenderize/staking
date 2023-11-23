@@ -25,7 +25,7 @@ contract Tenderize_Deploy is Script {
     // Contracts are deployed deterministically.
     // e.g. `foo = new Foo{salt: salt}(constructorArgs)`
     // The presence of the salt argument tells forge to use https://github.com/Arachnid/deterministic-deployment-proxy
-    bytes32 private constant salt = 0x0;
+    bytes32 private constant salt = bytes32(uint256(1));
 
     function run() public {
         string memory json_output;

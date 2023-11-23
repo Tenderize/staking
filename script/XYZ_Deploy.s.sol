@@ -20,7 +20,7 @@ import { Registry } from "core/registry/Registry.sol";
 import { Factory } from "core/factory/Factory.sol";
 
 contract XYZ_Deploy is Script {
-    bytes32 private constant salt = 0x0;
+    bytes32 private constant salt = bytes32(uint256(1));
 
     function run() public {
         address registry = vm.envAddress("REGISTRY");

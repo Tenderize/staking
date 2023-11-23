@@ -22,7 +22,7 @@ import { TokenFaucet } from "../test/helpers/Faucet.sol";
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 
 contract XYZ_Faucet is Script {
-    bytes32 private constant salt = 0x0;
+    bytes32 private constant salt = bytes32(uint256(1));
 
     function run() public {
         uint256 privKey = vm.envUint("PRIVATE_KEY");

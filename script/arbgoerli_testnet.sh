@@ -8,8 +8,8 @@ curl -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","id":6
 source .env
 
 # Deterministic
-export REGISTRY=0x8A89ee359EF0C92e3A8c3af11d1D675d3DF16B2f
-export FACTORY=0x3cB1E8d050E126bBE05782c7206Cf53856FDaA77
+export REGISTRY=0x6232894e592F104FB561c1Fb59a52ea01ee7D867
+export FACTORY=0x62536191D4EB10D4CA5909D60232593A1b40BE10
 
 # forge script script/Tenderize_Deploy.s.sol:Tenderize_Deploy --rpc-url ${ARBITRUM_GOERLI_RPC} --broadcast --private-key $PRIVATE_KEY -vvvv
 
