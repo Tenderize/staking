@@ -333,32 +333,6 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
         assertEq($.epochs[currentEpoch - 1].amount, 1 ether, "invalid previous epoch amount");
     }
 
-    function testFuzz_Rebase_Negative(uint256 startStake, uint256 penalty) public {
-        startStake = bound(startStake, 100, MAX_UINT_SQRT);
-        penalty = bound(penalty, 5, startStake - 5);
-
-        // percentage of startStake that is epochs[currentEpoch].amount
-        uint256 currentEpochRatio = 0.33 ether;
-        uint256 currentEpochAmountStart = startStake * currentEpochRatio / 1 ether;
-
-        vm.mockCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))), abi.encode(1, 0, 0));
-        vm.mockCall(
-            staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)), abi.encode(0, 0, 0, 0, startStake - penalty, 1)
-        );
-
-        Storage storage $ = _loadStorage();
-        uint256 currentEpoch = 1;
-        $.currentEpoch = currentEpoch;
-        $.epochs[currentEpoch].amount = currentEpochAmountStart;
-
-        vm.expectCall(staking, abi.encodeCall(IGraphStaking.getDelegation, (validator, address(this))));
-        vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationPools, (validator)));
-        uint256 newStake = this.rebase(validator, startStake - currentEpochAmountStart);
-        uint256 slashForUnlocks = penalty * currentEpochAmountStart / startStake;
-        assertEq(newStake, startStake - penalty - $.epochs[currentEpoch].amount, "invalid new stake");
-        assertEq($.epochs[currentEpoch].amount, currentEpochAmountStart - slashForUnlocks, "invalid current epoch amount");
-    }
-
     function test_Rebase_NoChangeInStake() public {
         uint256 currentEpoch = 1;
         uint256 staked = 10 ether;

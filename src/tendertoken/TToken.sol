@@ -74,8 +74,8 @@ abstract contract TToken is TTokenStorage, IERC20 {
     function convertToShares(uint256 assets) public view returns (uint256) {
         Storage storage $ = _loadStorage();
 
-        uint256 _totalShares = $._totalShares; // Saves an extra SLOAD if slot is non-zero
-        return _totalShares == 0 ? assets : assets.mulDivDown(_totalShares, $._totalSupply);
+        uint256 _totalSupply = $._totalSupply; // Saves an extra SLOAD if slot is non-zero
+        return _totalSupply == 0 ? assets : assets.mulDivDown($._totalShares, _totalSupply);
     }
 
     /**
