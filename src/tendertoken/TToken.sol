@@ -246,7 +246,7 @@ abstract contract TToken is TTokenStorage, IERC20 {
 
     function _mint(address to, uint256 assets) internal virtual returns (uint256 shares) {
         if (assets == 0) revert ZeroAmount();
-        if ((shares = convertToShares(assets)) == 0) return 0;
+        if ((shares = convertToShares(assets)) == 0) return shares;
 
         Storage storage $ = _loadStorage();
         $._totalSupply += assets;
@@ -263,7 +263,10 @@ abstract contract TToken is TTokenStorage, IERC20 {
         uint256 shares;
 
         if (assets == 0) revert ZeroAmount();
-        if ((shares = convertToShares(assets)) == 0) return;
+        // Revert when calculated shares equals 0
+        // Require to try and burn at least one share if the
+        // amount of assets being burnt isn't at least one share.
+        if ((shares = convertToShares(assets)) == 0) revert ZeroAmount();
 
         Storage storage $ = _loadStorage();
         $._totalSupply -= assets;
