@@ -139,7 +139,9 @@ contract GraphAdapter is Adapter {
         Epoch memory currentEpoch = $.epochs[$.currentEpoch];
         IGraphStaking.DelegationPool memory delPool = GRAPH.delegationPools(validator);
 
-        uint256 _tokensPerShare = delPool.tokens * 1 ether / delPool.shares;
+        uint256 _tokensPerShare = delPool.shares != 0 ? delPool.tokens * 1 ether / delPool.shares : 1 ether;
+        newStake = currentStake;
+
         // Account for rounding error of -1 or +1
         // This occurs due to a slight change in ratio because of new delegations or withdrawals,
         // rather than an effective reward or loss
@@ -147,7 +149,7 @@ contract GraphAdapter is Adapter {
             (_tokensPerShare >= $.tokensPerShare && _tokensPerShare - $.tokensPerShare <= 1)
                 || (_tokensPerShare < $.tokensPerShare && $.tokensPerShare - _tokensPerShare <= 1)
         ) {
-            return currentStake;
+            return newStake;
         }
 
         IGraphStaking.Delegation memory delegation = GRAPH.getDelegation(validator, address(this));
@@ -172,7 +174,7 @@ contract GraphAdapter is Adapter {
         }
 
         $.epochs[$.currentEpoch] = currentEpoch;
-        $.tokensPerShare = _tokensPerShare == 0 ? 1 ether : _tokensPerShare;
+        $.tokensPerShare = _tokensPerShare;
 
         // slash/rewards is already accounted for in $.epochs[$.currentEpoch].amount
         newStake = staked - currentEpoch.amount;
