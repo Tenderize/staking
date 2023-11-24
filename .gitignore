@@ -11,6 +11,7 @@
 
 # files
 *.env
+*.env.*
 *.html
 *.log
 .DS_Store

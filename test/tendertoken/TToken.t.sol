@@ -47,22 +47,21 @@ contract TTokenTest is TokenSetup {
 
         Storage storage $ = _loadStorage();
 
-        // zero shares
-        $._totalShares = 0;
-        $._totalSupply = totalSupply;
-        assertEq(convertToShares(amount), amount, "invalid share conversion - no shares");
-        assertEq(convertToAssets(amount), amount, "invalid asset conversion - no shares");
-
         // non-zero supply and shares
         $._totalShares = totalShares;
+        $._totalSupply = totalSupply;
         assertEq(convertToShares(amount), amount * totalShares / totalSupply, "invalid share conversion");
         assertEq(convertToAssets(amount), amount * totalSupply / totalShares, "invalid asset conversion");
 
         // zero supply
         $._totalSupply = 0;
-        assertEq(convertToAssets(amount), 0, "invalid asset conversion - no supply");
-        vm.expectRevert();
-        convertToShares(amount);
+        assertEq(convertToShares(amount), amount, "invalid share conversion - no shares");
+        assertEq(convertToAssets(amount), 0, "invalid asset conversion - no shares/supply");
+
+        // zero shares
+        $._totalShares = 0;
+        assertEq(convertToShares(amount), amount, "invalid share conversion - no shares");
+        assertEq(convertToAssets(amount), amount, "invalid asset conversion - no shares");
     }
 
     function testFuzz_BalanceOf(uint256 shares, uint256 totalShares, uint256 totalSupply) public {
@@ -356,8 +355,7 @@ contract TTokenTest is TokenSetup {
         Storage storage $ = _loadStorage();
         $._totalSupply = 4 ether;
 
+        vm.expectRevert(TToken.ZeroAmount.selector);
         _burn(account2, 1);
-
-        assertEq(balanceOf(account2), 2 ether);
     }
 }

@@ -179,7 +179,11 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
     }
 
     function previewDeposit(uint256 assets) external view returns (uint256) {
-        return abi.decode(_staticcall(address(this), abi.encodeCall(this._previewDeposit, (assets))), (uint256));
+        uint256 out = abi.decode(_staticcall(address(this), abi.encodeCall(this._previewDeposit, (assets))), (uint256));
+        Storage storage $ = _loadStorage();
+        uint256 _totalShares = $._totalShares; // Saves an extra SLOAD if slot is non-zero
+        uint256 shares = convertToShares(out);
+        return _totalShares == 0 ? out : shares * $._totalSupply / _totalShares;
     }
 
     function previewWithdraw(uint256 unlockID) external view returns (uint256) {

@@ -28,3 +28,7 @@ wrap_comments = true
 fail_on_revert = false
 runs = 256
 depth = 100
+
+[rpc_endpoints]
+# Uncomment to enable the RPC server
+arbitrum_goerli = "${ARBITRUM_GOERLI_RPC}"
