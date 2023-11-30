@@ -92,6 +92,14 @@ contract GraphAdapter is Adapter {
         }
     }
 
+    function unlockTime() external view override returns (uint256) {
+        return GRAPH.thawingPeriod();
+    }
+
+    function currentTime() external view override returns (uint256) {
+        return block.number;
+    }
+
     function stake(address validator, uint256 amount) external override {
         GRT.safeApprove(address(GRAPH), amount);
         GRAPH.delegate(validator, amount);

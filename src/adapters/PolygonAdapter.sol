@@ -77,6 +77,14 @@ contract PolygonAdapter is Adapter {
         return u.withdrawEpoch + WITHDRAW_DELAY;
     }
 
+    function unlockTime() external pure override returns (uint256) {
+        return WITHDRAW_DELAY;
+    }
+
+    function currentTime() external view override returns (uint256) {
+        return MATIC_STAKE_MANAGER.epoch();
+    }
+
     function stake(address validator, uint256 amount) external override {
         // approve tokens
         POLY.safeApprove(address(MATIC_STAKE_MANAGER), amount);

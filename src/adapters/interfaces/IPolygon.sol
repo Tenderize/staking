@@ -12,6 +12,7 @@ struct DelegatorUnbond {
 interface IMaticStakeManager {
     function getValidatorId(address user) external view returns (uint256);
     function getValidatorContract(uint256 validatorId) external view returns (address);
+    function epoch() external view returns (uint256);
 }
 
 interface IValidatorShares {
