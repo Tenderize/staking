@@ -12,6 +12,7 @@
 import { ERC721 } from "solmate/tokens/ERC721.sol";
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 
+import { Adapter } from "core/adapters/Adapter.sol";
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { Renderer } from "core/unlocks/Renderer.sol";
@@ -27,6 +28,7 @@ pragma solidity >=0.8.19;
 struct Metadata {
     uint256 amount;
     uint256 maturity;
+    uint256 progress;
     uint256 unlockId;
     string symbol;
     string name;
@@ -104,9 +106,14 @@ contract Unlocks is ERC721 {
         (address tenderizer, uint256 unlockId) = _decodeTokenId(tokenId);
         address asset = Tenderizer(tenderizer).asset();
 
+        Adapter adapter = Tenderizer(tenderizer).adapter();
+        uint256 maturity = Tenderizer(tenderizer).unlockMaturity(unlockId);
+        uint256 currentTime = adapter.currentTime();
+
         return Metadata({
             amount: Tenderizer(tenderizer).previewWithdraw(unlockId),
-            maturity: Tenderizer(tenderizer).unlockMaturity(unlockId),
+            maturity: maturity,
+            progress: maturity > currentTime ? 100 - (maturity - currentTime) * 100 / adapter.unlockTime() : 100,
             unlockId: unlockId,
             symbol: ERC20(asset).symbol(),
             name: ERC20(asset).name(),
