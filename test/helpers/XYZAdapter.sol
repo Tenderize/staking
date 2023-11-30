@@ -19,8 +19,8 @@ import { StakingXYZ } from "./StakingXYZ.sol";
 pragma solidity >=0.8.19;
 
 contract XYZAdapter is Adapter {
-    address immutable STAKINGXYZ;
-    address immutable XYZ_TOKEN;
+    address private immutable STAKINGXYZ;
+    address private immutable XYZ_TOKEN;
 
     constructor(address _stakingXYZ, address _xyz) {
         STAKINGXYZ = _stakingXYZ;
@@ -41,6 +41,14 @@ contract XYZAdapter is Adapter {
 
     function unlockMaturity(uint256 unlockID) external view returns (uint256 maturity) {
         (, maturity) = StakingXYZ(STAKINGXYZ).unlocks(address(this), unlockID);
+    }
+
+    function unlockTime() external view returns (uint256) {
+        return StakingXYZ(STAKINGXYZ).unlockTime();
+    }
+
+    function currentTime() external view returns (uint256) {
+        return block.timestamp;
     }
 
     function stake(address, uint256 amount) external {

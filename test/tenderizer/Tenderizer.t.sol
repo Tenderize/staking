@@ -79,7 +79,7 @@ contract TenderizerTest is TenderizerSetup, TenderizerEvents {
         assertEq(address(tenderizer.validator()), validator, "invalid validator");
         assertEq(address(tenderizer.exposed_registry()), registry, "invalid registry");
         assertEq(address(tenderizer.exposed_unlocks()), unlocks, "invalid unlocks");
-        assertEq(address(tenderizer.exposed_adapter()), adapter, "invalid adapter");
+        assertEq(address(tenderizer.adapter()), adapter, "invalid adapter");
     }
 
     function test_PreviewDeposit() public {

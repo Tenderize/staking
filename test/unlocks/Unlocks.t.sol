@@ -14,6 +14,7 @@ pragma solidity >=0.8.19;
 import { Test, stdError } from "forge-std/Test.sol";
 
 import { IERC20Metadata } from "core/interfaces/IERC20.sol";
+import { Adapter } from "core/adapters/Adapter.sol";
 import { Renderer } from "core/unlocks/Renderer.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
@@ -29,9 +30,11 @@ contract UnlockTest is Test {
     address private renderer = vm.addr(4);
     address private impostor = vm.addr(5);
     address private validator = vm.addr(6);
+    address private adapter = vm.addr(7);
 
     function setUp() public {
         unlocks = new Unlocks(registry, renderer);
+        vm.etch(adapter, bytes("code"));
     }
 
     function test_Metadata() public {
@@ -142,8 +145,12 @@ contract UnlockTest is Test {
         vm.mockCall(registry, abi.encodeCall(Registry.isTenderizer, (tenderizer)), abi.encode(true));
         uint256 tokenId = unlocks.createUnlock(msg.sender, lockId);
 
+        vm.mockCall(tenderizer, abi.encodeCall(TenderizerImmutableArgs.adapter, ()), abi.encode((adapter)));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.currentTime, ()), abi.encode((block.number + 50)));
+        vm.mockCall(adapter, abi.encodeCall(Adapter.unlockTime, ()), abi.encode((100)));
+
         vm.mockCall(tenderizer, abi.encodeCall(Tenderizer.previewWithdraw, (lockId)), abi.encode((1 ether)));
-        vm.mockCall(tenderizer, abi.encodeCall(Tenderizer.unlockMaturity, (lockId)), abi.encode((block.timestamp)));
+        vm.mockCall(tenderizer, abi.encodeCall(Tenderizer.unlockMaturity, (lockId)), abi.encode((block.number + 100)));
         vm.mockCall(tenderizer, abi.encodeCall(TenderizerImmutableArgs.validator, ()), abi.encode((validator)));
         vm.mockCall(tenderizer, abi.encodeCall(TenderizerImmutableArgs.asset, ()), abi.encode((asset)));
         vm.mockCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()), abi.encode(("TEST")));
@@ -154,7 +161,8 @@ contract UnlockTest is Test {
 
         assertEq(d.unlockId, lockId);
         assertEq(d.amount, 1 ether);
-        assertEq(d.maturity, block.timestamp);
+        assertEq(d.maturity, block.number + 100);
+        assertEq(d.progress, 50);
         assertEq(d.symbol, "TEST");
         assertEq(d.name, "Test Token");
         assertEq(d.validator, validator);

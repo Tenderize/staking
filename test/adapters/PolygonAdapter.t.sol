@@ -9,6 +9,9 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
+// solhint-disable state-visibility
+// solhint-disable func-name-mixedcase
+
 pragma solidity >=0.8.19;
 
 import { Test, stdError } from "forge-std/Test.sol";

@@ -9,6 +9,8 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
+// solhint-disable no-console
+
 pragma solidity >=0.8.19;
 
 import { Script, console2 } from "forge-std/Script.sol";

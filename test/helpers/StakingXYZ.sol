@@ -15,14 +15,14 @@ import { MockERC20 } from "solmate/test/utils/mocks/MockERC20.sol";
 pragma solidity >=0.8.19;
 
 contract StakingXYZ {
-    address immutable token;
+    address private immutable token;
     uint256 public nextRewardTimeStamp;
 
     uint256 public immutable APR;
     uint256 public constant APR_PRECISION = 1e6;
     uint256 public constant SECONDS_IN_A_YEAR = 31_536_000;
 
-    uint256 immutable unlockTime;
+    uint256 public immutable unlockTime;
 
     struct Unlock {
         uint256 amount;

@@ -79,6 +79,14 @@ contract LivepeerAdapter is Adapter {
         }
     }
 
+    function unlockTime() external view override returns (uint256) {
+        return LIVEPEER_ROUNDS.roundLength() * LIVEPEER.unbondingPeriod();
+    }
+
+    function currentTime() external view override returns (uint256) {
+        return block.number;
+    }
+
     function stake(address validator, uint256 amount) public {
         LPT.approve(address(LIVEPEER), amount);
         LIVEPEER.bond(amount, validator);

@@ -20,6 +20,10 @@ interface Adapter is IERC165 {
 
     function unlockMaturity(uint256 unlockID) external view returns (uint256);
 
+    function unlockTime() external view returns (uint256);
+
+    function currentTime() external view returns (uint256);
+
     function stake(address validator, uint256 amount) external;
 
     function unstake(address validator, uint256 amount) external returns (uint256 unlockID);

@@ -2,6 +2,8 @@
 
 // SPDX-License-Identifier: MIT
 
+// solhint-disable func-name-mixedcase
+
 pragma solidity >=0.8.19;
 
 struct DelegatorUnbond {
@@ -12,6 +14,7 @@ struct DelegatorUnbond {
 interface IMaticStakeManager {
     function getValidatorId(address user) external view returns (uint256);
     function getValidatorContract(uint256 validatorId) external view returns (address);
+    function epoch() external view returns (uint256);
 }
 
 interface IValidatorShares {

@@ -46,6 +46,8 @@ interface ILivepeerBondingManager {
         returns (uint256 amount, uint256 withdrawRound);
 
     function isRegisteredTranscoder(address _transcoder) external view returns (bool);
+
+    function unbondingPeriod() external view returns (uint256);
 }
 
 interface ILivepeerRoundsManager {
