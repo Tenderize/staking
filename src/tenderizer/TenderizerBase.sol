@@ -14,6 +14,7 @@ pragma solidity >=0.8.19;
 import { Clone } from "clones/Clone.sol";
 import { Unlocks } from "core/unlocks/Unlocks.sol";
 import { Registry } from "core/registry/Registry.sol";
+import { Adapter } from "core/adapters/Adapter.sol";
 
 /// @title TenderizerImmutableArgs
 /// @notice Immutable arguments for Tenderizer
@@ -44,6 +45,10 @@ abstract contract TenderizerImmutableArgs is Clone {
      */
     function validator() public pure returns (address) {
         return _getArgAddress(20); // start: 20 end: 39
+    }
+
+    function adapter() public view returns (Adapter) {
+        return Adapter(_registry().adapter(asset()));
     }
 
     function _registry() internal view returns (Registry) {

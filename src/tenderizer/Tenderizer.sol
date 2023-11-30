@@ -174,10 +174,6 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
         return string.concat(ERC20(asset()).symbol(), "-", addressToString(validator()));
     }
 
-    function _adapter() internal view returns (Adapter) {
-        return Adapter(_registry().adapter(asset()));
-    }
-
     function previewDeposit(uint256 assets) external view returns (uint256) {
         uint256 out = abi.decode(_staticcall(address(this), abi.encodeCall(this._previewDeposit, (assets))), (uint256));
         Storage storage $ = _loadStorage();
@@ -201,31 +197,31 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
     // using a `staticcall` to `this`.
     // This is a hacky workaround while better solidity features are being developed.
     function _previewDeposit(uint256 assets) public returns (uint256) {
-        return abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().previewDeposit, (assets))), (uint256));
+        return abi.decode(adapter()._delegatecall(abi.encodeCall(adapter().previewDeposit, (assets))), (uint256));
     }
 
     function _previewWithdraw(uint256 unlockID) public returns (uint256) {
-        return abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().previewWithdraw, (unlockID))), (uint256));
+        return abi.decode(adapter()._delegatecall(abi.encodeCall(adapter().previewWithdraw, (unlockID))), (uint256));
     }
 
     function _unlockMaturity(uint256 unlockID) public returns (uint256) {
-        return abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().unlockMaturity, (unlockID))), (uint256));
+        return abi.decode(adapter()._delegatecall(abi.encodeCall(adapter().unlockMaturity, (unlockID))), (uint256));
     }
     // ===============================================================================================================
 
     function _rebase(address validator, uint256 currentStake) internal returns (uint256 newStake) {
-        newStake = abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().rebase, (validator, currentStake))), (uint256));
+        newStake = abi.decode(adapter()._delegatecall(abi.encodeCall(adapter().rebase, (validator, currentStake))), (uint256));
     }
 
     function _stake(address validator, uint256 amount) internal {
-        _adapter()._delegatecall(abi.encodeCall(_adapter().stake, (validator, amount)));
+        adapter()._delegatecall(abi.encodeCall(adapter().stake, (validator, amount)));
     }
 
     function _unstake(address validator, uint256 amount) internal returns (uint256 unlockID) {
-        unlockID = abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().unstake, (validator, amount))), (uint256));
+        unlockID = abi.decode(adapter()._delegatecall(abi.encodeCall(adapter().unstake, (validator, amount))), (uint256));
     }
 
     function _withdraw(address validator, uint256 unlockID) internal returns (uint256 withdrawAmount) {
-        withdrawAmount = abi.decode(_adapter()._delegatecall(abi.encodeCall(_adapter().withdraw, (validator, unlockID))), (uint256));
+        withdrawAmount = abi.decode(adapter()._delegatecall(abi.encodeCall(adapter().withdraw, (validator, unlockID))), (uint256));
     }
 }

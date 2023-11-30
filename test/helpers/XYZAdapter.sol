@@ -43,6 +43,14 @@ contract XYZAdapter is Adapter {
         (, maturity) = StakingXYZ(STAKINGXYZ).unlocks(address(this), unlockID);
     }
 
+    function unlockTime() external view returns (uint256) {
+        return StakingXYZ(STAKINGXYZ).unlockTime();
+    }
+
+    function currentTime() external view returns (uint256) {
+        return block.timestamp;
+    }
+
     function stake(address, uint256 amount) external {
         ERC20(XYZ_TOKEN).approve(STAKINGXYZ, amount);
         StakingXYZ(STAKINGXYZ).stake(amount);

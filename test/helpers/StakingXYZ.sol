@@ -22,7 +22,7 @@ contract StakingXYZ {
     uint256 public constant APR_PRECISION = 1e6;
     uint256 public constant SECONDS_IN_A_YEAR = 31_536_000;
 
-    uint256 immutable unlockTime;
+    uint256 public immutable unlockTime;
 
     struct Unlock {
         uint256 amount;

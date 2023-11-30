@@ -20,10 +20,6 @@ import { Registry } from "core/registry/Registry.sol";
 contract TenderizerHarness is Tenderizer {
     constructor(address _registry, address _unlocks) Tenderizer(_registry, _unlocks) { }
 
-    function exposed_adapter() public view returns (Adapter) {
-        return _adapter();
-    }
-
     function exposed_registry() public view returns (Registry) {
         return _registry();
     }
