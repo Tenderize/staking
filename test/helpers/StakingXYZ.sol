@@ -15,7 +15,7 @@ import { MockERC20 } from "solmate/test/utils/mocks/MockERC20.sol";
 pragma solidity >=0.8.19;
 
 contract StakingXYZ {
-    address immutable token;
+    address private immutable token;
     uint256 public nextRewardTimeStamp;
 
     uint256 public immutable APR;

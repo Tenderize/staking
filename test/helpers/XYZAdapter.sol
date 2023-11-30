@@ -19,8 +19,8 @@ import { StakingXYZ } from "./StakingXYZ.sol";
 pragma solidity >=0.8.19;
 
 contract XYZAdapter is Adapter {
-    address immutable STAKINGXYZ;
-    address immutable XYZ_TOKEN;
+    address private immutable STAKINGXYZ;
+    address private immutable XYZ_TOKEN;
 
     constructor(address _stakingXYZ, address _xyz) {
         STAKINGXYZ = _stakingXYZ;

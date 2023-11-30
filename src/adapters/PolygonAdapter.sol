@@ -136,6 +136,7 @@ contract PolygonAdapter is Adapter {
 
         // This call will revert if there are no rewards
         // In which case we don't throw, just return the current staked amount.
+        // solhint-disable-next-line no-empty-blocks
         try validatorShares.restake() { }
         catch {
             return currentStake;

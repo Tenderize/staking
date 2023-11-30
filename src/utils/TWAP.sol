@@ -11,10 +11,10 @@
 
 pragma solidity >=0.8.19;
 
-import "@uniswap/v3-core/interfaces/IUniswapV3Pool.sol";
-import "@uniswap/v3-core/libraries/TickMath.sol";
-import "@uniswap/v3-core/libraries/FixedPoint96.sol";
-import "@uniswap/v3-core/libraries/FullMath.sol";
+import { IUniswapV3Pool } from "@uniswap/v3-core/interfaces/IUniswapV3Pool.sol";
+import { TickMath } from "@uniswap/v3-core/libraries/TickMath.sol";
+import { FixedPoint96 } from "@uniswap/v3-core/libraries/FixedPoint96.sol";
+import { FullMath } from "@uniswap/v3-core/libraries/FullMath.sol";
 
 library TWAP {
     function getSqrtTwapX96(address uniswapV3Pool, uint32 twapInterval) internal view returns (uint160 sqrtPriceX96) {

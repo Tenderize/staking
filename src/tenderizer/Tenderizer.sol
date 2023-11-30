@@ -41,6 +41,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
     uint256 private constant MAX_FEE = 0.005e6; // 0.5%
     uint256 private constant FEE_BASE = 1e6;
 
+    // solhint-disable-next-line no-empty-blocks
     constructor(address _registry, address _unlocks) TenderizerImmutableArgs(_registry, _unlocks) { }
 
     // @inheritdoc TToken

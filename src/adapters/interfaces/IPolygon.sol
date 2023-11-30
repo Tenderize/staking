@@ -2,6 +2,8 @@
 
 // SPDX-License-Identifier: MIT
 
+// solhint-disable func-name-mixedcase
+
 pragma solidity >=0.8.19;
 
 struct DelegatorUnbond {

@@ -16,6 +16,7 @@ import { Unlocks } from "core/unlocks/Unlocks.sol";
 import { Registry } from "core/registry/Registry.sol";
 
 // solhint-disable func-name-mixedcase
+// solhint-disable no-empty-blocks
 
 contract TenderizerHarness is Tenderizer {
     constructor(address _registry, address _unlocks) Tenderizer(_registry, _unlocks) { }
