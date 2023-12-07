@@ -43,6 +43,8 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
 
     // solhint-disable-next-line no-empty-blocks
     constructor(address _registry, address _unlocks) TenderizerImmutableArgs(_registry, _unlocks) { }
+    receive() external payable { }
+    fallback() external payable { }
 
     // @inheritdoc TToken
     function name() external view override returns (string memory) {

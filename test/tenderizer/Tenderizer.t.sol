@@ -58,7 +58,8 @@ contract TenderizerSetup is Test, TestHelpers {
         vm.mockCall(registry, abi.encodeCall(Registry.treasury, ()), abi.encode(treasury));
         vm.mockCall(asset, abi.encodeCall(IERC20Metadata.symbol, ()), abi.encode(symbol));
 
-        tenderizer = TenderizerHarness(address(new TenderizerHarness(registry, unlocks)).clone(abi.encodePacked(asset, validator)));
+        tenderizer =
+            TenderizerHarness(payable(address(new TenderizerHarness(registry, unlocks)).clone(abi.encodePacked(asset, validator))));
     }
 }
 
