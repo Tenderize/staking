@@ -148,21 +148,26 @@ contract GraphAdapter is Adapter {
 
     function rebase(address validator, uint256 currentStake) external override returns (uint256 newStake) {
         Storage storage $ = _loadStorage();
-        Epoch memory currentEpoch = $.epochs[$.currentEpoch];
+        uint256 currentEpochNum = $.currentEpoch;
+        Epoch memory currentEpoch = $.epochs[currentEpochNum];
         IGraphStaking.DelegationPool memory delPool = GRAPH_STAKING.delegationPools(validator);
 
+        uint256 oldTokensPerShare = $.tokensPerShare;
         uint256 _tokensPerShare = delPool.shares != 0 ? delPool.tokens * 1 ether / delPool.shares : 1 ether;
+
         newStake = currentStake;
 
         // Account for rounding error of -1 or +1
         // This occurs due to a slight change in ratio because of new delegations or withdrawals,
         // rather than an effective reward or loss
         if (
-            (_tokensPerShare >= $.tokensPerShare && _tokensPerShare - $.tokensPerShare <= 1)
-                || (_tokensPerShare < $.tokensPerShare && $.tokensPerShare - _tokensPerShare <= 1)
+            (_tokensPerShare >= oldTokensPerShare && _tokensPerShare - oldTokensPerShare <= 1)
+                || (_tokensPerShare < oldTokensPerShare && oldTokensPerShare - _tokensPerShare <= 1)
         ) {
             return newStake;
         }
+
+        $.tokensPerShare = _tokensPerShare;
 
         IGraphStaking.Delegation memory delegation = GRAPH_STAKING.getDelegation(validator, address(this));
         uint256 staked = delegation.shares * _tokensPerShare / 1 ether;
@@ -171,7 +176,7 @@ contract GraphAdapter is Adapter {
         uint256 oldStake = currentStake + currentEpoch.amount;
 
         // Last epoch amount should be synced with Delegation.tokensLocked
-        if ($.currentEpoch > 0) $.epochs[$.currentEpoch - 1].amount = delegation.tokensLocked;
+        if (currentEpochNum > 0) $.epochs[currentEpochNum - 1].amount = delegation.tokensLocked;
 
         if (staked > oldStake) {
             // handle rewards
@@ -179,16 +184,14 @@ contract GraphAdapter is Adapter {
             // for which their stake is still to be unlocked
             // because technically it is not unlocked from the Graph either
             // We do this by adding the rewards to the current epoch
-            uint256 currentEpochAmount = (staked - oldStake) * currentEpoch.amount / oldStake;
-            currentEpoch.amount += currentEpochAmount;
+            currentEpoch.amount += (staked - oldStake) * currentEpoch.amount / oldStake;
         } else {
             return newStake;
         }
 
-        $.epochs[$.currentEpoch] = currentEpoch;
-        $.tokensPerShare = _tokensPerShare;
+        $.epochs[currentEpochNum] = currentEpoch;
 
-        // slash/rewards is already accounted for in $.epochs[$.currentEpoch].amount
+        // rewards is already accounted for in $.epochs[$.currentEpoch].amount
         newStake = staked - currentEpoch.amount;
     }
 
