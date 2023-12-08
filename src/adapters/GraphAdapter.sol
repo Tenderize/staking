@@ -158,25 +158,10 @@ contract GraphAdapter is Adapter {
         Epoch memory currentEpoch = $.epochs[currentEpochNum];
         IGraphStaking.DelegationPool memory delPool = GRAPH_STAKING.delegationPools(validator);
 
-        uint256 oldTokensPerShare = $.tokensPerShare;
-        uint256 _tokensPerShare = delPool.shares != 0 ? delPool.tokens * 1 ether / delPool.shares : 1 ether;
-
         newStake = currentStake;
 
-        // Account for rounding error of -1 or +1
-        // This occurs due to a slight change in ratio because of new delegations or withdrawals,
-        // rather than an effective reward or loss
-        if (
-            (_tokensPerShare >= oldTokensPerShare && _tokensPerShare - oldTokensPerShare <= 1)
-                || (_tokensPerShare < oldTokensPerShare && oldTokensPerShare - _tokensPerShare <= 1)
-        ) {
-            return newStake;
-        }
-
-        $.tokensPerShare = _tokensPerShare;
-
         IGraphStaking.Delegation memory delegation = GRAPH_STAKING.getDelegation(validator, address(this));
-        uint256 staked = delegation.shares * _tokensPerShare / 1 ether;
+        uint256 staked = delegation.shares * delPool.tokens / delPool.shares;
 
         // account for stake still to unstake
         uint256 oldStake = currentStake + currentEpoch.amount;
@@ -191,11 +176,8 @@ contract GraphAdapter is Adapter {
             // because technically it is not unlocked from the Graph either
             // We do this by adding the rewards to the current epoch
             currentEpoch.amount += (staked - oldStake) * currentEpoch.amount / oldStake;
-        } else {
-            return newStake;
+            $.epochs[currentEpochNum].amount = currentEpoch.amount;
         }
-
-        $.epochs[currentEpochNum] = currentEpoch;
 
         // rewards is already accounted for in $.epochs[$.currentEpoch].amount
         newStake = staked - currentEpoch.amount;
@@ -228,7 +210,8 @@ contract GraphAdapter is Adapter {
             $.lastEpochUnlockedAt = block.number;
 
             // calculate shares to undelegate from The Graph
-            uint256 undelegationShares = currentEpochAmount * 1 ether / $.tokensPerShare;
+            IGraphStaking.DelegationPool memory delPool = GRAPH_STAKING.delegationPools(validator);
+            uint256 undelegationShares = currentEpochAmount * delPool.shares / delPool.tokens;
 
             // account for possible rounding error
             undelegationShares = del.shares < undelegationShares ? del.shares : undelegationShares;
