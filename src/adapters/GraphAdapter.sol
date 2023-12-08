@@ -17,15 +17,15 @@ import { Adapter } from "core/adapters/Adapter.sol";
 import { IGraphStaking, IEpochManager } from "core/adapters/interfaces/IGraph.sol";
 import { IERC165 } from "core/interfaces/IERC165.sol";
 
+IEpochManager constant GRAPH_EPOCHS = IEpochManager(0x5A843145c43d328B9bB7a4401d94918f131bB281);
+IGraphStaking constant GRAPH_STAKING = IGraphStaking(0x00669A4CF01450B64E8A2A20E9b1FCB71E61eF03);
+ERC20 constant GRT = ERC20(0x9623063377AD1B27544C965cCd7342f7EA7e88C7);
+uint256 constant MAX_PPM = 1e6;
+
 contract GraphAdapter is Adapter {
     using SafeTransferLib for ERC20;
 
-    IGraphStaking private constant GRAPH = IGraphStaking(0xF55041E37E12cD407ad00CE2910B8269B01263b9);
-    IEpochManager private constant GRAPH_EPOCHS = IEpochManager(0x03541c5cd35953CD447261122F93A5E7b812D697);
-    ERC20 private constant GRT = ERC20(0xc944E90C64B2c07662A292be6244BDf05Cda44a7);
-    uint256 private constant MAX_PPM = 1e6;
-
-    uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.graph.withdrawals.storage.location")) - 1;
+    uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.graph.adapter.storage.location")) - 1;
 
     error WithdrawPending();
 
@@ -62,7 +62,7 @@ contract GraphAdapter is Adapter {
     }
 
     function previewDeposit(uint256 assets) external view override returns (uint256) {
-        return assets - assets * GRAPH.delegationTaxPercentage() / MAX_PPM;
+        return assets - assets * GRAPH_STAKING.delegationTaxPercentage() / MAX_PPM;
     }
 
     function previewWithdraw(uint256 unlockID) external view override returns (uint256) {
@@ -75,7 +75,7 @@ contract GraphAdapter is Adapter {
     function unlockMaturity(uint256 unlockID) external view override returns (uint256) {
         Storage storage $ = _loadStorage();
         Unlock memory unlock = $.unlocks[unlockID];
-        uint256 THAWING_PERIOD = GRAPH.thawingPeriod();
+        uint256 THAWING_PERIOD = GRAPH_STAKING.thawingPeriod();
         // if userEpoch == currentEpoch, it is yet to unlock
         // => unlockBlock + thawingPeriod
         // if userEpoch == currentEpoch - 1, it is processing
@@ -93,16 +93,20 @@ contract GraphAdapter is Adapter {
     }
 
     function unlockTime() external view override returns (uint256) {
-        return GRAPH.thawingPeriod();
+        return GRAPH_STAKING.thawingPeriod();
     }
 
     function currentTime() external view override returns (uint256) {
         return block.number;
     }
 
+    function isValidator(address validator) public view override returns (bool) {
+        return GRAPH_STAKING.hasStake(validator);
+    }
+
     function stake(address validator, uint256 amount) external override {
-        GRT.safeApprove(address(GRAPH), amount);
-        GRAPH.delegate(validator, amount);
+        GRT.safeApprove(address(GRAPH_STAKING), amount);
+        GRAPH_STAKING.delegate(validator, amount);
     }
 
     function unstake(address validator, uint256 amount) external override returns (uint256 unlockID) {
@@ -145,7 +149,7 @@ contract GraphAdapter is Adapter {
     function rebase(address validator, uint256 currentStake) external override returns (uint256 newStake) {
         Storage storage $ = _loadStorage();
         Epoch memory currentEpoch = $.epochs[$.currentEpoch];
-        IGraphStaking.DelegationPool memory delPool = GRAPH.delegationPools(validator);
+        IGraphStaking.DelegationPool memory delPool = GRAPH_STAKING.delegationPools(validator);
 
         uint256 _tokensPerShare = delPool.shares != 0 ? delPool.tokens * 1 ether / delPool.shares : 1 ether;
         newStake = currentStake;
@@ -160,7 +164,7 @@ contract GraphAdapter is Adapter {
             return newStake;
         }
 
-        IGraphStaking.Delegation memory delegation = GRAPH.getDelegation(validator, address(this));
+        IGraphStaking.Delegation memory delegation = GRAPH_STAKING.getDelegation(validator, address(this));
         uint256 staked = delegation.shares * _tokensPerShare / 1 ether;
 
         // account for stake still to unstake
@@ -188,10 +192,6 @@ contract GraphAdapter is Adapter {
         newStake = staked - currentEpoch.amount;
     }
 
-    function isValidator(address validator) public view override returns (bool) {
-        return GRAPH.hasStake(validator);
-    }
-
     function _processWithdrawals(address validator) internal {
         // process possible withdrawals before unstakes
         _processWithdraw(validator);
@@ -199,7 +199,7 @@ contract GraphAdapter is Adapter {
     }
 
     function _processUnstake(address validator) internal {
-        IGraphStaking.Delegation memory del = GRAPH.getDelegation(validator, address(this));
+        IGraphStaking.Delegation memory del = GRAPH_STAKING.getDelegation(validator, address(this));
         // undelegation already ungoing: no-op
         if (del.tokensLockedUntil != 0) return;
 
@@ -225,7 +225,7 @@ contract GraphAdapter is Adapter {
             undelegationShares = del.shares < undelegationShares ? del.shares : undelegationShares;
 
             // undelegate
-            GRAPH.undelegate(validator, undelegationShares);
+            GRAPH_STAKING.undelegate(validator, undelegationShares);
         } else if ($.epochs[$.currentEpoch - 1].amount != 0) {
             ++$.currentEpoch;
             $.lastEpochUnlockedAt = block.number;
@@ -234,7 +234,7 @@ contract GraphAdapter is Adapter {
 
     function _processWithdraw(address validator) internal {
         // withdrawal isn't ready: no-op
-        uint256 tokensLockedUntil = GRAPH.getDelegation(validator, address(this)).tokensLockedUntil;
+        uint256 tokensLockedUntil = GRAPH_STAKING.getDelegation(validator, address(this)).tokensLockedUntil;
         if (tokensLockedUntil == 0 || tokensLockedUntil > GRAPH_EPOCHS.currentEpoch()) return;
 
         Storage storage $ = _loadStorage();
@@ -244,7 +244,7 @@ contract GraphAdapter is Adapter {
             // $.currentEpoch - 1 is safe as we only call this function after at least 1 _processUnstake
             // which increments $.currentEpoch, otherwise del.tokensLockedUntil would still be 0 and we would
             // not reach this branch
-            $.epochs[$.currentEpoch - 1].amount = GRAPH.withdrawDelegated(validator, address(0));
+            $.epochs[$.currentEpoch - 1].amount = GRAPH_STAKING.withdrawDelegated(validator, address(0));
         }
     }
 }
