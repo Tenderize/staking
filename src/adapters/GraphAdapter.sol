@@ -14,10 +14,10 @@ pragma solidity >=0.8.19;
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 import { Adapter } from "core/adapters/Adapter.sol";
-import { IGraphStaking, IEpochManager } from "core/adapters/interfaces/IGraph.sol";
+import { IGraphStaking, IGraphEpochManager } from "core/adapters/interfaces/IGraph.sol";
 import { IERC165 } from "core/interfaces/IERC165.sol";
 
-IEpochManager constant GRAPH_EPOCHS = IEpochManager(0x5A843145c43d328B9bB7a4401d94918f131bB281);
+IGraphEpochManager constant GRAPH_EPOCHS = IGraphEpochManager(0x5A843145c43d328B9bB7a4401d94918f131bB281);
 IGraphStaking constant GRAPH_STAKING = IGraphStaking(0x00669A4CF01450B64E8A2A20E9b1FCB71E61eF03);
 ERC20 constant GRT = ERC20(0x9623063377AD1B27544C965cCd7342f7EA7e88C7);
 uint256 constant MAX_PPM = 1e6;

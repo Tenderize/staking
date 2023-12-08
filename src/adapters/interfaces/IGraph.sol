@@ -55,6 +55,6 @@ interface IGraphStaking {
     function hasStake(address _indexer) external view returns (bool);
 }
 
-interface IEpochManager {
+interface IGraphEpochManager {
     function currentEpoch() external view returns (uint256);
 }
