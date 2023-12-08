@@ -41,7 +41,7 @@ contract GraphAdapterTest is Test, GraphAdapter, TestHelpers {
     function testFuzz_PreviewDeposit(uint256 amount) public {
         amount = bound(amount, 0, MAX_UINT / DELEGATION_TAX);
         vm.expectCall(staking, abi.encodeCall(IGraphStaking.delegationTaxPercentage, ()));
-        assertEq(this.previewDeposit(amount), amount - amount * DELEGATION_TAX / MAX_PPM);
+        assertEq(this.previewDeposit(validator, amount), amount - amount * DELEGATION_TAX / MAX_PPM);
     }
 
     function testFuzz_UnlockMaturity(uint256 lastEpochUnlockedAt, uint256 userEpoch) public {

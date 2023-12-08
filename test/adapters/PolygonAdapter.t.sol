@@ -53,7 +53,7 @@ contract PolygonAdapterTest is Test {
     function test_previewDeposit() public {
         uint256 assets = 100;
         uint256 expected = assets;
-        uint256 actual = adapter.previewDeposit(assets);
+        uint256 actual = adapter.previewDeposit(validatorShares, assets);
         assertEq(actual, expected);
     }
 

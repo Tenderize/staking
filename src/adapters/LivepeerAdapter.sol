@@ -53,7 +53,7 @@ contract LivepeerAdapter is Adapter {
         return interfaceId == type(Adapter).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
-    function previewDeposit(uint256 assets) external pure returns (uint256) {
+    function previewDeposit(address, /*validator*/ uint256 assets) external pure returns (uint256) {
         return assets;
     }
 
@@ -87,9 +87,10 @@ contract LivepeerAdapter is Adapter {
         return block.number;
     }
 
-    function stake(address validator, uint256 amount) public {
-        LPT.approve(address(LIVEPEER_BONDING), amount);
+    function stake(address validator, uint256 amount) public returns (uint256) {
+        LPT.safeApprove(address(LIVEPEER_BONDING), amount);
         LIVEPEER_BONDING.bond(amount, validator);
+        return amount;
     }
 
     function unstake(address, /*validator*/ uint256 amount) external returns (uint256 unlockID) {

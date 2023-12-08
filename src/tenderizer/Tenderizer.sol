@@ -79,16 +79,12 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
         // transfer tokens before minting (or ERC777's could re-enter)
         ERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
 
-        // preview deposit to get actual assets to mint for
-        // deducts any possible third-party protocol taxes or fees
-        uint256 actualAssets = _previewDeposit(assets);
-
         // stake assets
-        _stake(validator(), assets);
+        uint256 staked = _stake(validator(), assets);
 
         // mint tokens to receiver
         uint256 shares;
-        if ((shares = _mint(receiver, actualAssets)) == 0) revert InsufficientAssets();
+        if ((shares = _mint(receiver, staked)) == 0) revert InsufficientAssets();
 
         uint256 tTokenOut = convertToAssets(shares);
         emit Deposit(msg.sender, receiver, assets, tTokenOut);
@@ -200,7 +196,7 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
     // using a `staticcall` to `this`.
     // This is a hacky workaround while better solidity features are being developed.
     function _previewDeposit(uint256 assets) public returns (uint256) {
-        return abi.decode(adapter()._delegatecall(abi.encodeCall(adapter().previewDeposit, (assets))), (uint256));
+        return abi.decode(adapter()._delegatecall(abi.encodeCall(adapter().previewDeposit, (validator(), assets))), (uint256));
     }
 
     function _previewWithdraw(uint256 unlockID) public returns (uint256) {
@@ -216,8 +212,8 @@ contract Tenderizer is TenderizerImmutableArgs, TenderizerEvents, TToken, Multic
         newStake = abi.decode(adapter()._delegatecall(abi.encodeCall(adapter().rebase, (validator, currentStake))), (uint256));
     }
 
-    function _stake(address validator, uint256 amount) internal {
-        adapter()._delegatecall(abi.encodeCall(adapter().stake, (validator, amount)));
+    function _stake(address validator, uint256 amount) internal returns (uint256 staked) {
+        staked = abi.decode(adapter()._delegatecall(abi.encodeCall(adapter().stake, (validator, amount))), (uint256));
     }
 
     function _unstake(address validator, uint256 amount) internal returns (uint256 unlockID) {

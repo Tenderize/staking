@@ -61,8 +61,12 @@ contract GraphAdapter is Adapter {
         return interfaceId == type(Adapter).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
-    function previewDeposit(uint256 assets) external view override returns (uint256) {
-        return assets - assets * GRAPH_STAKING.delegationTaxPercentage() / MAX_PPM;
+    function previewDeposit(address validator, uint256 assets) external view override returns (uint256) {
+        assets -= assets * GRAPH_STAKING.delegationTaxPercentage() / MAX_PPM;
+        IGraphStaking.DelegationPool memory delPool = GRAPH_STAKING.delegationPools(validator);
+
+        uint256 shares = delPool.tokens != 0 ? assets * delPool.shares / delPool.tokens : assets;
+        return shares * (delPool.tokens + assets) / (delPool.shares + shares);
     }
 
     function previewWithdraw(uint256 unlockID) external view override returns (uint256) {
@@ -104,9 +108,11 @@ contract GraphAdapter is Adapter {
         return GRAPH_STAKING.hasStake(validator);
     }
 
-    function stake(address validator, uint256 amount) external override {
+    function stake(address validator, uint256 amount) external override returns (uint256) {
         GRT.safeApprove(address(GRAPH_STAKING), amount);
-        GRAPH_STAKING.delegate(validator, amount);
+        uint256 delShares = GRAPH_STAKING.delegate(validator, amount);
+        IGraphStaking.DelegationPool memory delPool = GRAPH_STAKING.delegationPools(validator);
+        return delShares * delPool.tokens / delPool.shares;
     }
 
     function unstake(address validator, uint256 amount) external override returns (uint256 unlockID) {

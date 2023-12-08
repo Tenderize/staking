@@ -124,7 +124,7 @@ contract LivepeerForkTest is Test, TenderizerEvents, ERC721Receiver {
     }
 
     function test_adapter_previewDeposit() public {
-        assertEq(adapter.previewDeposit(10 ether), 10 ether, "previewDeposit incorrect");
+        assertEq(adapter.previewDeposit(ORCHESTRATOR_1, 10 ether), 10 ether, "previewDeposit incorrect");
     }
 
     function test_factory_newTenderizer() public {

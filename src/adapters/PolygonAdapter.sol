@@ -50,7 +50,7 @@ contract PolygonAdapter is Adapter {
         return address(_getValidatorSharesContract(_getValidatorId(validator))) != address(0);
     }
 
-    function previewDeposit(uint256 assets) external pure returns (uint256) {
+    function previewDeposit(address, /*validator*/ uint256 assets) external pure returns (uint256) {
         return assets;
     }
 
@@ -85,7 +85,7 @@ contract PolygonAdapter is Adapter {
         return MATIC_STAKE_MANAGER.epoch();
     }
 
-    function stake(address validator, uint256 amount) external override {
+    function stake(address validator, uint256 amount) external override returns (uint256) {
         // approve tokens
         POLY.safeApprove(address(MATIC_STAKE_MANAGER), amount);
 
@@ -100,6 +100,7 @@ contract PolygonAdapter is Adapter {
 
         // Mint voucher shares
         validatorShares.buyVoucher(amount, min);
+        return amount;
     }
 
     function unstake(address validator, uint256 amount) external override returns (uint256 unlockID) {
