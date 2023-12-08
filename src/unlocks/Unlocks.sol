@@ -105,7 +105,7 @@ contract Unlocks is ERC721 {
      * @return metadata of the unlock token
      */
     function getMetadata(uint256 tokenId) external view returns (Metadata memory metadata) {
-        (address payable tenderizer, uint256 unlockId) = _decodeTokenId(tokenId);
+        (address payable tenderizer, uint96 unlockId) = _decodeTokenId(tokenId);
         address asset = Tenderizer(tenderizer).asset();
 
         Adapter adapter = Tenderizer(tenderizer).adapter();
