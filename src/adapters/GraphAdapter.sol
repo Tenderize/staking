@@ -45,7 +45,6 @@ contract GraphAdapter is Adapter {
         uint256 lastEpochUnlockedAt;
         mapping(uint256 => Epoch) epochs;
         mapping(uint256 => Unlock) unlocks;
-        uint256 tokensPerShare;
     }
 
     function _loadStorage() internal pure returns (Storage storage $) {
@@ -212,7 +211,6 @@ contract GraphAdapter is Adapter {
             // calculate shares to undelegate from The Graph
             IGraphStaking.DelegationPool memory delPool = GRAPH_STAKING.delegationPools(validator);
             uint256 undelegationShares = currentEpochAmount * delPool.shares / delPool.tokens;
-
             // account for possible rounding error
             undelegationShares = del.shares < undelegationShares ? del.shares : undelegationShares;
 
