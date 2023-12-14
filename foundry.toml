@@ -33,3 +33,4 @@ depth = 100
 # Uncomment to enable the RPC server
 arbitrum_goerli = "${ARBITRUM_GOERLI_RPC}"
 arbitrum = "${ARBITRUM_RPC}"
+mainnet = "${MAINNET_RPC}"

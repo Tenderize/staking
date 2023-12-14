@@ -11,7 +11,7 @@
 
 pragma solidity >=0.8.19;
 
-import { Test, console } from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 import { VmSafe } from "forge-std/Vm.sol";
 import { MockERC20 } from "solmate/test/utils/mocks/MockERC20.sol";
 
@@ -112,10 +112,10 @@ contract GraphForkTest is Test, TenderizerEvents, ERC721Receiver {
     }
 
     function test_factory_newTenderizer() public {
-        // Revert with inactive orchestrator
-        address inactiveOrchestrator = makeAddr("INACTIVE_ORCHESTRATOR");
-        vm.expectRevert(abi.encodeWithSelector(Factory.NotValidator.selector, (inactiveOrchestrator)));
-        fixture.factory.newTenderizer(address(GRT), inactiveOrchestrator);
+        // Revert with inactive indexer
+        address inactiveIndexer = makeAddr("INACTIVE_INDEXER");
+        vm.expectRevert(abi.encodeWithSelector(Factory.NotValidator.selector, (inactiveIndexer)));
+        fixture.factory.newTenderizer(address(GRT), inactiveIndexer);
 
         // Deploy tenderizer
         vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: false });

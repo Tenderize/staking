@@ -17,7 +17,7 @@ pragma solidity >=0.8.19;
 import { Test, stdError } from "forge-std/Test.sol";
 import { PolygonAdapter, EXCHANGE_RATE_PRECISION_HIGH, WITHDRAW_DELAY } from "core/adapters/PolygonAdapter.sol";
 import { ITenderizer } from "core/tenderizer/ITenderizer.sol";
-import { IMaticStakeManager, IValidatorShares, DelegatorUnbond } from "core/adapters/interfaces/IPolygon.sol";
+import { IPolygonStakeManager, IPolygonValidatorShares, DelegatorUnbond } from "core/adapters/interfaces/IPolygon.sol";
 import { AdapterDelegateCall } from "core/adapters/Adapter.sol";
 
 contract PolygonAdapterTest is Test {
@@ -38,11 +38,13 @@ contract PolygonAdapterTest is Test {
         vm.mockCall(address(this), abi.encodeCall(ITenderizer.validator, ()), abi.encode(address(this)));
         // set validator id for `address(this)` to 8 (not a foundation validator)
         vm.mockCall(
-            MATIC_STAKE_MANAGER, abi.encodeCall(IMaticStakeManager.getValidatorId, (address(this))), abi.encode(validatorId)
+            MATIC_STAKE_MANAGER, abi.encodeCall(IPolygonStakeManager.getValidatorId, (address(this))), abi.encode(validatorId)
         );
         // set validator shares contract for `address(this)` to `validatorShares`
         vm.mockCall(
-            MATIC_STAKE_MANAGER, abi.encodeCall(IMaticStakeManager.getValidatorContract, (validatorId)), abi.encode(validatorShares)
+            MATIC_STAKE_MANAGER,
+            abi.encodeCall(IPolygonStakeManager.getValidatorContract, (validatorId)),
+            abi.encode(validatorShares)
         );
     }
 
@@ -65,8 +67,10 @@ contract PolygonAdapterTest is Test {
 
         DelegatorUnbond memory unbond = DelegatorUnbond({ shares: shares, withdrawEpoch: 0 });
 
-        vm.mockCall(validatorShares, abi.encodeCall(IValidatorShares.unbonds_new, (address(this), unlockID)), abi.encode(unbond));
-        vm.mockCall(validatorShares, abi.encodeCall(IValidatorShares.withdrawExchangeRate, ()), abi.encode(fxRate));
+        vm.mockCall(
+            validatorShares, abi.encodeCall(IPolygonValidatorShares.unbonds_new, (address(this), unlockID)), abi.encode(unbond)
+        );
+        vm.mockCall(validatorShares, abi.encodeCall(IPolygonValidatorShares.withdrawExchangeRate, ()), abi.encode(fxRate));
         uint256 actual = abi.decode(adapter._delegatecall(abi.encodeCall(PolygonAdapter.previewWithdraw, (unlockID))), (uint256));
         assertEq(actual, expected);
     }
@@ -76,7 +80,9 @@ contract PolygonAdapterTest is Test {
         uint256 unlockID = 1;
         DelegatorUnbond memory unbond = DelegatorUnbond({ shares: 0, withdrawEpoch: epoch });
 
-        vm.mockCall(validatorShares, abi.encodeCall(IValidatorShares.unbonds_new, (address(this), unlockID)), abi.encode(unbond));
+        vm.mockCall(
+            validatorShares, abi.encodeCall(IPolygonValidatorShares.unbonds_new, (address(this), unlockID)), abi.encode(unbond)
+        );
         uint256 actual = abi.decode(adapter._delegatecall(abi.encodeCall(PolygonAdapter.unlockMaturity, (unlockID))), (uint256));
         assertEq(actual, epoch + WITHDRAW_DELAY);
     }
@@ -84,14 +90,16 @@ contract PolygonAdapterTest is Test {
     function test_rebase() public {
         uint256 currentStake = 100;
         uint256 newStake = 200;
-        vm.mockCall(validatorShares, abi.encodeCall(IValidatorShares.exchangeRate, ()), abi.encode(EXCHANGE_RATE_PRECISION_HIGH));
-        vm.mockCall(validatorShares, abi.encodeCall(IValidatorShares.balanceOf, (address(this))), abi.encode(newStake));
-        vm.mockCallRevert(validatorShares, abi.encodeCall(IValidatorShares.restake, ()), "");
+        vm.mockCall(
+            validatorShares, abi.encodeCall(IPolygonValidatorShares.exchangeRate, ()), abi.encode(EXCHANGE_RATE_PRECISION_HIGH)
+        );
+        vm.mockCall(validatorShares, abi.encodeCall(IPolygonValidatorShares.balanceOf, (address(this))), abi.encode(newStake));
+        vm.mockCallRevert(validatorShares, abi.encodeCall(IPolygonValidatorShares.restake, ()), "");
         uint256 actual =
             abi.decode(adapter._delegatecall(abi.encodeCall(PolygonAdapter.rebase, (address(this), currentStake))), (uint256));
         assertEq(actual, currentStake);
 
-        vm.mockCall(validatorShares, abi.encodeCall(IValidatorShares.restake, ()), abi.encode(true));
+        vm.mockCall(validatorShares, abi.encodeCall(IPolygonValidatorShares.restake, ()), abi.encode(true));
         actual = abi.decode(adapter._delegatecall(abi.encodeCall(PolygonAdapter.rebase, (address(this), currentStake))), (uint256));
         assertEq(actual, newStake);
     }
