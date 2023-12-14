@@ -31,6 +31,7 @@ contract PolygonAdapterTest is Test {
 
     function setUp() public {
         adapter = new PolygonAdapter();
+        vm.etch(validatorShares, bytes("code"));
         vm.etch(MATIC_STAKE_MANAGER, bytes("code"));
 
         // Set default mock calls
@@ -55,7 +56,12 @@ contract PolygonAdapterTest is Test {
     function test_previewDeposit() public {
         uint256 assets = 100;
         uint256 expected = assets;
-        uint256 actual = adapter.previewDeposit(validatorShares, assets);
+        vm.mockCall(MATIC_STAKE_MANAGER, abi.encodeCall(IPolygonStakeManager.delegatedAmount, (validatorId)), abi.encode(1 ether));
+        vm.mockCall(
+            validatorShares, abi.encodeCall(IPolygonValidatorShares.exchangeRate, ()), abi.encode(EXCHANGE_RATE_PRECISION_HIGH)
+        );
+        vm.mockCall(validatorShares, abi.encodeCall(IPolygonValidatorShares.totalSupply, ()), abi.encode(1 ether));
+        uint256 actual = adapter.previewDeposit(address(this), assets);
         assertEq(actual, expected);
     }
 
