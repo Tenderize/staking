@@ -102,7 +102,7 @@ contract LivepeerForkTest is Test, TenderizerEvents, ERC721Receiver {
         bytes32 salt = bytes32(uint256(1));
         vm.createSelectFork(vm.envString("ARBITRUM_RPC"));
         fixture = tenderizerFixture();
-        adapter = new LivepeerAdapter{salt: salt}();
+        adapter = new LivepeerAdapter{ salt: salt }();
         fixture.registry.registerAdapter(address(LPT), address(adapter));
     }
 
@@ -267,9 +267,9 @@ contract LivepeerForkTest is Test, TenderizerEvents, ERC721Receiver {
         vm.roll(currentRoundStartBlock + roundLength);
         ROUNDS.initializeRound();
         Tenderizer(tenderizer).rebase();
-        assertEq(tenderizer.totalSupply(), depositAmount + quotedOut, "total supply");
+        assertEq(tenderizer.totalSupply(), depositAmount + quotedOut, "total supply fees only");
         (uint256 bondedAmount,,,,,,) = BONDING.getDelegator(address(tenderizer));
-        assertEq(bondedAmount, depositAmount + quotedOut, "Bonded amount");
+        assertEq(bondedAmount, depositAmount + quotedOut, "Bonded amount fees only");
 
         // Initialize next round
         // Check LPT rewards only rebase
@@ -287,7 +287,7 @@ contract LivepeerForkTest is Test, TenderizerEvents, ERC721Receiver {
         uint256 round = ROUNDS.currentRound();
         (,,, uint256 crfAfter,) = BONDING.getTranscoderEarningsPoolForRound(ORCHESTRATOR_1, round);
         uint256 expStake = bondedAmount * crfAfter / crfBefore;
-        assertEq(tenderizer.totalSupply(), expStake, "total supply");
+        assertEq(tenderizer.totalSupply(), expStake, "total supply rewards only");
 
         // Initialize next round
         currentRoundStartBlock = ROUNDS.currentRoundStartBlock();
@@ -306,9 +306,12 @@ contract LivepeerForkTest is Test, TenderizerEvents, ERC721Receiver {
         BONDING.reward();
         round = ROUNDS.currentRound();
         (,,, crfAfter,) = BONDING.getTranscoderEarningsPoolForRound(ORCHESTRATOR_1, round);
-        expStake = expStake * crfAfter / crfBefore + quotedOut;
+        expStake = expStake * (crfAfter * 1e27 / crfBefore) / 1e27 + quotedOut - 1;
         Tenderizer(tenderizer).rebase();
-        assertEq(tenderizer.totalSupply(), expStake, "total supply");
+        assertEq(
+            tenderizer.totalSupply(), BONDING.pendingStake(address(tenderizer), type(uint256).max), "total supply vs pending stake"
+        );
+        assertEq(tenderizer.totalSupply(), expStake, "total supply rewards & fees");
     }
 
     function updateTenderizerFees(address tenderizer, uint256 amount) internal {
@@ -321,9 +324,7 @@ contract LivepeerForkTest is Test, TenderizerEvents, ERC721Receiver {
         uint256 orchStake = BONDING.transcoderTotalStake(orchestrator);
         uint256 tenderizerStake = BONDING.pendingStake(tenderizer, round);
 
-        // amount = fees * feeShare / 1e6 * tenderizerStake / orchStake
-        // fees = amount * orchStake *1e6 / feeShare / tenderizerStake
-        uint256 fees = amount * orchStake * 1e6 / feeShare / tenderizerStake;
+        uint256 fees = amount * (orchStake * 1e6 / feeShare) / tenderizerStake;
         vm.prank(TICKET_BROKER);
         BONDING.updateTranscoderWithFees(orchestrator, fees, round);
         vm.prank(MINTER);
