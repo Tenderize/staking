@@ -31,7 +31,7 @@ contract XYZAdapter is Adapter {
         return interfaceId == type(Adapter).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
-    function previewDeposit(uint256 assets) external pure returns (uint256) {
+    function previewDeposit(address, /*validator*/ uint256 assets) external pure returns (uint256) {
         return assets;
     }
 
@@ -51,9 +51,10 @@ contract XYZAdapter is Adapter {
         return block.timestamp;
     }
 
-    function stake(address, uint256 amount) external {
+    function stake(address, uint256 amount) external returns (uint256) {
         ERC20(XYZ_TOKEN).approve(STAKINGXYZ, amount);
         StakingXYZ(STAKINGXYZ).stake(amount);
+        return amount;
     }
 
     function unstake(address, uint256 amount) external returns (uint256 unlockID) {

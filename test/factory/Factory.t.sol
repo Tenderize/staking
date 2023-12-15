@@ -47,7 +47,7 @@ contract FactoryTest is Test {
         vm.mockCall(registry, abi.encodeCall(Registry.registerTenderizer, (asset, validator, tenderizer)), "");
         vm.expectCall(registry, abi.encodeCall(Registry.adapter, (asset)));
 
-        address newTenderizer = factory.newTenderizer(asset, validator);
+        address payable newTenderizer = payable(factory.newTenderizer(asset, validator));
         assertEq(newTenderizer, 0xffD4505B3452Dc22f8473616d50503bA9E1710Ac, "tenderizer not created with correct address");
         assertEq(Tenderizer(newTenderizer).asset(), asset, "asset not set");
         assertEq(Tenderizer(newTenderizer).validator(), validator, "validator not set");

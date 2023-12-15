@@ -53,6 +53,8 @@ interface ILivepeerBondingManager {
 interface ILivepeerRoundsManager {
     function currentRound() external view returns (uint256);
 
+    function currentRoundInitialized() external view returns (bool);
+
     function currentRoundStartBlock() external view returns (uint256);
 
     function roundLength() external view returns (uint256);

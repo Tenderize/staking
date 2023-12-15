@@ -16,12 +16,15 @@ import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { Adapter } from "core/adapters/Adapter.sol";
 import { IERC165 } from "core/interfaces/IERC165.sol";
 import { ITenderizer } from "core/tenderizer/ITenderizer.sol";
-import { IMaticStakeManager, IValidatorShares, DelegatorUnbond } from "core/adapters/interfaces/IPolygon.sol";
+import { IPolygonStakeManager, IPolygonValidatorShares, DelegatorUnbond } from "core/adapters/interfaces/IPolygon.sol";
 
 // Matic exchange rate precision
 uint256 constant EXCHANGE_RATE_PRECISION = 100; // For Validator ID < 8
 uint256 constant EXCHANGE_RATE_PRECISION_HIGH = 10 ** 29; // For Validator ID >= 8
 uint256 constant WITHDRAW_DELAY = 80; // 80 epochs, epoch length can vary on average between 200-300 Ethereum L1 blocks
+
+IPolygonStakeManager constant POLYGON_STAKEMANAGER = IPolygonStakeManager(address(0x5e3Ef299fDDf15eAa0432E6e66473ace8c13D908));
+ERC20 constant POL = ERC20(address(0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0));
 
 // Polygon validators with a `validatorId` less than 8 are foundation validators
 // These are special case validators that don't have slashing enabled and still operate
@@ -37,21 +40,28 @@ function getExchangePrecision(uint256 validatorId) pure returns (uint256) {
 contract PolygonAdapter is Adapter {
     using SafeTransferLib for ERC20;
 
-    IMaticStakeManager private constant MATIC_STAKE_MANAGER =
-        IMaticStakeManager(address(0x5e3Ef299fDDf15eAa0432E6e66473ace8c13D908));
-    ERC20 private constant POLY = ERC20(address(0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0));
-
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         return interfaceId == type(Adapter).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
     function isValidator(address validator) public view returns (bool) {
         // Validator must have a validator shares contract
+        // This will revert if the address does not own its StakeNFT
+        // Which could lead to unexpected behaviour if used by external contracts
         return address(_getValidatorSharesContract(_getValidatorId(validator))) != address(0);
     }
 
-    function previewDeposit(uint256 assets) external pure returns (uint256) {
-        return assets;
+    function previewDeposit(address validator, uint256 assets) external view returns (uint256) {
+        uint256 validatorId = _getValidatorId(validator);
+        uint256 delegatedAmount = IPolygonStakeManager(POLYGON_STAKEMANAGER).delegatedAmount(validatorId);
+        IPolygonValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
+        uint256 totalShares = validatorShares.totalSupply();
+        uint256 prec = getExchangePrecision(_getValidatorId(validator));
+        uint256 fxRate_0 = prec * delegatedAmount / totalShares;
+        uint256 sharesToMint = assets * prec / fxRate_0;
+        uint256 amountToTransfer = sharesToMint * fxRate_0 / prec;
+        uint256 fxRate_1 = prec * (delegatedAmount + amountToTransfer) / (totalShares + sharesToMint);
+        return sharesToMint * fxRate_1 / prec;
     }
 
     function previewWithdraw(uint256 unlockID) external view returns (uint256 amount) {
@@ -59,7 +69,7 @@ contract PolygonAdapter is Adapter {
         address validator = _getValidatorAddress();
         // get the validator shares contract for validator
         uint256 validatorId = _getValidatorId(validator);
-        IValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
+        IPolygonValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
 
         DelegatorUnbond memory unbond = validatorShares.unbonds_new(address(this), unlockID);
         // calculate amount of tokens to withdraw by converting shares back into amount
@@ -82,15 +92,15 @@ contract PolygonAdapter is Adapter {
     }
 
     function currentTime() external view override returns (uint256) {
-        return MATIC_STAKE_MANAGER.epoch();
+        return POLYGON_STAKEMANAGER.epoch();
     }
 
-    function stake(address validator, uint256 amount) external override {
+    function stake(address validator, uint256 amount) external override returns (uint256) {
         // approve tokens
-        POLY.safeApprove(address(MATIC_STAKE_MANAGER), amount);
+        POL.safeApprove(address(POLYGON_STAKEMANAGER), amount);
 
         uint256 validatorId = _getValidatorId(validator);
-        IValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
+        IPolygonValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
 
         // calculate minimum amount of voucher shares to mint
         // adjust for integer truncation upon division
@@ -99,12 +109,12 @@ contract PolygonAdapter is Adapter {
         uint256 min = amount * precision / fxRate - 1;
 
         // Mint voucher shares
-        validatorShares.buyVoucher(amount, min);
+        return validatorShares.buyVoucher(amount, min);
     }
 
     function unstake(address validator, uint256 amount) external override returns (uint256 unlockID) {
         uint256 validatorId = _getValidatorId(validator);
-        IValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
+        IPolygonValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
 
         uint256 precision = getExchangePrecision(validatorId);
         uint256 fxRate = validatorShares.exchangeRate();
@@ -119,7 +129,7 @@ contract PolygonAdapter is Adapter {
 
     function withdraw(address validator, uint256 unlockID) external override returns (uint256 amount) {
         uint256 validatorId = _getValidatorId(validator);
-        IValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
+        IPolygonValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
 
         DelegatorUnbond memory unbond = validatorShares.unbonds_new(address(this), unlockID);
         // foundation validators (id < 8) don't have slashing enabled
@@ -132,7 +142,7 @@ contract PolygonAdapter is Adapter {
 
     function rebase(address validator, uint256 currentStake) external returns (uint256 newStake) {
         uint256 validatorId = _getValidatorId(validator);
-        IValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
+        IPolygonValidatorShares validatorShares = _getValidatorSharesContract(validatorId);
 
         // This call will revert if there are no rewards
         // In which case we don't throw, just return the current staked amount.
@@ -152,12 +162,13 @@ contract PolygonAdapter is Adapter {
     function _getValidatorAddress() internal view returns (address) {
         return ITenderizer(address(this)).validator();
     }
+}
 
-    function _getValidatorId(address validator) internal view returns (uint256) {
-        return MATIC_STAKE_MANAGER.getValidatorId(validator);
-    }
+function _getValidatorId(address validator) view returns (uint256) {
+    // This will revert if validator is not valid
+    return POLYGON_STAKEMANAGER.getValidatorId(validator);
+}
 
-    function _getValidatorSharesContract(uint256 validatorId) internal view returns (IValidatorShares) {
-        return IValidatorShares(MATIC_STAKE_MANAGER.getValidatorContract(validatorId));
-    }
+function _getValidatorSharesContract(uint256 validatorId) view returns (IPolygonValidatorShares) {
+    return IPolygonValidatorShares(POLYGON_STAKEMANAGER.getValidatorContract(validatorId));
 }

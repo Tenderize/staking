@@ -17,6 +17,8 @@ import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { Registry } from "core/registry/Registry.sol";
 import { Renderer } from "core/unlocks/Renderer.sol";
 
+import { FixedPointMathLib } from "solmate/utils/FixedPointMathLib.sol";
+
 pragma solidity >=0.8.19;
 
 // solhint-disable quotes
@@ -103,7 +105,7 @@ contract Unlocks is ERC721 {
      * @return metadata of the unlock token
      */
     function getMetadata(uint256 tokenId) external view returns (Metadata memory metadata) {
-        (address tenderizer, uint256 unlockId) = _decodeTokenId(tokenId);
+        (address payable tenderizer, uint96 unlockId) = _decodeTokenId(tokenId);
         address asset = Tenderizer(tenderizer).asset();
 
         Adapter adapter = Tenderizer(tenderizer).adapter();
@@ -113,7 +115,9 @@ contract Unlocks is ERC721 {
         return Metadata({
             amount: Tenderizer(tenderizer).previewWithdraw(unlockId),
             maturity: maturity,
-            progress: maturity > currentTime ? 100 - (maturity - currentTime) * 100 / adapter.unlockTime() : 100,
+            progress: maturity > currentTime
+                ? 100 - FixedPointMathLib.mulDivUp((maturity - currentTime), 100, adapter.unlockTime())
+                : 100,
             unlockId: unlockId,
             symbol: ERC20(asset).symbol(),
             name: ERC20(asset).name(),
@@ -129,8 +133,8 @@ contract Unlocks is ERC721 {
         return uint256(bytes32(abi.encodePacked(tenderizer, unlockId)));
     }
 
-    function _decodeTokenId(uint256 tokenId) internal pure virtual returns (address tenderizer, uint96 unlockId) {
+    function _decodeTokenId(uint256 tokenId) internal pure virtual returns (address payable tenderizer, uint96 unlockId) {
         bytes32 a = bytes32(tokenId);
-        (tenderizer, unlockId) = (address(bytes20(a)), uint96(bytes12(a << 160)));
+        (tenderizer, unlockId) = (payable(address(bytes20(a))), uint96(bytes12(a << 160)));
     }
 }

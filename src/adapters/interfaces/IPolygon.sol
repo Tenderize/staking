@@ -11,18 +11,19 @@ struct DelegatorUnbond {
     uint256 withdrawEpoch;
 }
 
-interface IMaticStakeManager {
+interface IPolygonStakeManager {
     function getValidatorId(address user) external view returns (uint256);
     function getValidatorContract(uint256 validatorId) external view returns (address);
     function epoch() external view returns (uint256);
+    function delegatedAmount(uint256 validatorId) external view returns (uint256);
 }
 
-interface IValidatorShares {
+interface IPolygonValidatorShares {
     function owner() external view returns (address);
 
     function restake() external;
 
-    function buyVoucher(uint256 _amount, uint256 _minSharesToMint) external;
+    function buyVoucher(uint256 _amount, uint256 _minSharesToMint) external returns (uint256 amount);
 
     function sellVoucher_new(uint256 claimAmount, uint256 maximumSharesToBurn) external;
 
@@ -39,4 +40,6 @@ interface IValidatorShares {
     function withdrawExchangeRate() external view returns (uint256);
 
     function unbonds_new(address, uint256) external view returns (DelegatorUnbond memory);
+
+    function totalSupply() external view returns (uint256);
 }

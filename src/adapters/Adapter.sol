@@ -14,7 +14,7 @@ import { IERC165 } from "core/interfaces/IERC165.sol";
 pragma solidity >=0.8.19;
 
 interface Adapter is IERC165 {
-    function previewDeposit(uint256 assets) external view returns (uint256);
+    function previewDeposit(address validator, uint256 assets) external view returns (uint256);
 
     function previewWithdraw(uint256 unlockID) external view returns (uint256);
 
@@ -24,7 +24,7 @@ interface Adapter is IERC165 {
 
     function currentTime() external view returns (uint256);
 
-    function stake(address validator, uint256 amount) external;
+    function stake(address validator, uint256 amount) external returns (uint256 staked);
 
     function unstake(address validator, uint256 amount) external returns (uint256 unlockID);
 
