@@ -59,6 +59,14 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
     // Getters
 
     /**
+     * @notice Returns the address of the adapter for a given asset
+     * @param asset Address of the underlying asset
+     */
+    function adapter(address asset) external view returns (address) {
+        return _loadStorage().protocols[asset].adapter;
+    }
+
+    /**
      * @notice Returns the address of the tenderizer implementation
      */
     function tenderizer() external view returns (address) {
@@ -67,19 +75,19 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
     }
 
     /**
+     * @notice Returns the address of the treasury
+     */
+    function treasury() external view returns (address) {
+        Storage storage $ = _loadStorage();
+        return $.treasury;
+    }
+
+    /**
      * @notice Returns the address of the unlocks contract
      */
     function unlocks() external view returns (address) {
         Storage storage $ = _loadStorage();
         return $.unlocks;
-    }
-
-    /**
-     * @notice Returns the address of the adapter for a given asset
-     * @param asset Address of the underlying asset
-     */
-    function adapter(address asset) external view returns (address) {
-        return _loadStorage().protocols[asset].adapter;
     }
 
     /**
@@ -100,11 +108,13 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
     }
 
     /**
-     * @notice Returns the address of the treasury
+     * @notice Returns the address of the tenderizer for a given asset and validator
+     * @param asset Address of the underlying asset
+     * @param validator Address of the validator
+     * @return Address of the tenderizer
      */
-    function treasury() external view returns (address) {
-        Storage storage $ = _loadStorage();
-        return $.treasury;
+    function getTenderizer(address asset, address validator) external view returns (address) {
+        return _loadStorage().tenderizers[asset][validator];
     }
 
     // Setters
