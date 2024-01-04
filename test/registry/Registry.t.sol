@@ -204,6 +204,16 @@ contract RegistryTest is Test {
         assertEq(registry.hasRole(TENDERIZER_ROLE, tenderizer), true);
     }
 
+    function test_RegisterTenderizer_RevertsIfExists() public {
+        vm.prank(owner);
+        registry.grantRole(FACTORY_ROLE, factory);
+        vm.startPrank(factory);
+        registry.registerTenderizer(asset, account, tenderizer);
+        vm.expectRevert(abi.encodeWithSelector(Registry.TenderizerAlreadyExists.selector, asset, account, tenderizer));
+        registry.registerTenderizer(asset, account, makeAddr("SECOND_TENDERIZER"));
+        vm.stopPrank();
+    }
+
     function test_RegisterTenderizer_RevertIfNotFactory() public {
         vm.prank(owner);
         vm.expectRevert();

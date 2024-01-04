@@ -27,6 +27,7 @@ import { Adapter } from "core/adapters/Adapter.sol";
 contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, RegistryStorage {
     error InvalidAdapter(address adapter);
     error InvalidTreasury(address treasury);
+    error TenderizerAlreadyExists(address asset, address validator, address tenderizer);
 
     event AdapterRegistered(address indexed asset, address indexed adapter);
     event NewTenderizer(address indexed asset, address indexed validator, address tenderizer);
@@ -129,6 +130,11 @@ contract Registry is Initializable, UUPSUpgradeable, AccessControlUpgradeable, R
      * @param tenderizer Address of the tenderizer
      */
     function registerTenderizer(address asset, address validator, address tenderizer) external onlyRole(FACTORY_ROLE) {
+        Storage storage $ = _loadStorage();
+        if ($.tenderizers[asset][validator] != address(0)) {
+            revert TenderizerAlreadyExists(asset, validator, $.tenderizers[asset][validator]);
+        }
+        $.tenderizers[asset][validator] = tenderizer;
         _grantRole(TENDERIZER_ROLE, tenderizer);
         emit NewTenderizer(asset, validator, tenderizer);
     }

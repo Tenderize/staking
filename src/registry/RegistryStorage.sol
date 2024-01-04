@@ -24,6 +24,7 @@ contract RegistryStorage {
         address unlocks;
         address treasury;
         mapping(address => Protocol) protocols;
+        mapping(address asset => mapping(address validator => address tenderizer)) tenderizers;
     }
 
     function _loadStorage() internal pure returns (Storage storage $) {
