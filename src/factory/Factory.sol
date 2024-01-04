@@ -52,6 +52,7 @@ contract Factory {
         tenderizer = address(tenderizerImpl).clone(abi.encodePacked(asset, validator));
 
         // Reverts if caller is not a registered factory
+        // Reverts if `validator` already has a registered `tenderizer` for `asset`
         Registry(registry).registerTenderizer(asset, validator, tenderizer);
     }
 }
