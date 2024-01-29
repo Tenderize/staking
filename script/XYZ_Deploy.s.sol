@@ -21,8 +21,10 @@ import { Registry } from "core/registry/Registry.sol";
 
 import { Factory } from "core/factory/Factory.sol";
 
+uint256 constant VERSION = 1;
+
 contract XYZ_Deploy is Script {
-    bytes32 private constant salt = bytes32(uint256(1));
+    bytes32 private constant salt = bytes32(VERSION);
 
     function run() public {
         address registry = vm.envAddress("REGISTRY");
@@ -39,13 +41,13 @@ contract XYZ_Deploy is Script {
         vm.startBroadcast(privKey);
         address me = vm.addr(privKey);
 
-        MockERC20 XYZ = new MockERC20{salt: salt}(name, symbol, 18);
+        MockERC20 XYZ = new MockERC20{ salt: salt }(name, symbol, 18);
         console2.log(string.concat(symbol, " Token: "), address(XYZ));
         // mint supply
         XYZ.mint(me, totalSupply);
-        StakingXYZ stakingXYZ = new StakingXYZ{salt: salt}(address(XYZ), unlockTime, baseAPR);
+        StakingXYZ stakingXYZ = new StakingXYZ{ salt: salt }(address(XYZ), unlockTime, baseAPR);
         console2.log(string.concat(symbol, " Staking :"), address(stakingXYZ));
-        XYZAdapter adapter = new XYZAdapter{salt: salt}(address(stakingXYZ), address(XYZ));
+        XYZAdapter adapter = new XYZAdapter{ salt: salt }(address(stakingXYZ), address(XYZ));
         console2.log(string.concat(symbol, " Adapter: "), address(adapter));
         // Register XYZ adapter
         Registry(registry).registerAdapter(address(XYZ), address(adapter));
