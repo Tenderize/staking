@@ -80,6 +80,6 @@ contract Tenderize_Deploy is Script {
         vm.stopBroadcast();
 
         // Write json_output to file
-        vm.writeJson(json_output, "deployments.json");
+        // vm.writeJson(json_output, "deployments.json");
     }
 }

@@ -11,6 +11,8 @@
 
 pragma solidity >=0.8.19;
 
+uint256 constant VERSION = 1;
+
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { Adapter } from "core/adapters/Adapter.sol";

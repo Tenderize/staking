@@ -17,22 +17,19 @@ import { Script } from "forge-std/Script.sol";
 
 import { Registry } from "core/registry/Registry.sol";
 
-import { LivepeerAdapter } from "core/adapters/LivepeerAdapter.sol";
-import { GraphAdapter } from "core/adapters/GraphAdapter.sol";
+import { LivepeerAdapter, LPT, VERSION as LPT_VERSION } from "core/adapters/LivepeerAdapter.sol";
+import { GraphAdapter, GRT, VERSION as GRT_VERSION } from "core/adapters/GraphAdapter.sol";
+import { PolygonAdapter, POL, VERSION as POL_VERSION } from "core/adapters/PolygonAdapter.sol";
 
 contract Adapter_Deploy is Script {
+    uint256 VERSION;
     // Contracts are deployed deterministically.
     // e.g. `foo = new Foo{salt: salt}(constructorArgs)`
     // The presence of the salt argument tells forge to use https://github.com/Arachnid/deterministic-deployment-proxy
-    bytes32 private constant salt = 0x0;
 
-    address private constant LPT = address(0x0);
-    address private constant GRT = address(0x0);
     // address private constant MATIC = 0x0;
 
     function run() public {
-        string memory json_output;
-
         // Start broadcasting with private key from `.env` file
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
@@ -43,8 +40,15 @@ contract Adapter_Deploy is Script {
         address adapter;
 
         // check which adapter to deploy
-        if (asset == LPT) adapter = address(new LivepeerAdapter{salt: salt}());
-        else if (asset == GRT) adapter = address(new GraphAdapter{salt: salt}());
+        if (asset == address(LPT)) {
+            adapter = address(new LivepeerAdapter{ salt: bytes32(LPT_VERSION) }());
+        } else if (asset == address(GRT)) {
+            adapter = address(new GraphAdapter{ salt: bytes32(GRT_VERSION) }());
+        } else if (asset == address(POL)) {
+            adapter = address(new PolygonAdapter{ salt: bytes32(POL_VERSION) }());
+        } else {
+            revert("Adapter not supported");
+        }
 
         // register adapter
         registry.registerAdapter(asset, adapter);

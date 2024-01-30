@@ -21,7 +21,7 @@ The Tenderizer Factory and all associated components need to be deployed only on
 
 ```sh
 source env
-forge script deploy/1_Tenderizer.s.sol --broadcast --rpc-url $GOERLI_RPC_URL --verify
+forge script script/Tenderize_Deploy.s.sol --broadcast --rpc-url $GOERLI_RPC_URL --verify
 ```
 
 This script will execute following calls:
@@ -48,13 +48,3 @@ forge script deploy/2_Adapter.s.sol --broadcast --rpc-url $GOERLI_RPC_URL --veri
 
 1. Deploy `Adapter` Implementation
 2. Set `Adapter` address on `Registry`
-
-TBD.
-
-## Deploy TenderSwap
-
-TBD.
-
-## Deploy Router
-
-TBD.
