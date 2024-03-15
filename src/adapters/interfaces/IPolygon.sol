@@ -43,3 +43,7 @@ interface IPolygonValidatorShares {
 
     function totalSupply() external view returns (uint256);
 }
+
+interface IPolygonStakingNFT {
+    function ownerOf(uint256 tokenId) external view returns (address);
+}
