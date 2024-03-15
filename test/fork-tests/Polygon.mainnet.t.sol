@@ -21,8 +21,7 @@ import {
     POL,
     WITHDRAW_DELAY,
     EXCHANGE_RATE_PRECISION_HIGH,
-    _getValidatorSharesContract,
-    _getValidatorId
+    _getValidatorSharesContract
 } from "core/adapters/PolygonAdapter.sol";
 import { IPolygonStakeManager, IPolygonValidatorShares } from "core/adapters/interfaces/IPolygon.sol";
 import { Tenderizer, TenderizerEvents } from "core/tenderizer/Tenderizer.sol";
@@ -53,7 +52,7 @@ contract PolygonForkTest is Test, TenderizerEvents, ERC721Receiver {
     event NewTenderizer(address indexed asset, address indexed validator, address tenderizer);
 
     function setRewards(uint256 amount, uint256 initialRewardPerShare) internal returns (uint256 rewardPerShare) {
-        IPolygonValidatorShares valShares = _getValidatorSharesContract(_getValidatorId(VALIDATOR_1));
+        IPolygonValidatorShares valShares = _getValidatorSharesContract(adapter.getValidatorId(VALIDATOR_1));
         uint256 totalShares = valShares.totalSupply();
         rewardPerShare = initialRewardPerShare + amount * REWARD_PRECISION / totalShares;
         // We have to update the `Validator.delegatorsRewards` for our validator
@@ -106,9 +105,9 @@ contract PolygonForkTest is Test, TenderizerEvents, ERC721Receiver {
 
     function testFuzz_previewDeposit(uint256 amount) public {
         amount = bound(amount, 1, 10e28);
-        IPolygonValidatorShares valShares = _getValidatorSharesContract(_getValidatorId(VALIDATOR_1));
+        IPolygonValidatorShares valShares = _getValidatorSharesContract(adapter.getValidatorId(VALIDATOR_1));
         uint256 totalShares = valShares.totalSupply();
-        uint256 delegatedAmount = POLYGON_STAKEMANAGER.delegatedAmount(_getValidatorId(VALIDATOR_1));
+        uint256 delegatedAmount = POLYGON_STAKEMANAGER.delegatedAmount(adapter.getValidatorId(VALIDATOR_1));
         uint256 preview = adapter.previewDeposit(VALIDATOR_1, amount);
         uint256 mintedPolShares =
             amount * EXCHANGE_RATE_PRECISION_HIGH / (delegatedAmount * EXCHANGE_RATE_PRECISION_HIGH / totalShares);
@@ -126,9 +125,9 @@ contract PolygonForkTest is Test, TenderizerEvents, ERC721Receiver {
 
         Tenderizer tenderizer = Tenderizer(payable(fixture.factory.newTenderizer(address(POL), VALIDATOR_1)));
 
-        IPolygonValidatorShares valShares = _getValidatorSharesContract(_getValidatorId(VALIDATOR_1));
+        IPolygonValidatorShares valShares = _getValidatorSharesContract(adapter.getValidatorId(VALIDATOR_1));
         uint256 totalShares = valShares.totalSupply();
-        uint256 delegatedAmount = POLYGON_STAKEMANAGER.delegatedAmount(_getValidatorId(VALIDATOR_1));
+        uint256 delegatedAmount = POLYGON_STAKEMANAGER.delegatedAmount(adapter.getValidatorId(VALIDATOR_1));
         uint256 preview = tenderizer.previewDeposit(amount);
 
         uint256 fxRateBefore = delegatedAmount * EXCHANGE_RATE_PRECISION_HIGH / totalShares;
@@ -218,7 +217,7 @@ contract PolygonForkTest is Test, TenderizerEvents, ERC721Receiver {
         POL.approve(address(tenderizer), HOLDER_2_DEPOSIT);
         uint256 tTokenOut_2 = tenderizer.deposit(HOLDER_2, HOLDER_2_DEPOSIT);
         vm.stopPrank();
-        IPolygonValidatorShares valShares = _getValidatorSharesContract(_getValidatorId(VALIDATOR_1));
+        IPolygonValidatorShares valShares = _getValidatorSharesContract(adapter.getValidatorId(VALIDATOR_1));
 
         uint256 tenderizerValShares = valShares.balanceOf(address(tenderizer));
         uint256 initialRewardPerShare = IPolygonValidatorSharesTest(address(valShares)).initalRewardPerShare(address(tenderizer));
