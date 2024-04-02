@@ -15,7 +15,7 @@ uint256 constant VERSION = 1;
 
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
-import { Adapter } from "core/adapters/Adapter.sol";
+import { Adapter, WithdrawPending } from "core/adapters/Adapter.sol";
 import { IGraphStaking, IGraphEpochManager } from "core/adapters/interfaces/IGraph.sol";
 import { IERC165 } from "core/interfaces/IERC165.sol";
 
@@ -28,8 +28,6 @@ contract GraphAdapter is Adapter {
     using SafeTransferLib for ERC20;
 
     uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.graph.adapter.storage.location")) - 1;
-
-    error WithdrawPending();
 
     struct Unlock {
         uint256 shares;
@@ -109,7 +107,7 @@ contract GraphAdapter is Adapter {
         return GRAPH_STAKING.hasStake(validator);
     }
 
-    function stake(address validator, uint256 amount) external override returns (uint256) {
+    function stake(address validator, uint256 amount) external payable override returns (uint256) {
         GRT.safeApprove(address(GRAPH_STAKING), amount);
         uint256 delShares = GRAPH_STAKING.delegate(validator, amount);
         IGraphStaking.DelegationPool memory delPool = GRAPH_STAKING.delegationPools(validator);

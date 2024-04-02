@@ -89,7 +89,7 @@ contract LivepeerAdapter is Adapter {
         return block.number;
     }
 
-    function stake(address validator, uint256 amount) public returns (uint256) {
+    function stake(address validator, uint256 amount) public payable returns (uint256) {
         LPT.safeApprove(address(LIVEPEER_BONDING), amount);
         LIVEPEER_BONDING.bond(amount, validator);
         return amount;
