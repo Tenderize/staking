@@ -98,7 +98,7 @@ contract GraphAdapter is Adapter {
     }
 
     function unlockTime() external view override returns (uint256) {
-        return GRAPH_STAKING.thawingPeriod();
+        return GRAPH_STAKING.thawingPeriod() * 2;
     }
 
     function currentTime() external view override returns (uint256) {
