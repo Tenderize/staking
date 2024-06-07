@@ -17,7 +17,6 @@
     "rimraf": "^3.0.2",
     "solhint": "^3.4.1"
   },
-  "packageManager": "yarn@3.2.4",
   "private": true,
   "resolutions": {
     "solhint/@solidity-parser/parser": "^0.14.5"
