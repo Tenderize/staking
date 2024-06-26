@@ -124,7 +124,7 @@ contract PolygonAdapter is Adapter {
         return POLYGON_STAKEMANAGER.epoch();
     }
 
-    function stake(address validator, uint256 amount) external override returns (uint256) {
+    function stake(address validator, uint256 amount) external payable override returns (uint256) {
         // approve tokens
         POL.safeApprove(address(POLYGON_STAKEMANAGER), amount);
 

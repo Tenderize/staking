@@ -13,6 +13,8 @@ import { IERC165 } from "core/interfaces/IERC165.sol";
 
 pragma solidity >=0.8.19;
 
+error WithdrawPending();
+
 interface Adapter is IERC165 {
     function previewDeposit(address validator, uint256 assets) external view returns (uint256);
 
@@ -24,7 +26,7 @@ interface Adapter is IERC165 {
 
     function currentTime() external view returns (uint256);
 
-    function stake(address validator, uint256 amount) external returns (uint256 staked);
+    function stake(address validator, uint256 amount) external payable returns (uint256 staked);
 
     function unstake(address validator, uint256 amount) external returns (uint256 unlockID);
 
