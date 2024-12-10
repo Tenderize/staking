@@ -31,7 +31,7 @@ import { Factory } from "core/factory/Factory.sol";
 import { TenderizerFixture, tenderizerFixture } from "./Fixture.sol";
 
 address constant VALIDATOR_1 = 0xe7DB0D2384587956ef9d47304E96236022cCE3Af; // 0xeA105Ab4e3F01f7f8DA09Cb84AB501Aeb02E9FC7;
-address constant TOKEN_HOLDER = 0xF977814e90dA44bFA03b6295A0616a897441aceC;
+address constant TOKEN_HOLDER = 0xcD6507d87F605F5E95C12F7c4B1fC3279dc944aB;
 address constant GOVERNANCE = 0x6e7a5820baD6cebA8Ef5ea69c0C92EbbDAc9CE48;
 uint256 constant REWARD_PRECISION = 1e25;
 
@@ -245,5 +245,19 @@ contract PolygonForkTest is Test, TenderizerEvents, ERC721Receiver {
             tTokenOut_2 + tenderizerRewards * tTokenOut_2 / (tTokenOut_1 + tTokenOut_2),
             "balance 2 incorrect"
         );
+    }
+
+    function test_existing_tenderizer() public {
+        address tenderizer = 0x3a3D463fb8241DA6051eb4DAB2200C8b99691315; // vault staking
+
+        address holder = 0xfbB6bA477368469Cd439F1cBA3e3E6e49411d77c; // 5 max
+        vm.prank(holder);
+        uint256 id = Tenderizer(payable(tenderizer)).unlock(5 ether);
+        uint256 newEpoch = POLYGON_STAKEMANAGER.epoch() + WITHDRAW_DELAY;
+        vm.prank(GOVERNANCE);
+        IPolygonStakeManagerTest(address(POLYGON_STAKEMANAGER)).setCurrentEpoch(newEpoch);
+
+        vm.prank(holder);
+        Tenderizer(payable(tenderizer)).withdraw(holder, id);
     }
 }

@@ -31,7 +31,7 @@ uint256 constant EXCHANGE_RATE_PRECISION_HIGH = 10 ** 29; // For Validator ID >=
 uint256 constant WITHDRAW_DELAY = 80; // 80 epochs, epoch length can vary on average between 200-300 Ethereum L1 blocks
 
 IPolygonStakeManager constant POLYGON_STAKEMANAGER = IPolygonStakeManager(address(0x5e3Ef299fDDf15eAa0432E6e66473ace8c13D908));
-ERC20 constant POL = ERC20(address(0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0));
+ERC20 constant POL = ERC20(address(0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6));
 
 // Old validator owners
 // If validators changed their "owner" we must have a special case to fetch the
@@ -138,7 +138,7 @@ contract PolygonAdapter is Adapter {
         uint256 min = amount * precision / fxRate - 1;
 
         // Mint voucher shares
-        return validatorShares.buyVoucher(amount, min);
+        return validatorShares.buyVoucherPOL(amount, min);
     }
 
     function unstake(address validator, uint256 amount) external override returns (uint256 unlockID) {
@@ -151,7 +151,7 @@ contract PolygonAdapter is Adapter {
         // Unbond tokens
         // calculate max amount of validator shares to burn
         uint256 max = amount * precision / fxRate + 1;
-        validatorShares.sellVoucher_new(amount, max);
+        validatorShares.sellVoucher_newPOL(amount, max);
 
         return validatorShares.unbondNonces(address(this));
     }
@@ -166,7 +166,7 @@ contract PolygonAdapter is Adapter {
         uint256 fxRate = validatorId >= 8 ? validatorShares.withdrawExchangeRate() : EXCHANGE_RATE_PRECISION;
         amount = unbond.shares * fxRate / getExchangePrecision(validatorId);
 
-        validatorShares.unstakeClaimTokens_new(unlockID);
+        validatorShares.unstakeClaimTokens_newPOL(unlockID);
     }
 
     function rebase(address validator, uint256 currentStake) external returns (uint256 newStake) {
@@ -185,7 +185,7 @@ contract PolygonAdapter is Adapter {
         // This call will revert if there are no rewards
         // In which case we don't throw, just return the current staked amount.
         // solhint-disable-next-line no-empty-blocks
-        try validatorShares.restake() { }
+        try validatorShares.restakePOL() { }
         catch {
             return currentStake;
         }

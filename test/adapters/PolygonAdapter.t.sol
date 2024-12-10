@@ -100,12 +100,12 @@ contract PolygonAdapterTest is Test {
             validatorShares, abi.encodeCall(IPolygonValidatorShares.exchangeRate, ()), abi.encode(EXCHANGE_RATE_PRECISION_HIGH)
         );
         vm.mockCall(validatorShares, abi.encodeCall(IPolygonValidatorShares.balanceOf, (address(this))), abi.encode(newStake));
-        vm.mockCallRevert(validatorShares, abi.encodeCall(IPolygonValidatorShares.restake, ()), "");
+        vm.mockCallRevert(validatorShares, abi.encodeCall(IPolygonValidatorShares.restakePOL, ()), "");
         uint256 actual =
             abi.decode(adapter._delegatecall(abi.encodeCall(PolygonAdapter.rebase, (address(this), currentStake))), (uint256));
         assertEq(actual, currentStake);
 
-        vm.mockCall(validatorShares, abi.encodeCall(IPolygonValidatorShares.restake, ()), abi.encode(true));
+        vm.mockCall(validatorShares, abi.encodeCall(IPolygonValidatorShares.restakePOL, ()), abi.encode(true));
         actual = abi.decode(adapter._delegatecall(abi.encodeCall(PolygonAdapter.rebase, (address(this), currentStake))), (uint256));
         assertEq(actual, newStake);
     }

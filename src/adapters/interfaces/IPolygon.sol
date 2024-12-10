@@ -21,13 +21,13 @@ interface IPolygonStakeManager {
 interface IPolygonValidatorShares {
     function owner() external view returns (address);
 
-    function restake() external;
+    function restakePOL() external;
 
-    function buyVoucher(uint256 _amount, uint256 _minSharesToMint) external returns (uint256 amount);
+    function buyVoucherPOL(uint256 _amount, uint256 _minSharesToMint) external returns (uint256 amount);
 
-    function sellVoucher_new(uint256 claimAmount, uint256 maximumSharesToBurn) external;
+    function sellVoucher_newPOL(uint256 claimAmount, uint256 maximumSharesToBurn) external;
 
-    function unstakeClaimTokens_new(uint256 unbondNonce) external;
+    function unstakeClaimTokens_newPOL(uint256 unbondNonce) external;
 
     function exchangeRate() external view returns (uint256);
 
