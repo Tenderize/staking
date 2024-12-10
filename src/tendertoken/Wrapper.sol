@@ -9,12 +9,16 @@ Registry constant REGISTRY = Registry(0xa7cA8732Be369CaEaE8C230537Fc8EF82a3387EE
 contract Wrapper {
     error NotTToken();
 
+    event NewWrappedToken(address tToken, address wtToken);
+
     mapping(address tToken => WtToken wtToken) private wrappers;
 
     function createWrappedToken(address tToken) public {
         if (address(wrappers[tToken]) != address(0)) revert();
         if (!REGISTRY.isTenderizer(tToken)) revert NotTToken();
-        wrappers[tToken] = new WtToken(tToken);
+        WtToken wtToken = new WtToken(tToken);
+        wrappers[tToken] = wtToken;
+        emit NewWrappedToken(tToken, address(wtToken));
     }
 
     function wrap(address tToken, uint256 amount) external returns (address, uint256) {

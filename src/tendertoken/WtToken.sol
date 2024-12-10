@@ -10,6 +10,9 @@ interface ITToken {
 }
 
 contract WtToken is ERC20 {
+    event Wrap(address indexed tToken, uint256 amount, uint256 wrappedAmount);
+    event Unwrap(address indexed tToken, uint256 amount, uint256 unwrappedAmount);
+
     ITToken public tToken;
 
     constructor(address _tToken) ERC20("name", "symbol", 18) {
@@ -20,6 +23,7 @@ contract WtToken is ERC20 {
         uint256 shares = tToken.convertToShares(amount);
         _mint(msg.sender, shares);
         tToken.transferFrom(msg.sender, address(this), amount);
+        emit Wrap(address(tToken), amount, shares);
         return shares;
     }
 
@@ -27,6 +31,7 @@ contract WtToken is ERC20 {
         uint256 amountFromShares = tToken.convertToAssets(amount);
         _burn(msg.sender, amount);
         tToken.transfer(msg.sender, amountFromShares);
+        emit Unwrap(address(tToken), amount, amountFromShares);
         return amountFromShares;
     }
 
