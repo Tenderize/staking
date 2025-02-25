@@ -1,0 +1,569 @@
+// SPDX-License-Identifier: MIT
+//
+//  _____              _           _
+// |_   _|            | |         (_)
+//   | | ___ _ __   __| | ___ _ __ _ _______
+//   | |/ _ \ '_ \ / _` |/ _ \ '__| |_  / _ \
+//   | |  __/ | | | (_| |  __/ |  | |/ /  __/
+//   \_/\___|_| |_|\__,_|\___|_|  |_/___\___|
+//
+pragma solidity >=0.8.19;
+
+/// @title AVL Tree Library
+/// @notice Provides an AVL (balanced binary search) tree implementation for sorting nodes by their `divergence`.
+/// @dev The tree is keyed by `int200 divergence`. When `divergence` values are equal, nodes are ordered by `id`.
+/// Nodes are inserted and balanced according to AVL rotation rules.
+
+library AVLTree {
+    // ============================================================
+    //                         Errors
+    // ============================================================
+    /// @notice Thrown when an operation is performed on an empty tree.
+    error TreeEmpty();
+
+    /// @notice Thrown when a requested node ID does not exist in the tree.
+    error NodeNotFound();
+
+    /// @notice Thrown when an invalid balance factor is detected (mainly for debugging).
+    error InvalidBalance();
+
+    /// @notice Thrown when insertion is invalid (e.g. tree size limit reached).
+    error InvalidInsertion();
+
+    /// @notice Thrown when attempting to insert a node that already exists.
+    error NodeAlreadyExists();
+
+    // ============================================================
+    //                         Structures
+    // ============================================================
+    /// @notice Represents a single node in the AVL tree.
+    /// @dev `height` is used for AVL balance calculations. `divergence` is the sorting key.
+    struct Node {
+        uint24 left; // Supports 16.7M nodes
+        uint24 right; // Supports 16.7M nodes
+        uint8 height; // More than enough for max height
+        int200 divergence; // Supports 10^59, more than enough for any practical purpose
+    }
+
+    /// @notice Represents the entire AVL tree data structure.
+    /// @dev `first` and `last` track the nodes with min and max divergence respectively.
+    struct Tree {
+        uint24 root;
+        uint24 first;
+        uint24 last;
+        uint24 size;
+        uint24 positiveNodes;
+        uint24 negativeNodes;
+        int200 negDivergence;
+        int200 posDivergence;
+        mapping(uint24 => Node) nodes;
+    }
+
+    /// @notice Insert a new node with a given id and divergence into the tree.
+    /// @dev Reverts if a node with the same id already exists.
+    /// @param tree The tree storage pointer.
+    /// @param id The unique node identifier.
+    /// @param divergence The divergence value for sorting.
+    /// @return success True if the insertion was successful.
+    function insert(Tree storage tree, uint24 id, int200 divergence) public returns (bool) {
+        if (tree.size >= type(uint24).max) revert InvalidInsertion();
+        if (hasNode(tree, id)) revert NodeAlreadyExists();
+
+        // Update tree stats
+        tree.size++;
+        if (divergence > 0) {
+            tree.positiveNodes++;
+            tree.posDivergence += divergence;
+        } else if (divergence < 0) {
+            tree.negativeNodes++;
+            tree.negDivergence += divergence;
+        }
+
+        // Create new node
+        Node memory newNode = Node({ left: 0, right: 0, height: 1, divergence: divergence });
+
+        // Handle first insertion
+        if (tree.size == 1) {
+            tree.root = id;
+            tree.first = id;
+            tree.last = id;
+            tree.nodes[id] = newNode;
+            return true;
+        }
+
+        tree.root = _insertRecursive(tree, tree.root, id, newNode);
+        return true;
+    }
+
+    /// @notice Inserts a node recursively into the AVL tree and rebalances if necessary.
+    /// @param tree The tree storage pointer.
+    /// @param nodeId The current node ID being checked.
+    /// @param newId The new node's ID.
+    /// @param newNode The new node structure to insert.
+    /// @return uint24 The updated subtree root after insertion.
+    function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node memory newNode) internal returns (uint24) {
+        // Handle base case
+        if (nodeId == 0) {
+            tree.nodes[newId] = newNode;
+            return newId;
+        }
+
+        // Recursive insertion
+        Node storage current = tree.nodes[nodeId];
+        if (newNode.divergence < current.divergence) {
+            current.left = _insertRecursive(tree, current.left, newId, newNode);
+            if (tree.first == nodeId && newNode.divergence < current.divergence) {
+                tree.first = newId;
+            }
+        } else {
+            current.right = _insertRecursive(tree, current.right, newId, newNode);
+            if (tree.last == nodeId && newNode.divergence >= current.divergence) {
+                tree.last = newId;
+            }
+        }
+
+        return rebalanceNode(tree, nodeId);
+    }
+
+    /// @notice Removes the node with the given `id` from the tree.
+    /// @dev Reverts if the tree is empty or if the node does not exist. Updates stats and rebalances the tree.
+    /// @param tree The tree storage pointer.
+    /// @param id The unique node identifier to remove.
+    /// @return success True if the removal was successful.
+    function remove(Tree storage tree, uint24 id) public returns (bool) {
+        if (tree.size == 0) revert TreeEmpty();
+        if (!hasNode(tree, id)) revert NodeNotFound();
+
+        Node storage node = tree.nodes[id];
+        _updateDivergenceStats(tree, node.divergence, 0);
+
+        tree.root = _removeRecursive(tree, tree.root, id);
+        tree.size--;
+
+        // Update first/last if necessary
+        if (id == tree.first) {
+            tree.first = _findMin(tree, tree.root);
+        }
+        if (id == tree.last) {
+            tree.last = _findMax(tree, tree.root);
+        }
+
+        return true;
+    }
+
+    /// @notice Removes a node recursively from the AVL tree and rebalances if needed.
+    /// @param tree The tree storage pointer.
+    /// @param nodeId The current subtree root being examined.
+    /// @param id The ID of the node to remove.
+    /// @return uint24 The updated subtree root after removal.
+    function _removeRecursive(Tree storage tree, uint24 nodeId, uint24 id) internal returns (uint24) {
+        if (nodeId == 0) return 0;
+
+        Node storage current = tree.nodes[nodeId];
+
+        if (id < nodeId) {
+            current.left = _removeRecursive(tree, current.left, id);
+        } else if (id > nodeId) {
+            current.right = _removeRecursive(tree, current.right, id);
+        } else {
+            // Node to delete found
+            if (current.left == 0 || current.right == 0) {
+                // One child or leaf
+                uint24 temp = current.left == 0 ? current.right : current.left;
+                if (temp == 0) {
+                    // No child
+                    delete tree.nodes[nodeId];
+                    return 0;
+                } else {
+                    // One child
+                    tree.nodes[nodeId] = tree.nodes[temp];
+                    delete tree.nodes[temp];
+                    return temp;
+                }
+            } else {
+                // Two children
+                uint24 temp = _findMin(tree, current.right);
+                current.divergence = tree.nodes[temp].divergence;
+                current.right = _removeRecursive(tree, current.right, temp);
+            }
+        }
+
+        return rebalanceNode(tree, nodeId);
+    }
+
+    /// @notice Updates the divergence of an existing node.
+    /// @dev If necessary, remove and re-insert the node for efficiency. Otherwise, update in place and rebalance.
+    /// @param tree The tree storage pointer.
+    /// @param id The unique node identifier.
+    /// @param newDivergence The new divergence value.
+    /// @return success True if the update was successful.
+    function updateDivergence(Tree storage tree, uint24 id, int200 newDivergence) external returns (bool) {
+        Node storage node = tree.nodes[id];
+        if (!hasNode(tree, id)) revert NodeNotFound();
+        int200 oldDivergence = node.divergence;
+        if (oldDivergence == newDivergence) return true;
+
+        // Update tree statistics
+        _updateDivergenceStats(tree, oldDivergence, newDivergence);
+
+        // Determine if delete+reinsert is more efficient
+        uint256 levelChange = _estimateLevelChange(oldDivergence, newDivergence);
+        if (levelChange > node.height / 2) {
+            // Delete and reinsert
+            remove(tree, id);
+            return insert(tree, id, newDivergence);
+        } else {
+            // Update in place
+            node.divergence = newDivergence;
+            tree.root = _rebalanceRecursive(tree, tree.root, id);
+            return true;
+        }
+    }
+
+    /// @notice Rebalances the AVL tree starting from a given node after an update.
+    /// @param tree The tree storage pointer.
+    /// @param nodeId The current subtree root.
+    /// @param targetId The node ID whose divergence was updated.
+    /// @return uint24 The updated subtree root after rebalancing.
+    function _rebalanceRecursive(Tree storage tree, uint24 nodeId, uint24 targetId) internal returns (uint24) {
+        if (nodeId == 0) return 0;
+
+        Node storage current = tree.nodes[nodeId];
+
+        if (targetId < nodeId) {
+            current.left = _rebalanceRecursive(tree, current.left, targetId);
+        } else if (targetId > nodeId) {
+            current.right = _rebalanceRecursive(tree, current.right, targetId);
+        }
+        // If targetId == nodeId, we've found our node and will rebalance up
+
+        return rebalanceNode(tree, nodeId);
+    }
+
+    /// @notice Rebalances a single node if needed using AVL rotations.
+    /// @param tree The tree storage pointer.
+    /// @param nodeId The node to rebalance.
+    /// @return uint24 The new root of the subtree after rebalancing.
+    function rebalanceNode(Tree storage tree, uint24 nodeId) internal returns (uint24) {
+        if (nodeId == 0) return 0;
+
+        Node storage node = tree.nodes[nodeId];
+
+        // Update height
+        uint8 leftHeight = node.left == 0 ? 0 : tree.nodes[node.left].height;
+        uint8 rightHeight = node.right == 0 ? 0 : tree.nodes[node.right].height;
+        node.height = max(leftHeight, rightHeight) + 1;
+
+        // Get balance factor
+        int8 balance = int8(rightHeight) - int8(leftHeight);
+
+        // Left Heavy
+        if (balance < -1) {
+            uint24 left = node.left;
+            int8 leftBalance = getBalance(tree, left);
+
+            if (leftBalance <= 0) {
+                // Left-Left Case
+                return rightRotate(tree, nodeId);
+            } else {
+                // Left-Right Case
+                node.left = leftRotate(tree, left);
+                return rightRotate(tree, nodeId);
+            }
+        }
+
+        // Right Heavy
+        if (balance > 1) {
+            uint24 right = node.right;
+            int8 rightBalance = getBalance(tree, right);
+
+            if (rightBalance >= 0) {
+                // Right-Right Case
+                return leftRotate(tree, nodeId);
+            } else {
+                // Right-Left Case
+                node.right = rightRotate(tree, right);
+                return leftRotate(tree, nodeId);
+            }
+        }
+
+        // No rebalancing needed
+        return nodeId;
+    }
+
+    /// @notice Find the most divergent nodes in a specified direction (positive or negative).
+    /// @dev Returns up to `count` nodes. If `positive` is true, returns the most positive divergences; otherwise, most negative.
+    /// @param tree The tree storage pointer.
+    /// @param positive True for positive divergence, false for negative.
+    /// @param count The number of nodes to return (max 3).
+    /// @return ids The array of node IDs.
+    /// @return divergences The array of divergences corresponding to the returned nodes.
+    function findMostDivergent(
+        Tree storage tree,
+        bool positive,
+        uint24 count
+    )
+        public
+        view
+        returns (uint24[] memory ids, int200[] memory divergences)
+    {
+        if (tree.size == 0) revert TreeEmpty();
+
+        ids = new uint24[](count);
+        divergences = new int200[](count);
+        uint8 found = 0;
+
+        uint24 current = positive ? tree.last : tree.first;
+        while (current != 0 && found < count) {
+            Node memory node = tree.nodes[current];
+            if ((positive && node.divergence <= 0) || (!positive && node.divergence >= 0)) break;
+
+            ids[found] = current;
+            divergences[found] = node.divergence;
+            found++;
+
+            current = positive ? _findPredecessor(tree, current) : _findSuccessor(tree, current);
+        }
+
+        return (ids, divergences);
+    }
+
+    /// @notice Finds the predecessor of a given node (the closest node with a key less than the given node's key).
+    /// @param tree The tree storage pointer.
+    /// @param nodeId The ID of the node for which to find the predecessor.
+    /// @return uint24 The predecessor node ID, or 0 if none exists.
+    function _findPredecessor(Tree storage tree, uint24 nodeId) internal view returns (uint24) {
+        Node storage node = tree.nodes[nodeId];
+
+        // If there's a left subtree, the predecessor is the maximum node in that subtree.
+        if (node.left != 0) {
+            return _findMax(tree, node.left);
+        }
+
+        // Otherwise, we search from the root. The predecessor is the node with the largest key
+        // that is strictly less than (node.divergence, nodeId).
+        uint24 predecessor = 0;
+        uint24 current = tree.root;
+        while (current != 0) {
+            Node storage cnode = tree.nodes[current];
+
+            // Compare by divergence first; if equal, then by ID.
+            if (cnode.divergence < node.divergence || (cnode.divergence == node.divergence && current < nodeId)) {
+                // current is a valid predecessor candidate, since it's strictly less
+                predecessor = current;
+                current = cnode.right; // look for a larger one that might still be less
+            } else {
+                // current is not less, so we move left to find smaller nodes
+                current = cnode.left;
+            }
+        }
+        return predecessor;
+    }
+
+    /// @notice Finds the successor of a given node (the closest node with a key greater than the given node's key).
+    /// @param tree The tree storage pointer.
+    /// @param nodeId The ID of the node for which to find the successor.
+    /// @return uint24 The successor node ID, or 0 if none exists.
+    function _findSuccessor(Tree storage tree, uint24 nodeId) internal view returns (uint24) {
+        Node storage node = tree.nodes[nodeId];
+
+        // If there's a right subtree, the successor is the minimum node in that subtree.
+        if (node.right != 0) {
+            return _findMin(tree, node.right);
+        }
+
+        // Otherwise, we search from the root. The successor is the node with the smallest key
+        // that is strictly greater than (node.divergence, nodeId).
+        uint24 successor = 0;
+        uint24 current = tree.root;
+        while (current != 0) {
+            Node storage cnode = tree.nodes[current];
+
+            // Compare by divergence first; if equal, then by ID.
+            if (cnode.divergence > node.divergence || (cnode.divergence == node.divergence && current > nodeId)) {
+                // current is a valid successor candidate, since it's strictly greater
+                successor = current;
+                current = cnode.left; // look for a smaller one that might still be greater
+            } else {
+                // current is not greater, move right to find a larger node
+                current = cnode.right;
+            }
+        }
+        return successor;
+    }
+
+    /// @notice Returns whether a node with the given `id` exists in the tree.
+    /// @param tree The tree storage pointer.
+    /// @param id The unique node identifier.
+    /// @return exists True if the node exists, false otherwise.
+    function hasNode(Tree storage tree, uint24 id) internal view returns (bool) {
+        return tree.nodes[id].height != 0;
+    }
+
+    /// @notice Estimates the level change in the tree if a node's divergence sign changes.
+    /// @dev This is a simplified heuristic.
+    /// @param oldValue The old divergence value.
+    /// @param newValue The new divergence value.
+    /// @return uint256 The estimated level change.
+    function _estimateLevelChange(int200 oldValue, int200 newValue) internal pure returns (uint256) {
+        if (oldValue == newValue) return 0;
+        if (oldValue < 0 && newValue < 0) return 0;
+        if (oldValue > 0 && newValue > 0) return 0;
+        return 1; // Simplified for now, could be more sophisticated
+    }
+
+    /// @notice Finds the minimum node starting from a given subtree root.
+    /// @param tree The tree storage pointer.
+    /// @param nodeId The subtree root.
+    /// @return uint24 The node ID with the minimum divergence in that subtree.
+    function _findMin(Tree storage tree, uint24 nodeId) internal view returns (uint24) {
+        if (nodeId == 0) return 0;
+        while (tree.nodes[nodeId].left != 0) {
+            nodeId = tree.nodes[nodeId].left;
+        }
+        return nodeId;
+    }
+
+    /// @notice Finds the maximum node starting from a given subtree root.
+    /// @param tree The tree storage pointer.
+    /// @param nodeId The subtree root.
+    /// @return uint24 The node ID with the maximum divergence in that subtree.
+    function _findMax(Tree storage tree, uint24 nodeId) internal view returns (uint24) {
+        if (nodeId == 0) return 0;
+        while (tree.nodes[nodeId].right != 0) {
+            nodeId = tree.nodes[nodeId].right;
+        }
+        return nodeId;
+    }
+
+    // Core missing utility functions
+    function max(uint8 a, uint8 b) internal pure returns (uint8) {
+        return a > b ? a : b;
+    }
+
+    /// @notice Gets the balance factor of a node.
+    /// @dev The balance is (height of right subtree - height of left subtree).
+    /// @param tree The tree storage pointer.
+    /// @param nodeId The node ID for which to get the balance.
+    /// @return int8 The balance factor.
+    function getBalance(Tree storage tree, uint24 nodeId) internal view returns (int8) {
+        if (nodeId == 0) return 0;
+
+        Node storage node = tree.nodes[nodeId];
+        uint8 leftHeight = node.left == 0 ? 0 : tree.nodes[node.left].height;
+        uint8 rightHeight = node.right == 0 ? 0 : tree.nodes[node.right].height;
+
+        return int8(rightHeight) - int8(leftHeight);
+    }
+
+    /// @notice Performs a right rotation on the subtree rooted at `y`.
+    /// @param tree The tree storage pointer.
+    /// @param y The root of the subtree to rotate.
+    /// @return uint24 The new root of the rotated subtree.
+    function rightRotate(Tree storage tree, uint24 y) internal returns (uint24) {
+        uint24 x = tree.nodes[y].left;
+        uint24 T2 = tree.nodes[x].right;
+
+        // Perform rotation
+        tree.nodes[x].right = y;
+        tree.nodes[y].left = T2;
+
+        // Update heights
+        uint8 leftHeight = tree.nodes[y].left == 0 ? 0 : tree.nodes[tree.nodes[y].left].height;
+        uint8 rightHeight = tree.nodes[y].right == 0 ? 0 : tree.nodes[tree.nodes[y].right].height;
+        tree.nodes[y].height = max(leftHeight, rightHeight) + 1;
+
+        leftHeight = tree.nodes[x].left == 0 ? 0 : tree.nodes[tree.nodes[x].left].height;
+        rightHeight = tree.nodes[x].right == 0 ? 0 : tree.nodes[tree.nodes[x].right].height;
+        tree.nodes[x].height = max(leftHeight, rightHeight) + 1;
+
+        return x;
+    }
+
+    /// @notice Performs a left rotation on the subtree rooted at `x`.
+    /// @param tree The tree storage pointer.
+    /// @param x The root of the subtree to rotate.
+    /// @return uint24 The new root of the rotated subtree.
+    function leftRotate(Tree storage tree, uint24 x) internal returns (uint24) {
+        uint24 y = tree.nodes[x].right;
+        uint24 T2 = tree.nodes[y].left;
+
+        // Perform rotation
+        tree.nodes[y].left = x;
+        tree.nodes[x].right = T2;
+
+        // Update heights
+        uint8 leftHeight = tree.nodes[x].left == 0 ? 0 : tree.nodes[tree.nodes[x].left].height;
+        uint8 rightHeight = tree.nodes[x].right == 0 ? 0 : tree.nodes[tree.nodes[x].right].height;
+        tree.nodes[x].height = max(leftHeight, rightHeight) + 1;
+
+        leftHeight = tree.nodes[y].left == 0 ? 0 : tree.nodes[tree.nodes[y].left].height;
+        rightHeight = tree.nodes[y].right == 0 ? 0 : tree.nodes[tree.nodes[y].right].height;
+        tree.nodes[y].height = max(leftHeight, rightHeight) + 1;
+
+        return y;
+    }
+
+    /// @notice Updates the tree statistics when a node's divergence changes.
+    /// @param tree The tree storage pointer.
+    /// @param oldDivergence The old divergence value.
+    /// @param newDivergence The new divergence value.
+    function _updateDivergenceStats(Tree storage tree, int200 oldDivergence, int200 newDivergence) internal {
+        // Remove old stats
+        if (oldDivergence > 0) {
+            tree.positiveNodes--;
+            tree.posDivergence -= oldDivergence;
+        } else if (oldDivergence < 0) {
+            tree.negativeNodes--;
+            tree.negDivergence -= oldDivergence;
+        }
+
+        // Add new stats
+        if (newDivergence > 0) {
+            tree.positiveNodes++;
+            tree.posDivergence += newDivergence;
+        } else if (newDivergence < 0) {
+            tree.negativeNodes++;
+            tree.negDivergence += newDivergence;
+        }
+    }
+
+    /// @notice Returns the node structure for a given `id`.
+    /// @param tree The tree storage pointer.
+    /// @param id The unique node identifier.
+    /// @return node The requested node.
+    function getNode(Tree storage tree, uint24 id) external view returns (Node memory) {
+        return tree.nodes[id];
+    }
+
+    /// @notice Returns the size of the tree (number of nodes).
+    /// @param tree The tree storage pointer.
+    /// @return uint24 The total number of nodes in the tree.
+    function getSize(Tree storage tree) external view returns (uint24) {
+        return tree.size;
+    }
+
+    /// @notice Returns global statistics about the tree.
+    /// @param tree The tree storage pointer.
+    /// @return size The total number of nodes in the tree.
+    /// @return positiveNodes The number of nodes with positive divergence.
+    /// @return negativeNodes The number of nodes with negative divergence.
+    /// @return posDivergence The sum of all positive divergences.
+    /// @return negDivergence The sum of all negative divergences.
+    function getTreeStats(Tree storage tree)
+        external
+        view
+        returns (uint24 size, uint24 positiveNodes, uint24 negativeNodes, int200 posDivergence, int200 negDivergence)
+    {
+        return (tree.size, tree.positiveNodes, tree.negativeNodes, tree.posDivergence, tree.negDivergence);
+    }
+
+    /// @notice Returns the bounds of the tree (root, first, and last node IDs).
+    /// @param tree The tree storage pointer.
+    /// @return root The root node ID.
+    /// @return first The node ID with the smallest divergence.
+    /// @return last The node ID with the largest divergence.
+    function getTreeBounds(Tree storage tree) external view returns (uint24 root, uint24 first, uint24 last) {
+        return (tree.root, tree.first, tree.last);
+    }
+}
