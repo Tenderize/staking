@@ -34,3 +34,4 @@ depth = 100
 arbitrum_goerli = "${ARBITRUM_GOERLI_RPC}"
 arbitrum = "${ARBITRUM_RPC}"
 mainnet = "${MAINNET_RPC}"
+hyperliquid = "${HYPERLIQUID_RPC}"
