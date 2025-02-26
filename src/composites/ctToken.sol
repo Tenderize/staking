@@ -65,9 +65,10 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         uint256 balance; // Current balance of tTokens
     }
 
+    UnstakeNFT immutable unstakeNFT;
+    address immutable token; // Underlying asset (e.g. ETH)
     // State variables
-    address public token; // Underlying asset (e.g. ETH)
-    UnstakeNFT public unstakeNFT;
+
     uint256 public totalAssets;
     uint256 private lastUnstakeID;
     // Exchange rate state
@@ -78,8 +79,11 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
     mapping(uint256 unstakeID => UnstakeRequest) public unstakeRequests;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor(address _token, UnstakeNFT _unstakeNFT) {
         _disableInitializers();
+        // Set initial state
+        token = _token;
+        unstakeNFT = _unstakeNFT;
     }
 
     function name() public pure override returns (string memory) {
@@ -90,7 +94,7 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         return "ctToken";
     }
 
-    function initialize(address _token, UnstakeNFT _unstakeNFT) external initializer {
+    function initialize() external initializer {
         __AccessControl_init();
         _grantRole(UPGRADE_ROLE, msg.sender);
         _grantRole(GOVERNANCE_ROLE, msg.sender);
@@ -100,10 +104,6 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         // Only allow UPGRADE_ROLE to add new UPGRADE_ROLE memebers
         // If all members of UPGRADE_ROLE are revoked, contract upgradability is revoked
         _setRoleAdmin(UPGRADE_ROLE, UPGRADE_ROLE);
-
-        // Set initial state
-        token = _token;
-        unstakeNFT = _unstakeNFT;
     }
 
     // Core functions for deposits
@@ -112,30 +112,82 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         token.safeTransferFrom(msg.sender, address(this), assets);
 
         // Stake assets
-        uint24 count = 1;
-        (uint24[] memory validatorIDs,) = stakingPoolTree.findMostDivergent(false, count);
+        uint24 count = 3;
 
-        // Distribute deposit
-        // TODO: should we distribute the deposit here directly
-        // Or have a public function that does this callable by anyone
-        // We would the e.g. call this once per day/epoch/whatever
-        // This could significantly reduce the gas cost of deposit.
+        (, uint24 positiveNodes, uint24 negativeNodes,, int200 negDivergence) = stakingPoolTree.getTreeStats();
+
+        uint256 negDiv_ = uint256(int256(-(negDivergence)));
+
         uint256 received;
-        for (uint24 i = 0; i < count; i++) {
-            StakingPool storage pool = stakingPools[validatorIDs[i]];
-            Tenderizer tenderizer = Tenderizer(pool.tToken);
-            uint256 tTokens = tenderizer.deposit(address(this), assets);
-            pool.balance += tTokens;
-            received += tTokens;
+        int200 totalDivergence = 0;
+        if (assets <= negDiv_) {
+            uint24 maxCount = negativeNodes > count ? count : negativeNodes;
+            StakingPool[] memory items = new StakingPool[](maxCount);
 
-            // Rebalance tree
-            int200 d;
-            if (pool.balance < pool.target) {
-                d = -int200(uint200(pool.target - pool.balance));
-            } else {
-                d = int200(uint200(pool.balance - pool.target));
+            (uint24[] memory validatorIDs,) = stakingPoolTree.findMostDivergent(false, maxCount);
+
+            for (uint24 i = 0; i < maxCount; i++) {
+                StakingPool storage pool = stakingPools[validatorIDs[i]];
+                items[i] = StakingPool(pool.tToken, pool.target, pool.balance);
+                totalDivergence += int200(int256((pool.target - pool.balance)));
             }
-            stakingPoolTree.updateDivergence(validatorIDs[i], d);
+
+            for (uint24 i = 0; i < maxCount; i++) {
+                uint256 amount = assets * uint256(int256(int200(int256(items[i].target - items[i].balance)) / totalDivergence));
+                uint256 tTokens = Tenderizer(items[i].tToken).deposit(address(this), amount);
+                StakingPool storage pool = stakingPools[validatorIDs[i]];
+                pool.balance += tTokens;
+                received += tTokens;
+
+                // Rebalance tree
+                int200 d;
+                if (pool.balance < pool.target) {
+                    d = -int200(uint200(pool.target - pool.balance));
+                } else {
+                    d = int200(uint200(pool.balance - pool.target));
+                }
+                stakingPoolTree.updateDivergence(validatorIDs[i], d);
+            }
+        } else {
+            uint24 maxCount = negativeNodes > count ? count : negativeNodes;
+            (uint24[] memory validatorIDs,) = stakingPoolTree.findMostDivergent(false, maxCount);
+            uint256[] memory depositAmounts = new uint256[](maxCount);
+            for (uint24 i = 0; i < maxCount; i++) {
+                StakingPool storage pool = stakingPools[i];
+                depositAmounts[i] = pool.target - pool.balance;
+            }
+
+            // Fill the remaining between a set of validators all above surplus, start with the one least in surplus
+            maxCount = positiveNodes > count ? count : positiveNodes;
+            (validatorIDs,) = stakingPoolTree.findMostDivergent(false, maxCount);
+            StakingPool[] memory items = new StakingPool[](maxCount);
+
+            for (uint24 i = 0; i < maxCount; i++) {
+                StakingPool storage pool = stakingPools[validatorIDs[i]];
+                items[i] = StakingPool(pool.tToken, pool.target, pool.balance);
+
+                // IN THEORY: This set should all have positive divergence, so we can use the absolute values
+                // instead of the signed integers.
+                totalDivergence += int200(int256((pool.balance - pool.target)));
+            }
+
+            for (uint24 i = 0; i < maxCount; i++) {
+                uint256 amount = depositAmounts[i]
+                    + assets * uint256(int256(int200(int256(items[i].target - items[i].balance)) / totalDivergence));
+                uint256 tTokens = Tenderizer(items[i].tToken).deposit(address(this), amount);
+                StakingPool storage pool = stakingPools[validatorIDs[i]];
+                pool.balance += tTokens;
+                received += tTokens;
+
+                // Rebalance tree
+                int200 d;
+                if (pool.balance < pool.target) {
+                    d = -int200(uint200(pool.target - pool.balance));
+                } else {
+                    d = int200(uint200(pool.balance - pool.target));
+                }
+                stakingPoolTree.updateDivergence(validatorIDs[i], d);
+            }
         }
 
         totalAssets += assets;
