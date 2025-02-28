@@ -365,7 +365,7 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         if (newBalance > currentBalance) {
             uint256 fees = newBalance - currentBalance * fee / FEE_WAD;
             totalAssets += newBalance - currentBalance - fees;
-            _mint(registry.treasury(), fees);
+            if (fees > 0) _mint(registry.treasury(), fees);
         } else {
             totalAssets -= currentBalance - newBalance;
         }
