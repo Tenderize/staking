@@ -198,39 +198,60 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         _mint(receiver, shares);
     }
 
-    // TODO: make non-reentrant
+    // TODO: make non-reentrant (should be done by burning shares first)
     // TODO: Improve strategy of how much to draw from each validator
     function unstake(uint256 shares, uint256 minAmount) external returns (uint256 unstakeID) {
+        // Get unstakeID
+        unstakeID = ++lastUnstakeID;
+
         // Calculate amount of tokens that need to be unstaked
         uint256 amount = shares.mulWad(exchangeRate);
         if (amount < minAmount) revert UnstakeSlippage();
 
+        // Burn shares to prevent re-entrancy (after calculating amount !!)
+        _burn(msg.sender, shares);
+
+        // Get the withdrawal ratio (wr * WAD)
+        uint256 wr = amount.divWad(totalAssets); // round down so max_drawdown is rounded up
+        // Get average stake of the validators
+        uint256 k = stakingPoolTree.getSize();
+        uint256 avgStake = totalAssets.divWad(k);
+        uint256 maxDrawdown = avgStake.mulWad(FixedPointMathLib.WAD - wr); // We need this to be rounded up by rounding 'wr' down
+            // before
+
+        // Start looping the tree from top to bottom
+        address[] memory tTokens;
+        uint256[] memory unlockIDs;
+        UnstakeRequest memory request =
+            UnstakeRequest({ amount: amount, createdAt: uint64(block.timestamp), tTokens: tTokens, unlockIDs: unlockIDs });
+        uint256 remaining = amount;
+        for (uint256 i = 0; i < k; i++) {
+            uint24 id = stakingPoolTree.getFirst();
+            StakingPool storage pool = stakingPools[id];
+            uint256 max = maxDrawdown > pool.balance ? pool.balance : pool.balance - maxDrawdown; // Edge case with rounding
+            uint256 draw = max < remaining ? max : remaining;
+            request.tTokens[i] = pool.tToken;
+            pool.balance -= draw;
+            int200 d;
+            if (pool.balance < pool.target) {
+                d = -int200(uint200(pool.target - pool.balance));
+            } else {
+                d = int200(uint200(pool.balance - pool.target));
+            }
+            stakingPoolTree.updateDivergence(id, d);
+            request.unlockIDs[i] = Tenderizer(pool.tToken).unlock(draw);
+            if (draw == remaining) {
+                break;
+            }
+            remaining -= draw;
+        }
+
         // Create unstake NFT (needed to claim withdrawal)
         unstakeID = unstakeNFT.mintNFT(msg.sender);
-
-        // Find least divergent validator(s)
-        (uint24[] memory validatorIDs,) = stakingPoolTree.findMostDivergent(true, 1);
+        unstakeRequests[unstakeID] = request;
 
         // Update state
         totalAssets -= amount;
-        // Burn shares
-        _burn(msg.sender, shares);
-
-        UnstakeRequest memory request;
-        request.amount = amount;
-        request.createdAt = uint64(block.timestamp);
-        // Unstake from validator(s)
-        for (uint24 i = 0; i < validatorIDs.length; i++) {
-            StakingPool storage pool = stakingPools[validatorIDs[i]];
-            Tenderizer tenderizer = Tenderizer(pool.tToken);
-            // TODO: check if amount is sufficient
-            uint256 id = tenderizer.unlock(amount);
-            request.tTokens[i] = pool.tToken;
-            request.unlockIDs[i] = id;
-            pool.balance -= amount;
-        }
-
-        // unstakeRequests[unstakeID] = UnstakeRequest(amount, block.timestamp, tTokens, unlockIDs);
     }
 
     // TODO: make non-reentrant
@@ -240,6 +261,7 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         unstakeNFT.burnNFT(msg.sender, unstakeID);
 
         uint256 l = request.tTokens.length;
+        // TODO: should we send withdrawals to our contract as an intermediate step ?
         for (uint256 i = 0; i < l; i++) {
             amountReceived += Tenderizer(payable(request.tTokens[i])).withdraw(msg.sender, request.unlockIDs[i]);
         }
@@ -253,7 +275,49 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
     // Where if the asset is a cToken it will call unwrap on it
     // then the tenderswap pool will multicall itself to transfer the tTokens
     // or get the quote for the multiple tTokens in series.
-    function unwrap() external { }
+    function unwrap(uint256 shares, uint256 minAmount) external returns (address[] memory tTokens, uint256[] memory amounts) {
+        // Calculate amount of tokens that need to be unstaked
+        uint256 amount = shares.mulWad(exchangeRate);
+        if (amount < minAmount) revert UnstakeSlippage();
+
+        // Burn shares to prevent re-entrancy (after calculating amount !!)
+        _burn(msg.sender, shares);
+
+        // Get the withdrawal ratio (wr * WAD)
+        uint256 wr = amount.divWad(totalAssets); // round down so max_drawdown is rounded up
+        // Get average stake of the validators
+        uint256 k = stakingPoolTree.getSize();
+        uint256 avgStake = totalAssets.divWad(k);
+        uint256 maxDrawdown = avgStake.mulWad(FixedPointMathLib.WAD - wr); // We need this to be rounded up by rounding 'wr' down
+            // before
+
+        // Start looping the tree from top to bottom
+        uint256 remaining = amount;
+        for (uint256 i = 0; i < k; i++) {
+            uint24 id = stakingPoolTree.getFirst();
+            StakingPool storage pool = stakingPools[id];
+            uint256 max = maxDrawdown > pool.balance ? pool.balance : pool.balance - maxDrawdown; // Edge case with rounding
+            uint256 draw = max < remaining ? max : remaining;
+            tTokens[i] = pool.tToken;
+            amounts[i] = draw;
+            pool.balance -= draw;
+            int200 d;
+            if (pool.balance < pool.target) {
+                d = -int200(uint200(pool.target - pool.balance));
+            } else {
+                d = int200(uint200(pool.balance - pool.target));
+            }
+            stakingPoolTree.updateDivergence(id, d);
+            SafeTransferLib.safeTransfer(pool.tToken, msg.sender, draw);
+            if (draw == remaining) {
+                break;
+            }
+            remaining -= draw;
+        }
+
+        // Update state
+        totalAssets -= amount;
+    }
 
     // TODO: Allow governance to execute a series of transaction to rebalance
     // The contract. This could be e.g. staking, unstaking or withdraw operations, or even a tenderswap call.

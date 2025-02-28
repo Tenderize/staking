@@ -558,6 +558,14 @@ library AVLTree {
         return (tree.size, tree.positiveNodes, tree.negativeNodes, tree.posDivergence, tree.negDivergence);
     }
 
+    function getFirst(Tree storage tree) external view returns (uint24) {
+        return tree.first;
+    }
+
+    function getLast(Tree storage tree) external view returns (uint24) {
+        return tree.last;
+    }
+
     /// @notice Returns the bounds of the tree (root, first, and last node IDs).
     /// @param tree The tree storage pointer.
     /// @return root The root node ID.
