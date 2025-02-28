@@ -215,7 +215,7 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         uint256 wr = amount.divWad(totalAssets); // round down so max_drawdown is rounded up
         // Get average stake of the validators
         uint256 k = stakingPoolTree.getSize();
-        uint256 avgStake = totalAssets.divWad(k);
+        uint256 avgStake = totalAssets / k;
         uint256 maxDrawdown = avgStake.mulWad(FixedPointMathLib.WAD - wr); // We need this to be rounded up by rounding 'wr' down
             // before
 
@@ -287,7 +287,7 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         uint256 wr = amount.divWad(totalAssets); // round down so max_drawdown is rounded up
         // Get average stake of the validators
         uint256 k = stakingPoolTree.getSize();
-        uint256 avgStake = totalAssets.divWad(k);
+        uint256 avgStake = totalAssets / k;
         uint256 maxDrawdown = avgStake.mulWad(FixedPointMathLib.WAD - wr); // We need this to be rounded up by rounding 'wr' down
             // before
 
