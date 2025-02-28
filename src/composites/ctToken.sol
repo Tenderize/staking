@@ -28,6 +28,7 @@ import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { AVLTree } from "core/composites/AVLTree.sol";
 
 import { UnstakeNFT } from "core/composites/UnstakeNFT.sol";
+import { Registry } from "core/registry/Registry.sol";
 
 // Deposits: do we stake directly or delay it to a crank bot ?
 // Add fees
@@ -35,6 +36,9 @@ import { UnstakeNFT } from "core/composites/UnstakeNFT.sol";
 bytes32 constant MINTER_ROLE = keccak256("MINTER");
 bytes32 constant UPGRADE_ROLE = keccak256("UPGRADE");
 bytes32 constant GOVERNANCE_ROLE = keccak256("GOVERNANCE");
+
+uint256 constant MAX_FEE = 0.1e6; // 10%
+uint256 constant FEE_WAD = 1e6; // 100%
 
 struct UnstakeRequest {
     uint256 amount; // expected amount to receive
@@ -51,9 +55,15 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
     error DepositTooSmall();
     error BalanceNotZero();
     error UnstakeSlippage();
+    error RebalanceFailed(address target, bytes data, uint256 value);
+    error InvalidTenderizer(address tToken);
 
     // Events
-    event ValidatorAdded(uint256 indexed id, address tToken, uint256 weight);
+    event Deposit(address indexed sender, uint256 amount, uint256 shares);
+    event Unstake(address indexed sender, uint256 unstakeID, uint256 shares, uint256 amount);
+    event Unwrap(address indexed sender, uint256 shares, uint256 amount);
+    event Withdraw(address indexed sender, uint256 unstakeID, uint256 amount);
+    event ValidatorAdded(uint256 indexed id, address tToken, uint256 target);
     event ValidatorRemoved(uint256 indexed id);
     event WeightsUpdated(uint256[] ids, uint256[] weights);
     event Rebalanced(uint256 indexed id, uint256 amount, bool isDeposit);
@@ -65,33 +75,36 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         uint256 balance; // Current balance of tTokens
     }
 
+    // === IMMUTABLES ===
     UnstakeNFT immutable unstakeNFT;
     address immutable token; // Underlying asset (e.g. ETH)
-    // State variables
+    Registry immutable registry;
 
+    // === GLOBAL STATE ===
+    uint256 public fee; // Stored as fixed point (1e18)
     uint256 public totalAssets;
     uint256 private lastUnstakeID;
-    // Exchange rate state
     uint256 public exchangeRate = FixedPointMathLib.WAD; // Stored as fixed point (1e18)
 
     mapping(uint24 id => StakingPool) public stakingPools;
-    AVLTree.Tree private stakingPoolTree;
     mapping(uint256 unstakeID => UnstakeRequest) public unstakeRequests;
+    AVLTree.Tree private stakingPoolTree;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address _token, UnstakeNFT _unstakeNFT) {
+    constructor(address _token, UnstakeNFT _unstakeNFT, Registry _registry) {
         _disableInitializers();
         // Set initial state
         token = _token;
         unstakeNFT = _unstakeNFT;
+        registry = _registry;
     }
 
-    function name() public pure override returns (string memory) {
-        return "Composite Token";
+    function name() public view override returns (string memory) {
+        return string.concat("Steaked ", ERC20(token).name());
     }
 
-    function symbol() public pure override returns (string memory) {
-        return "ctToken";
+    function symbol() public view override returns (string memory) {
+        return string.concat("st", ERC20(token).symbol());
     }
 
     function initialize() external initializer {
@@ -153,7 +166,7 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
             (uint24[] memory validatorIDs,) = stakingPoolTree.findMostDivergent(false, maxCount);
             uint256[] memory depositAmounts = new uint256[](maxCount);
             for (uint24 i = 0; i < maxCount; i++) {
-                StakingPool storage pool = stakingPools[i];
+                StakingPool storage pool = stakingPools[validatorIDs[i]];
                 depositAmounts[i] = pool.target - pool.balance;
             }
 
@@ -196,10 +209,11 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         if (shares == 0) revert DepositTooSmall();
         // Mint shares to receiver
         _mint(receiver, shares);
+
+        emit Deposit(msg.sender, assets, shares);
     }
 
-    // TODO: make non-reentrant (should be done by burning shares first)
-    // TODO: Improve strategy of how much to draw from each validator
+    // TODO: Improve strategy of how much to draw from each validator with divergence ratio
     function unstake(uint256 shares, uint256 minAmount) external returns (uint256 unstakeID) {
         // Get unstakeID
         unstakeID = ++lastUnstakeID;
@@ -252,6 +266,8 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
 
         // Update state
         totalAssets -= amount;
+
+        emit Unstake(msg.sender, unstakeID, shares, amount);
     }
 
     // TODO: make non-reentrant
@@ -266,6 +282,8 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
             amountReceived += Tenderizer(payable(request.tTokens[i])).withdraw(msg.sender, request.unlockIDs[i]);
         }
         delete unstakeRequests[unstakeID];
+
+        emit Withdraw(msg.sender, unstakeID, amountReceived);
     }
 
     // TODO: needed for flash unstake
@@ -317,11 +335,26 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
 
         // Update state
         totalAssets -= amount;
+
+        emit Unwrap(msg.sender, shares, amount);
     }
 
     // TODO: Allow governance to execute a series of transaction to rebalance
     // The contract. This could be e.g. staking, unstaking or withdraw operations, or even a tenderswap call.
-    function rebalance() external onlyRole(GOVERNANCE_ROLE) { }
+    function rebalance(
+        address[] calldata targets,
+        bytes[] calldata datas,
+        uint256[] calldata values
+    )
+        external
+        onlyRole(GOVERNANCE_ROLE)
+    {
+        uint256 l = targets.length;
+        for (uint256 i = 0; i < l; i++) {
+            (bool success,) = targets[i].call{ value: values[i] }(datas[i]);
+            if (!success) revert RebalanceFailed(targets[i], datas[i], values[i]);
+        }
+    }
 
     function claimValidatorRewards(uint24 id) external {
         // Update the balance of the validator
@@ -330,7 +363,9 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         uint256 newBalance = tenderizer.balanceOf(address(this));
         uint256 currentBalance = pool.balance;
         if (newBalance > currentBalance) {
-            totalAssets += newBalance - currentBalance;
+            uint256 fees = newBalance - currentBalance * fee / FEE_WAD;
+            totalAssets += newBalance - currentBalance - fees;
+            _mint(registry.treasury(), fees);
         } else {
             totalAssets -= currentBalance - newBalance;
         }
@@ -352,12 +387,15 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
     // Governance functions
     function addValidator(address payable tToken, uint200 target) external onlyRole(GOVERNANCE_ROLE) {
         // TODO: Validate tToken
+        if (!registry.isTenderizer(tToken)) revert InvalidTenderizer(tToken);
         // TODO: would this work for ID ?
         uint24 id = stakingPoolTree.getSize();
         stakingPools[id] = StakingPool(tToken, target, 0);
         // TODO: if we consider the target as the validators full stake (including its total delegation) we would
         // need to initialise that here
         stakingPoolTree.insert(id, -int200(target));
+
+        emit ValidatorAdded(id, tToken, target);
     }
 
     // This only updates the divergence of the current validator. Depending on the weighting used the divergences
@@ -368,6 +406,8 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         if (stakingPools[id].balance > 0) revert BalanceNotZero();
         stakingPoolTree.remove(id);
         delete stakingPools[id];
+
+        emit ValidatorRemoved(id);
     }
 
     function updateTarget(uint24 id, uint200 target) external onlyRole(GOVERNANCE_ROLE) {
@@ -381,6 +421,11 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         }
         stakingPoolTree.updateDivergence(id, d);
         pool.target = target;
+    }
+
+    function setFee(uint256 _fee) external onlyRole(GOVERNANCE_ROLE) {
+        if (_fee > MAX_FEE) revert();
+        fee = _fee;
     }
 
     // Override required by UUPSUpgradeable
