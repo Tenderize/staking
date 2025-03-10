@@ -7,8 +7,9 @@
 //   | |  __/ | | | (_| |  __/ |  | |/ /  __/
 //   \_/\___|_| |_|\__,_|\___|_|  |_/___\___|
 //
-pragma solidity >=0.8.19;
 
+pragma solidity >=0.8.19;
+import {console2} from "forge-std/Test.sol";
 /// @title AVL Tree Library
 /// @notice Provides an AVL (balanced binary search) tree implementation for sorting nodes by their `divergence`.
 /// @dev The tree is keyed by `int200 divergence`. When `divergence` values are equal, nodes are ordered by `id`.
@@ -70,7 +71,7 @@ library AVLTree {
         if (hasNode(tree, id)) revert NodeAlreadyExists();
 
         // Update tree stats
-        tree.size++;
+        tree.size = tree.size + 1;
         if (divergence > 0) {
             tree.positiveNodes++;
             tree.posDivergence += divergence;
@@ -82,14 +83,14 @@ library AVLTree {
         // Create new node
         Node memory newNode = Node({ left: 0, right: 0, height: 1, divergence: divergence });
 
-        // Handle first insertion
-        if (tree.size == 1) {
-            tree.root = id;
-            tree.first = id;
-            tree.last = id;
-            tree.nodes[id] = newNode;
-            return true;
-        }
+// Handle first insertion
+if (tree.size == 1) {
+    tree.root = id;
+    tree.first = id;
+    tree.last = id;
+    tree.nodes[id] = newNode;
+    return true;
+}
 
         tree.root = _insertRecursive(tree, tree.root, id, newNode);
         return true;
@@ -101,29 +102,34 @@ library AVLTree {
     /// @param newId The new node's ID.
     /// @param newNode The new node structure to insert.
     /// @return uint24 The updated subtree root after insertion.
-    function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node memory newNode) internal returns (uint24) {
-        // Handle base case
-        if (nodeId == 0) {
-            tree.nodes[newId] = newNode;
-            return newId;
-        }
-
-        // Recursive insertion
-        Node storage current = tree.nodes[nodeId];
-        if (newNode.divergence < current.divergence) {
-            current.left = _insertRecursive(tree, current.left, newId, newNode);
-            if (tree.first == nodeId && newNode.divergence < current.divergence) {
-                tree.first = newId;
-            }
-        } else {
-            current.right = _insertRecursive(tree, current.right, newId, newNode);
-            if (tree.last == nodeId && newNode.divergence >= current.divergence) {
-                tree.last = newId;
-            }
-        }
-
-        return rebalanceNode(tree, nodeId);
+function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node memory newNode) internal returns (uint24) {
+    // Handle base case
+    if (nodeId == 0) {
+        tree.nodes[newId] = newNode;
+        return newId;
     }
+
+    // Recursive insertion
+    Node storage current = tree.nodes[nodeId];
+    if (newNode.divergence < current.divergence) {
+        current.left = _insertRecursive(tree, current.left, newId, newNode);
+        
+        // Update first pointer if this is a new minimum
+        if (newNode.divergence < tree.nodes[tree.first].divergence) {
+            tree.first = newId;
+        }
+    } else {
+        current.right = _insertRecursive(tree, current.right, newId, newNode);
+        
+        // Update last pointer if this is a new maximum
+        if (newNode.divergence > tree.nodes[tree.last].divergence || 
+           (newNode.divergence == tree.nodes[tree.last].divergence && newId > tree.last)) {
+            tree.last = newId;
+        }
+    }
+
+    return rebalanceNode(tree, nodeId);
+}
 
     /// @notice Removes the node with the given `id` from the tree.
     /// @dev Reverts if the tree is empty or if the node does not exist. Updates stats and rebalances the tree.
@@ -201,6 +207,8 @@ library AVLTree {
         Node storage node = tree.nodes[id];
         if (!hasNode(tree, id)) revert NodeNotFound();
         int200 oldDivergence = node.divergence;
+        console2.log("oldDivergence", oldDivergence);
+        console2.log("newDivergence", newDivergence);
         if (oldDivergence == newDivergence) return true;
 
         // Update tree statistics
@@ -314,7 +322,7 @@ library AVLTree {
         uint8 found = 0;
 
         uint24 current = positive ? tree.last : tree.first;
-        while (current != 0 && found < count) {
+        while (found < count) {
             Node memory node = tree.nodes[current];
             if ((positive && node.divergence <= 0) || (!positive && node.divergence >= 0)) break;
 
@@ -322,7 +330,7 @@ library AVLTree {
             divergences[found] = node.divergence;
             found++;
 
-            current = positive ? _findPredecessor(tree, current) : _findSuccessor(tree, current);
+            current = positive ? findPredecessor(tree, current) : findSuccessor(tree, current);
         }
 
         return (ids, divergences);
@@ -332,7 +340,7 @@ library AVLTree {
     /// @param tree The tree storage pointer.
     /// @param nodeId The ID of the node for which to find the predecessor.
     /// @return uint24 The predecessor node ID, or 0 if none exists.
-    function _findPredecessor(Tree storage tree, uint24 nodeId) internal view returns (uint24) {
+    function findPredecessor(Tree storage tree, uint24 nodeId) public view returns (uint24) {
         Node storage node = tree.nodes[nodeId];
 
         // If there's a left subtree, the predecessor is the maximum node in that subtree.
@@ -364,7 +372,7 @@ library AVLTree {
     /// @param tree The tree storage pointer.
     /// @param nodeId The ID of the node for which to find the successor.
     /// @return uint24 The successor node ID, or 0 if none exists.
-    function _findSuccessor(Tree storage tree, uint24 nodeId) internal view returns (uint24) {
+    function findSuccessor(Tree storage tree, uint24 nodeId) public view returns (uint24) {
         Node storage node = tree.nodes[nodeId];
 
         // If there's a right subtree, the successor is the minimum node in that subtree.

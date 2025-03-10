@@ -20,37 +20,45 @@ import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { Multicallable } from "solady/utils/Multicallable.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SelfPermit } from "core/utils/SelfPermit.sol";
+import { ERC721Receiver } from "core/utils/ERC721Receiver.sol";
 
 import { ERC20 } from "solady/tokens/ERC20.sol";
 
 import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 
-import { AVLTree } from "core/composites/AVLTree.sol";
+import { AVLTree } from "core/multi-validator/AVLTree.sol";
 
-import { UnstakeNFT } from "core/composites/UnstakeNFT.sol";
+import { UnstakeNFT } from "core/multi-validator/UnstakeNFT.sol";
 import { Registry } from "core/registry/Registry.sol";
 
-// Deposits: do we stake directly or delay it to a crank bot ?
-// Add fees
+import { console2 } from "forge-std/Test.sol";
 
-bytes32 constant MINTER_ROLE = keccak256("MINTER");
-bytes32 constant UPGRADE_ROLE = keccak256("UPGRADE");
-bytes32 constant GOVERNANCE_ROLE = keccak256("GOVERNANCE");
-
-uint256 constant MAX_FEE = 0.1e6; // 10%
-uint256 constant FEE_WAD = 1e6; // 100%
-
-struct UnstakeRequest {
-    uint256 amount; // expected amount to receive
-    uint64 createdAt; // block timestamp
-    address[] tTokens; // addresses of the tTokens unstaked
-    uint256[] unlockIDs; // IDs of the unlocks
-}
-
-contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradeable, Multicallable, SelfPermit {
+contract MultiValidatorLST is
+    ERC20,
+    ERC721Receiver,
+    Initializable,
+    AccessControlUpgradeable,
+    UUPSUpgradeable,
+    Multicallable,
+    SelfPermit
+{
     using SafeTransferLib for address;
     using FixedPointMathLib for uint256;
     using AVLTree for AVLTree.Tree;
+
+    bytes32 constant MINTER_ROLE = keccak256("MINTER");
+    bytes32 constant UPGRADE_ROLE = keccak256("UPGRADE");
+    bytes32 constant GOVERNANCE_ROLE = keccak256("GOVERNANCE");
+
+    uint256 constant MAX_FEE = 0.1e6; // 10%
+    uint256 constant FEE_WAD = 1e6; // 100%
+
+    struct UnstakeRequest {
+        uint256 amount; // expected amount to receive
+        uint64 createdAt; // block timestamp
+        address[] tTokens; // addresses of the tTokens unstaked
+        uint256[] unlockIDs; // IDs of the unlocks
+    }
 
     error DepositTooSmall();
     error BalanceNotZero();
@@ -76,47 +84,53 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
     }
 
     // === IMMUTABLES ===
-    UnstakeNFT immutable unstakeNFT;
-    address immutable token; // Underlying asset (e.g. ETH)
     Registry immutable registry;
 
     // === GLOBAL STATE ===
+    address token; // Underlying asset (e.g. ETH)
+    UnstakeNFT unstakeNFT;
     uint256 public fee; // Stored as fixed point (1e18)
     uint256 public totalAssets;
     uint256 private lastUnstakeID;
     uint256 public exchangeRate = FixedPointMathLib.WAD; // Stored as fixed point (1e18)
 
     mapping(uint24 id => StakingPool) public stakingPools;
-    mapping(uint256 unstakeID => UnstakeRequest) public unstakeRequests;
-    AVLTree.Tree private stakingPoolTree;
+    mapping(uint256 unstakeID => UnstakeRequest) private unstakeRequests;
+    AVLTree.Tree public stakingPoolTree;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address _token, UnstakeNFT _unstakeNFT, Registry _registry) {
+    constructor(Registry _registry) {
         _disableInitializers();
         // Set initial state
-        token = _token;
-        unstakeNFT = _unstakeNFT;
         registry = _registry;
     }
 
     function name() public view override returns (string memory) {
-        return string.concat("Steaked ", ERC20(token).name());
+        return string.concat("Steaked ", ERC20(token).symbol());
     }
 
     function symbol() public view override returns (string memory) {
         return string.concat("st", ERC20(token).symbol());
     }
 
-    function initialize() external initializer {
+    function getUnstakeRequest(uint256 id) external view returns (UnstakeRequest memory) {
+        return unstakeRequests[id];
+    }
+
+    function initialize(address _token, UnstakeNFT _unstakeNFT, address treasury) external initializer {
         __AccessControl_init();
-        _grantRole(UPGRADE_ROLE, msg.sender);
-        _grantRole(GOVERNANCE_ROLE, msg.sender);
+        _grantRole(UPGRADE_ROLE, treasury);
+        _grantRole(GOVERNANCE_ROLE, treasury);
 
         _setRoleAdmin(GOVERNANCE_ROLE, GOVERNANCE_ROLE);
         _setRoleAdmin(MINTER_ROLE, GOVERNANCE_ROLE);
         // Only allow UPGRADE_ROLE to add new UPGRADE_ROLE memebers
         // If all members of UPGRADE_ROLE are revoked, contract upgradability is revoked
         _setRoleAdmin(UPGRADE_ROLE, UPGRADE_ROLE);
+
+        token = _token;
+        unstakeNFT = _unstakeNFT;
+        exchangeRate = FixedPointMathLib.WAD;
     }
 
     // Core functions for deposits
@@ -138,7 +152,7 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
             StakingPool[] memory items = new StakingPool[](maxCount);
 
             (uint24[] memory validatorIDs,) = stakingPoolTree.findMostDivergent(false, maxCount);
-
+            console2.log("validatorIDs %s %s %s", validatorIDs[0], validatorIDs[1], validatorIDs[2]);
             for (uint24 i = 0; i < maxCount; i++) {
                 StakingPool storage pool = stakingPools[validatorIDs[i]];
                 items[i] = StakingPool(pool.tToken, pool.target, pool.balance);
@@ -146,8 +160,10 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
             }
 
             for (uint24 i = 0; i < maxCount; i++) {
-                uint256 amount = assets * uint256(int256(int200(int256(items[i].target - items[i].balance)) / totalDivergence));
+                uint256 amount = uint256(int256(assets) * int256(items[i].target - items[i].balance) / int256(totalDivergence));
+                ERC20(token).approve(items[i].tToken, amount);
                 uint256 tTokens = Tenderizer(items[i].tToken).deposit(address(this), amount);
+                console2.log("tTokens received %s", tTokens);
                 StakingPool storage pool = stakingPools[validatorIDs[i]];
                 pool.balance += tTokens;
                 received += tTokens;
@@ -185,9 +201,11 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
             }
 
             for (uint24 i = 0; i < maxCount; i++) {
-                uint256 amount = depositAmounts[i]
-                    + assets * uint256(int256(int200(int256(items[i].target - items[i].balance)) / totalDivergence));
-                uint256 tTokens = Tenderizer(items[i].tToken).deposit(address(this), amount);
+                int256 div = int256(items[i].target - items[i].balance);
+                int256 amount = int256(depositAmounts[i] + assets);
+                amount = amount * div / int256(totalDivergence);
+                ERC20(token).approve(items[i].tToken, uint256(amount));
+                uint256 tTokens = Tenderizer(items[i].tToken).deposit(address(this), uint256(amount));
                 StakingPool storage pool = stakingPools[validatorIDs[i]];
                 pool.balance += tTokens;
                 received += tTokens;
@@ -203,13 +221,17 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
             }
         }
 
-        totalAssets += assets;
+        totalAssets += received;
         // Calculate shares based on current exchange rate
+        console2.log("received %s", received);
+        console2.log("exchangeRate %s", exchangeRate);
         shares = received.divWad(exchangeRate);
         if (shares == 0) revert DepositTooSmall();
         // Mint shares to receiver
         _mint(receiver, shares);
 
+        console2.log("deposit first", stakingPoolTree.getFirst());
+        console2.log("deposit last", stakingPoolTree.getLast());
         emit Deposit(msg.sender, assets, shares);
     }
 
@@ -225,27 +247,32 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         // Burn shares to prevent re-entrancy (after calculating amount !!)
         _burn(msg.sender, shares);
 
-        // Get the withdrawal ratio (wr * WAD)
-        uint256 wr = amount.divWad(totalAssets); // round down so max_drawdown is rounded up
-        // Get average stake of the validators
         uint256 k = stakingPoolTree.getSize();
-        uint256 avgStake = totalAssets / k;
-        uint256 maxDrawdown = avgStake.mulWad(FixedPointMathLib.WAD - wr); // We need this to be rounded up by rounding 'wr' down
-            // before
-
+        uint256 maxDrawdown = (totalAssets - amount) / k;
+        address[] memory tTokens = new address[](k);
+        uint256[] memory unlockIDs = new uint256[](k);
         // Start looping the tree from top to bottom
-        address[] memory tTokens;
-        uint256[] memory unlockIDs;
+        uint256 remaining = amount;
+        uint24 id = stakingPoolTree.getLast();
+
         UnstakeRequest memory request =
             UnstakeRequest({ amount: amount, createdAt: uint64(block.timestamp), tTokens: tTokens, unlockIDs: unlockIDs });
-        uint256 remaining = amount;
+
         for (uint256 i = 0; i < k; i++) {
-            uint24 id = stakingPoolTree.getFirst();
             StakingPool storage pool = stakingPools[id];
-            uint256 max = maxDrawdown > pool.balance ? pool.balance : pool.balance - maxDrawdown; // Edge case with rounding
+            if (maxDrawdown >= pool.balance) {
+                id = stakingPoolTree.findPredecessor(id);
+                continue;
+            }
+            uint256 max = pool.balance - maxDrawdown; // Edge case with rounding
             uint256 draw = max < remaining ? max : remaining;
-            request.tTokens[i] = pool.tToken;
+            tTokens[i] = pool.tToken;
             pool.balance -= draw;
+            request.unlockIDs[i] = Tenderizer(pool.tToken).unlock(draw);
+
+            // Get next id before updating
+            uint24 nextId = stakingPoolTree.findPredecessor(id);
+
             int200 d;
             if (pool.balance < pool.target) {
                 d = -int200(uint200(pool.target - pool.balance));
@@ -253,11 +280,11 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
                 d = int200(uint200(pool.balance - pool.target));
             }
             stakingPoolTree.updateDivergence(id, d);
-            request.unlockIDs[i] = Tenderizer(pool.tToken).unlock(draw);
             if (draw == remaining) {
                 break;
             }
             remaining -= draw;
+            id = nextId;
         }
 
         // Create unstake NFT (needed to claim withdrawal)
@@ -286,13 +313,7 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         emit Withdraw(msg.sender, unstakeID, amountReceived);
     }
 
-    // TODO: needed for flash unstake
-    // Unwrap this cToken (burn) into tToken counterparts and transfer them
-    // to the caller
-    // We can upgrade tenderswap to support this too with backwards compatibility
-    // Where if the asset is a cToken it will call unwrap on it
-    // then the tenderswap pool will multicall itself to transfer the tTokens
-    // or get the quote for the multiple tTokens in series.
+    // Can be used to flash unstake and sell the resulting assets in TenderSwap
     function unwrap(uint256 shares, uint256 minAmount) external returns (address[] memory tTokens, uint256[] memory amounts) {
         // Calculate amount of tokens that need to be unstaked
         uint256 amount = shares.mulWad(exchangeRate);
@@ -301,24 +322,28 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         // Burn shares to prevent re-entrancy (after calculating amount !!)
         _burn(msg.sender, shares);
 
-        // Get the withdrawal ratio (wr * WAD)
-        uint256 wr = amount.divWad(totalAssets); // round down so max_drawdown is rounded up
-        // Get average stake of the validators
         uint256 k = stakingPoolTree.getSize();
-        uint256 avgStake = totalAssets / k;
-        uint256 maxDrawdown = avgStake.mulWad(FixedPointMathLib.WAD - wr); // We need this to be rounded up by rounding 'wr' down
-            // before
-
+        uint256 maxDrawdown = (totalAssets - amount) / k;
+        tTokens = new address[](k);
+        amounts = new uint256[](k);
         // Start looping the tree from top to bottom
         uint256 remaining = amount;
+        uint24 id = stakingPoolTree.getLast();
         for (uint256 i = 0; i < k; i++) {
-            uint24 id = stakingPoolTree.getFirst();
             StakingPool storage pool = stakingPools[id];
-            uint256 max = maxDrawdown > pool.balance ? pool.balance : pool.balance - maxDrawdown; // Edge case with rounding
+            if (maxDrawdown >= pool.balance) {
+                id = stakingPoolTree.findPredecessor(id);
+                continue;
+            }
+            uint256 max = pool.balance - maxDrawdown; // Edge case with rounding
             uint256 draw = max < remaining ? max : remaining;
             tTokens[i] = pool.tToken;
             amounts[i] = draw;
             pool.balance -= draw;
+
+            // Get next id before updating
+            uint24 nextId = stakingPoolTree.findPredecessor(id);
+
             int200 d;
             if (pool.balance < pool.target) {
                 d = -int200(uint200(pool.target - pool.balance));
@@ -331,6 +356,7 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
                 break;
             }
             remaining -= draw;
+            id = nextId;
         }
 
         // Update state
@@ -396,6 +422,10 @@ contract ctToken is ERC20, Initializable, AccessControlUpgradeable, UUPSUpgradea
         stakingPoolTree.insert(id, -int200(target));
 
         emit ValidatorAdded(id, tToken, target);
+    }
+
+    function validatorCount() external view returns (uint256) {
+        return stakingPoolTree.getSize();
     }
 
     // This only updates the divergence of the current validator. Depending on the weighting used the divergences

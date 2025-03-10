@@ -21,19 +21,20 @@ import { Strings } from "openzeppelin-contracts/utils/Strings.sol";
 
 import { Base64 } from "core/unlocks/Base64.sol";
 
-import { UnstakeRequest } from "core/composites/ctToken.sol";
+import { MultiValidatorLST } from "core/multi-validator/MultiValidatorLST.sol";
 
 pragma solidity >=0.8.19;
 
 interface GetUnstakeRequest {
-    function getUnstakeRequest(uint256 id) external view returns (UnstakeRequest memory);
+    function getUnstakeRequest(uint256 id) external view returns (MultiValidatorLST.UnstakeRequest memory);
 }
 
-abstract contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, ERC721 {
+contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, ERC721 {
     using Strings for uint256;
     using Strings for address;
 
     error NotOwner(uint256 id, address caller, address owner);
+    error NotMinter(address caller);
     error InvalidID(uint256 id);
 
     uint256 lastID;
@@ -44,16 +45,33 @@ abstract contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeab
         _disableInitializers();
     }
 
-    function initialize() external initializer {
-        __Ownable_init();
-        __UUPSUpgradeable_init();
+    modifier onlyMinter() {
+        if (msg.sender != minter) {
+            revert NotMinter(msg.sender);
+        }
+        _;
     }
 
-    function getRequest(uint256 id) public view returns (UnstakeRequest memory) {
+    function name() public view override returns (string memory) {
+        return string.concat("Unsteaking ", ERC20(token).name());
+    }
+
+    function symbol() public view override returns (string memory) {
+        return string.concat("Unst", ERC20(token).symbol());
+    }
+
+    function initialize(address _token, address _minter) external initializer {
+        __Ownable_init();
+        __UUPSUpgradeable_init();
+        token = _token;
+        minter = _minter;
+    }
+
+    function getRequest(uint256 id) public view returns (MultiValidatorLST.UnstakeRequest memory) {
         return GetUnstakeRequest(minter).getUnstakeRequest(id);
     }
 
-    function mintNFT(address to) external returns (uint256 unstakeID) {
+    function mintNFT(address to) external onlyMinter returns (uint256 unstakeID) {
         unstakeID = ++lastID;
         _safeMint(to, unstakeID);
     }
@@ -80,7 +98,7 @@ abstract contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeab
      * @notice Returns the JSON metadata for a given unlock
      * @param data metadata for the token
      */
-    function json(UnstakeRequest memory data) public view returns (string memory) {
+    function json(MultiValidatorLST.UnstakeRequest memory data) public view returns (string memory) {
         return string(
             abi.encodePacked(
                 "data:application/json;base64,",
@@ -93,7 +111,7 @@ abstract contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeab
         );
     }
 
-    function svg(UnstakeRequest memory data) external pure returns (string memory) {
+    function svg(MultiValidatorLST.UnstakeRequest memory data) external pure returns (string memory) {
         return string(
             abi.encodePacked(
                 '<svg width="290" height="500" viewBox="0 0 290 500" xmlns="http://www.w3.org/2000/svg"',
@@ -117,7 +135,11 @@ abstract contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeab
         );
     }
 
-    function _serializeMetadata(UnstakeRequest memory data) internal pure returns (string memory metadataString) {
+    function _serializeMetadata(MultiValidatorLST.UnstakeRequest memory data)
+        internal
+        pure
+        returns (string memory metadataString)
+    {
         metadataString = string(
             abi.encodePacked(
                 '{"trait_type": "createdAt", "value":',
@@ -136,15 +158,4 @@ abstract contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeab
     ///@dev required by the OZ UUPS module
     // solhint-disable-next-line no-empty-blocks
     function _authorizeUpgrade(address) internal override onlyOwner { }
-}
-
-// Example usage e.g. LPT
-contract UnstLPT is UnstakeNFT {
-    function name() public pure override returns (string memory) {
-        return "Unstake LPT";
-    }
-
-    function symbol() public pure override returns (string memory) {
-        return "UnstLPT";
-    }
 }
