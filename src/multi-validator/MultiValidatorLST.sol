@@ -255,9 +255,6 @@ contract MultiValidatorLST is
         uint256 remaining = amount;
         uint24 id = stakingPoolTree.getLast();
 
-        UnstakeRequest memory request =
-            UnstakeRequest({ amount: amount, createdAt: uint64(block.timestamp), tTokens: tTokens, unlockIDs: unlockIDs });
-
         for (uint256 i = 0; i < k; i++) {
             StakingPool storage pool = stakingPools[id];
             if (maxDrawdown >= pool.balance) {
@@ -266,9 +263,10 @@ contract MultiValidatorLST is
             }
             uint256 max = pool.balance - maxDrawdown; // Edge case with rounding
             uint256 draw = max < remaining ? max : remaining;
+            console2.log("Drawing from validator %s pool %s", id, pool.tToken);
             tTokens[i] = pool.tToken;
             pool.balance -= draw;
-            request.unlockIDs[i] = Tenderizer(pool.tToken).unlock(draw);
+            unlockIDs[i] = Tenderizer(pool.tToken).unlock(draw);
 
             // Get next id before updating
             uint24 nextId = stakingPoolTree.findPredecessor(id);
@@ -289,7 +287,8 @@ contract MultiValidatorLST is
 
         // Create unstake NFT (needed to claim withdrawal)
         unstakeID = unstakeNFT.mintNFT(msg.sender);
-        unstakeRequests[unstakeID] = request;
+        unstakeRequests[unstakeID] =
+            UnstakeRequest({ amount: amount, createdAt: uint64(block.timestamp), tTokens: tTokens, unlockIDs: unlockIDs });
 
         // Update state
         totalAssets -= amount;
@@ -306,6 +305,8 @@ contract MultiValidatorLST is
         uint256 l = request.tTokens.length;
         // TODO: should we send withdrawals to our contract as an intermediate step ?
         for (uint256 i = 0; i < l; i++) {
+            if (request.tTokens[i] == address(0)) continue;
+            console2.log("withdrawing tToken %s", request.tTokens[i]);
             amountReceived += Tenderizer(payable(request.tTokens[i])).withdraw(msg.sender, request.unlockIDs[i]);
         }
         delete unstakeRequests[unstakeID];

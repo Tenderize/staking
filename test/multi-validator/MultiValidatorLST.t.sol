@@ -24,16 +24,16 @@ import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 
 import { ERC721Receiver } from "core/utils/ERC721Receiver.sol";
 
-import { LPT } from "core/adapters/LivepeerAdapter.sol";
+import { LPT, LIVEPEER_ROUNDS, ILivepeerRoundsManager } from "core/adapters/LivepeerAdapter.sol";
 
 import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
 // Existing LPT Tenderizer addresses on Arbitrum
-address constant TENDERIZER_1 = 0x6CBC6967A941CCa12c1316E4D567c6892C3F0Ed6; // Example address, replace with real one
-address constant TENDERIZER_2 = 0xFCfeD578958D42Cd1c2ea09db09bfC1A668E0efd; // Example address, replace with real one
-address constant TENDERIZER_3 = 0x3A760477cA7CB37Dec4DF9B9e19ce15CB265bfF8; // Example address, replace with real one
+address constant TENDERIZER_1 = 0x6CBC6967A941CCa12c1316E4D567c6892C3F0Ed6;
+address constant TENDERIZER_2 = 0xFCfeD578958D42Cd1c2ea09db09bfC1A668E0efd;
+address constant TENDERIZER_3 = 0x3A760477cA7CB37Dec4DF9B9e19ce15CB265bfF8;
 
 address constant alice = address(0x5678);
 address constant bob = address(0x9ABC);
@@ -42,7 +42,22 @@ address constant registry = 0xa7cA8732Be369CaEaE8C230537Fc8EF82a3387EE;
 // Livepeer specific
 address constant minter = 0xc20DE37170B45774e6CD3d2304017fc962f27252; // LPT Minter address
 
+ILivepeerRounds constant ROUNDS = ILivepeerRounds(address(LIVEPEER_ROUNDS));
+uint256 constant ROUND_LENGTH = 6377; // round length in blocks
+
+interface ILivepeerRounds is ILivepeerRoundsManager {
+    function initializeRound() external;
+}
+
 contract MultiValidatorLSTTest is Test, ERC721Receiver {
+    function _processRounds(uint256 rounds) internal {
+        for (uint256 i = 0; i < rounds; i++) {
+            uint256 currentRoundStartBlock = ROUNDS.currentRoundStartBlock();
+            vm.roll(currentRoundStartBlock + ROUND_LENGTH);
+            ROUNDS.initializeRound();
+        }
+    }
+
     address immutable deployer;
 
     MultiValidatorFactory factory;
@@ -286,6 +301,8 @@ contract MultiValidatorLSTTest is Test, ERC721Receiver {
         LPT.approve(address(lst), depositAmount);
         uint256 shares = lst.deposit(alice, depositAmount);
 
+        _processRounds(1);
+
         uint256 sharesToUnstake = shares / 2;
         uint256 expectedAmount = FixedPointMathLib.mulWad(sharesToUnstake, lst.exchangeRate());
         uint256 id = lst.unstake(sharesToUnstake, expectedAmount);
@@ -294,6 +311,18 @@ contract MultiValidatorLSTTest is Test, ERC721Receiver {
 
         MultiValidatorLST.UnstakeRequest memory req = lst.getUnstakeRequest(id);
 
+        for (uint256 i = 0; i < req.tTokens.length; i++) {
+            console2.log("tToken %s", req.tTokens[i]);
+        }
+
         assertEq(req.amount, expectedAmount, "Unstake request amount should match expected amount");
+
+        _processRounds(7);
+
+        uint256 balBefore = LPT.balanceOf(alice);
+        uint256 amount = lst.withdraw(id);
+        uint256 balAfter = LPT.balanceOf(alice);
+
+        assertEq(amount, balAfter - balBefore, "Withdraw amount should match expected amount");
     }
 }
