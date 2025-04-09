@@ -17,6 +17,7 @@ import { Script, console2 } from "forge-std/Script.sol";
 
 import { MultiValidatorLST } from "core/multi-validator/MultiValidatorLST.sol";
 import { MultiValidatorFactory } from "core/multi-validator/Factory.sol";
+import { FlashUnstake } from "core/multi-validator/FlashUnstake.sol";
 
 import { LPT } from "core/adapters/LivepeerAdapter.sol";
 
@@ -55,6 +56,10 @@ contract MultiValidatorLST_Deploy is Script {
         lst = MultiValidatorLST(factory.deploy(address(LPT)));
 
         console2.log("MultiValidatorLST deployed at: %s", address(lst));
+
+        // deploy flash unstake wrapper
+        address flashUnstake = address(new FlashUnstake());
+        console2.log("FlashUnstake deployed at: %s", flashUnstake);
 
         lst.setFee(0.05e6); // 5% fee
 

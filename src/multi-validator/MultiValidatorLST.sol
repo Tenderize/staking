@@ -87,7 +87,7 @@ contract MultiValidatorLST is
     Registry immutable registry;
 
     // === GLOBAL STATE ===
-    address token; // Underlying asset (e.g. ETH)
+    address public token; // Underlying asset (e.g. ETH)
     UnstakeNFT unstakeNFT;
     uint256 public fee; // Stored as fixed point (1e18)
     uint256 public totalAssets;
@@ -364,6 +364,34 @@ contract MultiValidatorLST is
         totalAssets -= amount;
 
         emit Unwrap(msg.sender, shares, amount);
+    }
+
+    function previewUnwrap(uint256 shares) external view returns (address[] memory tTokens, uint256[] memory amounts) {
+        uint256 amount = shares.mulWad(exchangeRate);
+
+        uint256 k = stakingPoolTree.getSize();
+        uint256 maxDrawdown = (totalAssets - amount) / k;
+        tTokens = new address[](k);
+        amounts = new uint256[](k);
+        uint24 id = stakingPoolTree.getLast();
+        uint256 remaining = amount;
+
+        for (uint256 i = 0; i < k; i++) {
+            StakingPool storage pool = stakingPools[id];
+            if (maxDrawdown >= pool.balance) {
+                id = stakingPoolTree.findPredecessor(id);
+                continue;
+            }
+
+            uint256 max = pool.balance - maxDrawdown; // Edge case with rounding
+            uint256 draw = max < amount ? max : amount;
+            tTokens[i] = pool.tToken;
+            amounts[i] = draw;
+            if (draw == remaining) {
+                break;
+            }
+            remaining -= draw;
+        }
     }
 
     // TODO: Allow governance to execute a series of transaction to rebalance
