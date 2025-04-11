@@ -31,8 +31,6 @@ import { AVLTree } from "core/multi-validator/AVLTree.sol";
 import { UnstakeNFT } from "core/multi-validator/UnstakeNFT.sol";
 import { Registry } from "core/registry/Registry.sol";
 
-import { console2 } from "forge-std/Test.sol";
-
 contract MultiValidatorLST is
     ERC20,
     ERC721Receiver,
@@ -152,7 +150,6 @@ contract MultiValidatorLST is
             StakingPool[] memory items = new StakingPool[](maxCount);
 
             (uint24[] memory validatorIDs,) = stakingPoolTree.findMostDivergent(false, maxCount);
-            console2.log("validatorIDs %s %s %s", validatorIDs[0], validatorIDs[1], validatorIDs[2]);
             for (uint24 i = 0; i < maxCount; i++) {
                 StakingPool storage pool = stakingPools[validatorIDs[i]];
                 items[i] = StakingPool(pool.tToken, pool.target, pool.balance);
@@ -163,7 +160,6 @@ contract MultiValidatorLST is
                 uint256 amount = uint256(int256(assets) * int256(items[i].target - items[i].balance) / int256(totalDivergence));
                 ERC20(token).approve(items[i].tToken, amount);
                 uint256 tTokens = Tenderizer(items[i].tToken).deposit(address(this), amount);
-                console2.log("tTokens received %s", tTokens);
                 StakingPool storage pool = stakingPools[validatorIDs[i]];
                 pool.balance += tTokens;
                 received += tTokens;
@@ -223,15 +219,11 @@ contract MultiValidatorLST is
 
         totalAssets += received;
         // Calculate shares based on current exchange rate
-        console2.log("received %s", received);
-        console2.log("exchangeRate %s", exchangeRate);
         shares = received.divWad(exchangeRate);
         if (shares == 0) revert DepositTooSmall();
         // Mint shares to receiver
         _mint(receiver, shares);
 
-        console2.log("deposit first", stakingPoolTree.getFirst());
-        console2.log("deposit last", stakingPoolTree.getLast());
         emit Deposit(msg.sender, assets, shares);
     }
 
@@ -263,7 +255,6 @@ contract MultiValidatorLST is
             }
             uint256 max = pool.balance - maxDrawdown; // Edge case with rounding
             uint256 draw = max < remaining ? max : remaining;
-            console2.log("Drawing from validator %s pool %s", id, pool.tToken);
             tTokens[i] = pool.tToken;
             pool.balance -= draw;
             unlockIDs[i] = Tenderizer(pool.tToken).unlock(draw);
@@ -306,7 +297,6 @@ contract MultiValidatorLST is
         // TODO: should we send withdrawals to our contract as an intermediate step ?
         for (uint256 i = 0; i < l; i++) {
             if (request.tTokens[i] == address(0)) continue;
-            console2.log("withdrawing tToken %s", request.tTokens[i]);
             amountReceived += Tenderizer(payable(request.tTokens[i])).withdraw(msg.sender, request.unlockIDs[i]);
         }
         delete unstakeRequests[unstakeID];
@@ -367,6 +357,7 @@ contract MultiValidatorLST is
     }
 
     function previewUnwrap(uint256 shares) external view returns (address[] memory tTokens, uint256[] memory amounts) {
+        if (shares > totalSupply()) revert InsufficientBalance();
         uint256 amount = shares.mulWad(exchangeRate);
 
         uint256 k = stakingPoolTree.getSize();
@@ -382,15 +373,15 @@ contract MultiValidatorLST is
                 id = stakingPoolTree.findPredecessor(id);
                 continue;
             }
-
             uint256 max = pool.balance - maxDrawdown; // Edge case with rounding
-            uint256 draw = max < amount ? max : amount;
+            uint256 draw = max < remaining ? max : remaining;
             tTokens[i] = pool.tToken;
             amounts[i] = draw;
             if (draw == remaining) {
                 break;
             }
             remaining -= draw;
+            id = stakingPoolTree.findPredecessor(id);
         }
     }
 

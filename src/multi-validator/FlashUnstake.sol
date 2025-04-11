@@ -9,7 +9,7 @@
 //
 // Copyright (c) Tenderize Labs Ltd
 
-pragma solidity >=0.8.19;
+pragma solidity >=0.8.20;
 
 import { Multicallable } from "solady/utils/Multicallable.sol";
 import { SelfPermit } from "core/utils/SelfPermit.sol";
@@ -57,17 +57,21 @@ contract FlashUnstake is ERC721Receiver, Multicallable, SelfPermit {
     {
         token.safeTransferFrom(msg.sender, address(this), amount);
         MultiValidatorLST lst = MultiValidatorLST(token);
-        (address[] memory tTokens, uint256[] memory amounts) = lst.unwrap(amount, amount * amount.mulWad(lst.exchangeRate()));
+        (address[] memory tTokens, uint256[] memory amounts) = lst.unwrap(amount, amount.mulWad(lst.exchangeRate()));
 
         uint256 l = tTokens.length;
 
         if (l == 0) revert();
 
         if (l == 1) {
-            tTokens[0].safeApprove(tenderSwap, amounts[0]);
-            (out, fees) = TenderSwap(tenderSwap).swap(tTokens[0], amounts[0], minOut);
+            uint256 bal = ERC20(tTokens[0]).balanceOf(address(this));
+            amount = bal < amounts[0] ? bal : amounts[0];
+            tTokens[0].safeApprove(tenderSwap, amount);
+            (out, fees) = TenderSwap(tenderSwap).swap(tTokens[0], amount, minOut);
         } else {
+            uint256 bal = ERC20(tTokens[0]).balanceOf(address(this));
             for (uint256 i = 0; i < l; ++i) {
+                amounts[i] = bal < amounts[i] ? bal : amounts[i];
                 tTokens[i].safeApprove(tenderSwap, amounts[i]);
             }
             (out, fees) = TenderSwap(tenderSwap).swapMultiple(tTokens, amounts, minOut);
@@ -87,6 +91,7 @@ contract FlashUnstake is ERC721Receiver, Multicallable, SelfPermit {
     {
         (address[] memory tTokens, uint256[] memory amounts) = MultiValidatorLST(token).previewUnwrap(amount);
         uint256 l = tTokens.length;
+
         if (l == 0) revert();
         if (l == 1) {
             (out, fees) = TenderSwap(tenderSwap).quote(tTokens[0], amounts[0]);

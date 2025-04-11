@@ -1,7 +1,7 @@
 #!/bin/bash
 set -x
 pkill -9 anvil
-nohup bash -c "anvil --fork-url https://arb-mainnet.alchemyapi.io/v2/ISHp9nyZwKlfoSfS3-Hv-05CRiklcRBt --chain-id 5000 --block-base-fee-per-gas 0 &" >/dev/null 2>&1 && sleep 5
+nohup bash -c "anvil --fork-url https://arb-mainnet.alchemyapi.io/v2/ISHp9nyZwKlfoSfS3-Hv-05CRiklcRBt --hardfork shanghai --chain-id 5000 --block-base-fee-per-gas 0 &" >/dev/null 2>&1 && sleep 5
 
 forge build
 
@@ -17,6 +17,9 @@ AMOUNT=100000000000000000000000
 ME=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 cast rpc anvil_impersonateAccount $MINTER
 cast send $LPT --from $MINTER "transfer(address,uint256)(bool)" $ME $AMOUNT --unlocked
+
+# init round
+cast send 0xdd6f56DcC28D3F5f27084381fE8Df634985cc39f --from $ME "initializeRound()" --unlocked
 
 read -r -d '' _ </dev/tty
 echo "Closing Down Anvil"

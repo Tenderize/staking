@@ -11,18 +11,19 @@
 
 // solhint-disable no-console
 
-pragma solidity >=0.8.19;
+pragma solidity 0.8.20;
 
 import { Script, console2 } from "forge-std/Script.sol";
 
 import { MultiValidatorLST } from "core/multi-validator/MultiValidatorLST.sol";
 import { MultiValidatorFactory } from "core/multi-validator/Factory.sol";
-import { FlashUnstake } from "core/multi-validator/FlashUnstake.sol";
+import { FlashUnstake, TenderSwap } from "core/multi-validator/FlashUnstake.sol";
 
 import { LPT } from "core/adapters/LivepeerAdapter.sol";
 
 import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { MockERC20 } from "solmate/test/utils/mocks/MockERC20.sol";
+import { FlashUnstake } from "core/multi-validator/FlashUnstake.sol";
 
 address constant TENDERIZER_1 = 0xFCfeD578958D42Cd1c2ea09db09bfC1A668E0efd;
 address constant TENDERIZER_2 = 0x4b0e5E54Df6d5eCcC7B2F838982411DC93253dAf;
@@ -34,38 +35,28 @@ contract MultiValidatorLST_Deploy is Script {
     bytes32 private constant salt = bytes32(uint256(1));
 
     MultiValidatorFactory factory;
-    MultiValidatorLST lst;
+    // MultiValidatorLST lst;
 
     function run() public {
         uint256 privKey = vm.envUint("PRIVATE_KEY");
-
         vm.startBroadcast(privKey);
-        address me = vm.addr(privKey);
+        address lst = 0xfdc1E7Ec8dBab6D05f2655E0409a79550eCb01aE;
+        LPT.approve(lst, type(uint256).max);
+        MultiValidatorLST(lst).deposit(msg.sender, 10 ether);
 
-        console2.log("Deploying MultiValidatorFactory...");
-        address factoryImpl = address(new MultiValidatorFactory(me));
-        factory =
-            MultiValidatorFactory(address(new ERC1967Proxy{ salt: bytes32("MultiValidatorLSTFactory") }(address(factoryImpl), "")));
-        factory.initialize();
+        uint256 bal = MultiValidatorLST(lst).balanceOf(msg.sender);
 
-        console2.log("MultiValidatorFactory deployed at: %s", address(factory));
-        console2.log("Factory owner: %s", factory.owner());
+        MultiValidatorLST(lst).approve(0x0Dbce9D1E875772cf370f14f10Cd22f71B6B6F95, type(uint256).max);
+        (uint256 out, uint256 fee) = FlashUnstake(0x0Dbce9D1E875772cf370f14f10Cd22f71B6B6F95).flashUnstakeQuote(
+            lst, 0x686962481543d543934903C3FE8bDe8c5dB9Bd97, 1 ether
+        );
+        console2.log("Quote out: %s", out);
+        console2.log("fee: %s", fee);
 
-        console2.log("Deploying MultiValidatorLST...");
-
-        lst = MultiValidatorLST(factory.deploy(address(LPT)));
-
-        console2.log("MultiValidatorLST deployed at: %s", address(lst));
-
-        // deploy flash unstake wrapper
-        address flashUnstake = address(new FlashUnstake());
-        console2.log("FlashUnstake deployed at: %s", flashUnstake);
-
-        lst.setFee(0.05e6); // 5% fee
-
-        lst.addValidator(payable(TENDERIZER_1), 2_000_000 ether); // 3M Stake
-        // lst.addValidator(payable(TENDERIZER_2), 2_000_000 ether); // 2M Stake
-        // lst.addValidator(payable(TENDERIZER_3), 2_000_000 ether); // 1M Stake
+        (out, fee) = FlashUnstake(0x0Dbce9D1E875772cf370f14f10Cd22f71B6B6F95).flashUnstake(
+            lst, 0x686962481543d543934903C3FE8bDe8c5dB9Bd97, 1 ether, out - 1
+        );
+        console2.log("Successfully flash unstaked");
         vm.stopBroadcast();
     }
 }
