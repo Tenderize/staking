@@ -25,10 +25,9 @@ import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.
 import { MockERC20 } from "solmate/test/utils/mocks/MockERC20.sol";
 import { FlashUnstake } from "core/multi-validator/FlashUnstake.sol";
 
-address constant TENDERIZER_1 = 0xFCfeD578958D42Cd1c2ea09db09bfC1A668E0efd;
-address constant TENDERIZER_2 = 0x4b0e5E54Df6d5eCcC7B2F838982411DC93253dAf;
-address constant TENDERIZER_3 = 0x218337076c79A6D94EB3B557f2c89dDd82E883A0;
-
+address constant TENDERIZER_1 = 0x4b7339E599a599DBd7829a8ECA0d233ED4F7eA09;
+address constant TENDERIZER_2 = 0xFB32bF22B4F004a088c1E7d69e29492f5D7CD7E1;
+address constant TENDERIZER_3 = 0x6DFd5Cee0Ed2ec24Fdc814Ad857902DE01c065d6;
 address constant LIVEPEER_MINTER = 0xc20DE37170B45774e6CD3d2304017fc962f27252;
 
 contract MultiValidatorLST_Deploy is Script {
@@ -40,20 +39,20 @@ contract MultiValidatorLST_Deploy is Script {
     function run() public {
         uint256 privKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(privKey);
-        address lst = 0xfdc1E7Ec8dBab6D05f2655E0409a79550eCb01aE;
+        address lst = 0x312d7CD23148DA9Baac94b43f4E8557fCcFe824F;
         LPT.approve(lst, type(uint256).max);
         MultiValidatorLST(lst).deposit(msg.sender, 10 ether);
 
         uint256 bal = MultiValidatorLST(lst).balanceOf(msg.sender);
 
-        MultiValidatorLST(lst).approve(0x0Dbce9D1E875772cf370f14f10Cd22f71B6B6F95, type(uint256).max);
-        (uint256 out, uint256 fee) = FlashUnstake(0x0Dbce9D1E875772cf370f14f10Cd22f71B6B6F95).flashUnstakeQuote(
+        MultiValidatorLST(lst).approve(0x59b86cf4d8B566602a687Bd9A2979792e73316d9, type(uint256).max);
+        (uint256 out, uint256 fee) = FlashUnstake(0x59b86cf4d8B566602a687Bd9A2979792e73316d9).flashUnstakeQuote(
             lst, 0x686962481543d543934903C3FE8bDe8c5dB9Bd97, 1 ether
         );
         console2.log("Quote out: %s", out);
         console2.log("fee: %s", fee);
 
-        (out, fee) = FlashUnstake(0x0Dbce9D1E875772cf370f14f10Cd22f71B6B6F95).flashUnstake(
+        (out, fee) = FlashUnstake(0x59b86cf4d8B566602a687Bd9A2979792e73316d9).flashUnstake(
             lst, 0x686962481543d543934903C3FE8bDe8c5dB9Bd97, 1 ether, out - 1
         );
         console2.log("Successfully flash unstaked");

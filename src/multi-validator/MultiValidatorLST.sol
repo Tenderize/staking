@@ -320,16 +320,27 @@ contract MultiValidatorLST is
         // Start looping the tree from top to bottom
         uint256 remaining = amount;
         uint24 id = stakingPoolTree.getLast();
+        uint256 index = 0;
+
         for (uint256 i = 0; i < k; i++) {
             StakingPool storage pool = stakingPools[id];
             if (maxDrawdown >= pool.balance) {
                 id = stakingPoolTree.findPredecessor(id);
+                // Didn't use this element so reduce the resulting array
+                // sizes by 1
+                if (tTokens.length > 0) {
+                    assembly {
+                        mstore(tTokens, sub(mload(tTokens), 1))
+                        mstore(amounts, sub(mload(amounts), 1))
+                    }
+                }
                 continue;
             }
             uint256 max = pool.balance - maxDrawdown; // Edge case with rounding
             uint256 draw = max < remaining ? max : remaining;
-            tTokens[i] = pool.tToken;
-            amounts[i] = draw;
+            tTokens[index] = pool.tToken;
+            amounts[index] = draw;
+            index++;
             pool.balance -= draw;
 
             // Get next id before updating
@@ -347,7 +358,18 @@ contract MultiValidatorLST is
                 break;
             }
             remaining -= draw;
+            if (remaining == 0) {
+                break;
+            }
             id = nextId;
+        }
+
+        // End truncate unused elements
+        if (tTokens.length > 0) {
+            assembly {
+                mstore(tTokens, index)
+                mstore(amounts, index)
+            }
         }
 
         // Update state
@@ -366,22 +388,40 @@ contract MultiValidatorLST is
         amounts = new uint256[](k);
         uint24 id = stakingPoolTree.getLast();
         uint256 remaining = amount;
+        uint256 index = 0;
 
         for (uint256 i = 0; i < k; i++) {
             StakingPool storage pool = stakingPools[id];
             if (maxDrawdown >= pool.balance) {
                 id = stakingPoolTree.findPredecessor(id);
+                // Didn't use this element so reduce the resulting array
+                // sizes by 1
+                if (tTokens.length > 0) {
+                    assembly {
+                        mstore(tTokens, sub(mload(tTokens), 1))
+                        mstore(amounts, sub(mload(amounts), 1))
+                    }
+                }
                 continue;
             }
             uint256 max = pool.balance - maxDrawdown; // Edge case with rounding
             uint256 draw = max < remaining ? max : remaining;
-            tTokens[i] = pool.tToken;
-            amounts[i] = draw;
-            if (draw == remaining) {
+            tTokens[index] = pool.tToken;
+            amounts[index] = draw;
+            index++;
+            remaining -= draw;
+            if (remaining == 0) {
                 break;
             }
-            remaining -= draw;
             id = stakingPoolTree.findPredecessor(id);
+        }
+
+        // End truncate unused elements
+        if (tTokens.length > 0) {
+            assembly {
+                mstore(tTokens, index)
+                mstore(amounts, index)
+            }
         }
     }
 

@@ -31,9 +31,19 @@ import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
 // Existing LPT Tenderizer addresses on Arbitrum
-address constant TENDERIZER_1 = 0x6CBC6967A941CCa12c1316E4D567c6892C3F0Ed6;
-address constant TENDERIZER_2 = 0xFCfeD578958D42Cd1c2ea09db09bfC1A668E0efd;
-address constant TENDERIZER_3 = 0x3A760477cA7CB37Dec4DF9B9e19ce15CB265bfF8;
+address constant TENDERIZER_1 = 0x4b7339E599a599DBd7829a8ECA0d233ED4F7eA09;
+address constant TENDERIZER_2 = 0xFB32bF22B4F004a088c1E7d69e29492f5D7CD7E1;
+address constant TENDERIZER_3 = 0x6DFd5Cee0Ed2ec24Fdc814Ad857902DE01c065d6;
+address constant TENDERIZER_4 = 0xbEb81a62E9A8463C22a3f999846F3E3FB2e2002A;
+address constant TENDERIZER_5 = 0x3a3D463fb8241DA6051eb4DAB2200C8b99691315;
+address constant TENDERIZER_6 = 0x109eA4859a99B3347db5025A920f63Ab0EF3de42;
+address constant TENDERIZER_7 = 0x6CBC6967A941CCa12c1316E4D567c6892C3F0Ed6;
+address constant TENDERIZER_8 = 0xFBc4435A3CebC1F4bd9c56aC95cfA37dfC142f5F;
+address constant TENDERIZER_9 = 0x43ef285F5e27D8CA978A7e577f4dDF52147EB77b;
+address constant TENDERIZER_10 = 0x47cd6B7e7308Fb062586e5185B4F3Ee7E224eefe;
+address constant TENDERIZER_11 = 0x9b6DB9Cc6E479dd28471B9C899890C20377DA200;
+address constant TENDERIZER_12 = 0xFCfeD578958D42Cd1c2ea09db09bfC1A668E0efd;
+address constant TENDERIZER_13 = 0x03572207d14bed3dd50E0d48CfaD44bDDB8BF4B7;
 
 address constant alice = address(0x5678);
 address constant bob = address(0x9ABC);
@@ -74,7 +84,7 @@ contract MultiValidatorLSTTest is Test, ERC721Receiver {
     }
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("ARBITRUM_RPC"), 313_514_289);
+        vm.createSelectFork(vm.envString("ARBITRUM_RPC"), 326_906_474);
         // Use labeled addresses for better test output
         vm.label(TENDERIZER_1, "Tenderizer1");
         vm.label(TENDERIZER_2, "Tenderizer2");
@@ -95,6 +105,17 @@ contract MultiValidatorLSTTest is Test, ERC721Receiver {
         lst.addValidator(payable(TENDERIZER_1), 3_000_000 ether); // 3M Stake
         lst.addValidator(payable(TENDERIZER_2), 2_000_000 ether); // 2M Stake
         lst.addValidator(payable(TENDERIZER_3), 1_000_000 ether); // 1M Stake
+        lst.addValidator(payable(TENDERIZER_4), 1_000_000 ether); // 1M Stake
+        lst.addValidator(payable(TENDERIZER_5), 1_000_000 ether); // 1M Stake
+        lst.addValidator(payable(TENDERIZER_6), 1_000_000 ether); // 1M Stake
+        lst.addValidator(payable(TENDERIZER_7), 1_000_000 ether); // 1M Stake
+        lst.addValidator(payable(TENDERIZER_8), 1_000_000 ether); // 1M Stake
+        lst.addValidator(payable(TENDERIZER_9), 1_000_000 ether); // 1M Stake
+        lst.addValidator(payable(TENDERIZER_10), 1_000_000 ether); // 1M Stake
+        lst.addValidator(payable(TENDERIZER_11), 1_000_000 ether); // 1M Stake
+        lst.addValidator(payable(TENDERIZER_12), 1_000_000 ether); // 1M Stake
+        lst.addValidator(payable(TENDERIZER_13), 1_000_000 ether); // 1M Stake
+
         vm.stopPrank();
     }
 
@@ -118,7 +139,7 @@ contract MultiValidatorLSTTest is Test, ERC721Receiver {
         assertEq(target2, 2_000_000 ether, "Second validator target weight should be 2M");
         assertEq(target3, 1_000_000 ether, "Third validator target weight should be 1M");
 
-        assertEq(lst.validatorCount(), 3, "Validator count should be 3");
+        assertEq(lst.validatorCount(), 13, "Validator count should be 13");
     }
 
     function test_deposit() public {
