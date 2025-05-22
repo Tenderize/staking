@@ -425,23 +425,6 @@ contract MultiValidatorLST is
         }
     }
 
-    // TODO: Allow governance to execute a series of transaction to rebalance
-    // The contract. This could be e.g. staking, unstaking or withdraw operations, or even a tenderswap call.
-    function rebalance(
-        address[] calldata targets,
-        bytes[] calldata datas,
-        uint256[] calldata values
-    )
-        external
-        onlyRole(GOVERNANCE_ROLE)
-    {
-        uint256 l = targets.length;
-        for (uint256 i = 0; i < l; i++) {
-            (bool success,) = targets[i].call{ value: values[i] }(datas[i]);
-            if (!success) revert RebalanceFailed(targets[i], datas[i], values[i]);
-        }
-    }
-
     function claimValidatorRewards(uint24 id) external {
         // Update the balance of the validator
         StakingPool storage pool = stakingPools[id];

@@ -93,7 +93,7 @@ contract MultiValidatorLSTTest is Test, ERC721Receiver {
         vm.label(alice, "Alice");
         vm.label(bob, "Bob");
 
-        address factoryImpl = address(new MultiValidatorFactory(address(this)));
+        address factoryImpl = address(new MultiValidatorFactory());
         factory =
             MultiValidatorFactory(address(new ERC1967Proxy{ salt: bytes32("MultiValidatorLSTFactory") }(address(factoryImpl), "")));
         factory.initialize();

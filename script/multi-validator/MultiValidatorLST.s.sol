@@ -55,7 +55,7 @@ contract MultiValidatorLST_Deploy is Script {
         address me = vm.addr(privKey);
 
         console2.log("Deploying MultiValidatorFactory...");
-        address factoryImpl = address(new MultiValidatorFactory(me));
+        address factoryImpl = address(new MultiValidatorFactory());
         factory =
             MultiValidatorFactory(address(new ERC1967Proxy{ salt: bytes32("MultiValidatorLSTFactory") }(address(factoryImpl), "")));
         factory.initialize();
