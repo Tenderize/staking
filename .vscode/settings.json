@@ -5,7 +5,7 @@
   "[toml]": {
     "editor.defaultFormatter": "tamasfe.even-better-toml"
   },
-  "solidity.compileUsingRemoteVersion": "v0.8.17+commit.7dd6d404",
+  "solidity.compileUsingRemoteVersion": "v0.8.19+commit.7dd6d404",
   "solidity.formatter": "forge",
   "solidity.linter": "solhint",
   "solidity.packageDefaultDependenciesContractsDirectory": "src",
