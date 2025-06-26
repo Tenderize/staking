@@ -51,6 +51,6 @@ contract Adapter_Deploy is Script {
         }
 
         // register adapter
-        registry.registerAdapter(asset, adapter);
+        // registry.registerAdapter(asset, adapter);
     }
 }

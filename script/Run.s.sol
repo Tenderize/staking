@@ -18,7 +18,7 @@ import { Script, console2 } from "forge-std/Script.sol";
 import { MultiValidatorLST } from "core/multi-validator/MultiValidatorLST.sol";
 import { MultiValidatorFactory } from "core/multi-validator/Factory.sol";
 import { FlashUnstake, TenderSwap } from "core/multi-validator/FlashUnstake.sol";
-
+import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
 import { LPT } from "core/adapters/LivepeerAdapter.sol";
 
 import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -38,24 +38,12 @@ contract MultiValidatorLST_Deploy is Script {
 
     function run() public {
         uint256 privKey = vm.envUint("PRIVATE_KEY");
-        vm.startBroadcast(privKey);
-        address lst = 0x312d7CD23148DA9Baac94b43f4E8557fCcFe824F;
-        LPT.approve(lst, type(uint256).max);
-        MultiValidatorLST(lst).deposit(msg.sender, 10 ether);
+        address guy = 0xF77fc3ae854164EAd1eeb39458d830Cd464270eD;
+        address lst = 0xeab62Fb116f2e1f766A8a64094389553a00C2F68;
+        vm.startBroadcast(guy);
 
-        uint256 bal = MultiValidatorLST(lst).balanceOf(msg.sender);
+        Tenderizer(payable(lst)).withdraw(guy, 64);
 
-        MultiValidatorLST(lst).approve(0x59b86cf4d8B566602a687Bd9A2979792e73316d9, type(uint256).max);
-        (uint256 out, uint256 fee) = FlashUnstake(0x59b86cf4d8B566602a687Bd9A2979792e73316d9).flashUnstakeQuote(
-            lst, 0x686962481543d543934903C3FE8bDe8c5dB9Bd97, 1 ether
-        );
-        console2.log("Quote out: %s", out);
-        console2.log("fee: %s", fee);
-
-        (out, fee) = FlashUnstake(0x59b86cf4d8B566602a687Bd9A2979792e73316d9).flashUnstake(
-            lst, 0x686962481543d543934903C3FE8bDe8c5dB9Bd97, 1 ether, out - 1
-        );
-        console2.log("Successfully flash unstaked");
         vm.stopBroadcast();
     }
 }

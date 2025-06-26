@@ -30,6 +30,7 @@ contract GraphAdapter is Adapter {
     uint256 private constant STORAGE = uint256(keccak256("xyz.tenderize.graph.adapter.storage.location")) - 1;
 
     error WithdrawPending();
+    error InvalidUnlockID();
 
     struct Unlock {
         uint256 shares;
@@ -80,25 +81,38 @@ contract GraphAdapter is Adapter {
     function unlockMaturity(uint256 unlockID) external view override returns (uint256) {
         Storage storage $ = _loadStorage();
         Unlock memory unlock = $.unlocks[unlockID];
-        uint256 THAWING_PERIOD = GRAPH_STAKING.thawingPeriod();
-        // if userEpoch == currentEpoch, it is yet to unlock
-        // => unlockBlock + thawingPeriod
-        // if userEpoch == currentEpoch - 1, it is processing
-        // => unlockBlock
-        // if userEpoch < currentEpoch - 1, it has been processed
-        // => 0
-        uint256 unlockBlock = $.lastEpochUnlockedAt + THAWING_PERIOD;
+
+        if (unlock.shares == 0) revert InvalidUnlockID(); // TRST-L-3
+
+        // Convert Graph’s unbonding period (epochs) → blocks
+        uint256 unbondingBlocks = uint256(GRAPH_STAKING.delegationUnbondingPeriod()) * GRAPH_EPOCHS.epochLength();
+
+        uint256 startBlock = $.lastEpochUnlockedAt; // block at which the
+            // *previous* epoch’s
+            // undelegation tx was
+            // sent
+
         if (unlock.epoch == $.currentEpoch) {
-            return THAWING_PERIOD + unlockBlock;
+            // undelegation will be sent in the *next* call to _processUnstake
+            // => earliest estimate is one epoch after the last one
+            return startBlock + unbondingBlocks + GRAPH_EPOCHS.epochLength();
         } else if (unlock.epoch == $.currentEpoch - 1) {
-            return unlockBlock;
+            // already undelegated, waiting for the lock to expire
+            return startBlock + unbondingBlocks;
         } else {
+            // lock already expired and (if not yet done) _processWithdraw() will
+            // pull the funds on the next keeper transaction
             return 0;
         }
     }
 
+    /**
+     * @notice Length (in blocks) of the Graph delegation unbonding period.
+     *
+     * @dev Needed by external integrations that assume a “block-based” timer.
+     */
     function unlockTime() external view override returns (uint256) {
-        return GRAPH_STAKING.thawingPeriod();
+        return uint256(GRAPH_STAKING.delegationUnbondingPeriod()) * GRAPH_EPOCHS.epochLength();
     }
 
     function currentTime() external view override returns (uint256) {
@@ -220,7 +234,6 @@ contract GraphAdapter is Adapter {
             GRAPH_STAKING.undelegate(validator, undelegationShares);
         } else if ($.epochs[$.currentEpoch - 1].amount != 0) {
             ++$.currentEpoch;
-            $.lastEpochUnlockedAt = block.number;
         }
     }
 

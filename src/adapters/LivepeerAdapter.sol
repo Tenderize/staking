@@ -11,7 +11,7 @@
 
 pragma solidity >=0.8.19;
 
-uint256 constant VERSION = 1;
+uint256 constant VERSION = 2;
 
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
@@ -31,7 +31,7 @@ ISwapRouter constant UNISWAP_ROUTER = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0
 address constant UNI_POOL = 0x4fD47e5102DFBF95541F64ED6FE13d4eD26D2546;
 uint24 constant UNISWAP_POOL_FEE = 3000;
 uint256 constant ETH_THRESHOLD = 1e16; // 0.01 ETH
-uint32 constant TWAP_INTERVAL = 36_000;
+uint32 constant TWAP_INTERVAL = 30;
 
 contract LivepeerAdapter is Adapter {
     using SafeTransferLib for ERC20;

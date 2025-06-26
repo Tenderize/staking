@@ -48,7 +48,7 @@ interface IGraphStaking {
 
     function getWithdraweableDelegatedTokens(Delegation memory _delegation) external view returns (uint256);
 
-    function thawingPeriod() external view returns (uint256);
+    function delegationUnbondingPeriod() external view returns (uint256);
 
     function delegationTaxPercentage() external view returns (uint32);
 
@@ -57,4 +57,5 @@ interface IGraphStaking {
 
 interface IGraphEpochManager {
     function currentEpoch() external view returns (uint256);
+    function epochLength() external view returns (uint256);
 }
