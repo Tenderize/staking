@@ -21,10 +21,10 @@ import { Strings } from "openzeppelin-contracts/utils/Strings.sol";
 
 import { Base64 } from "core/unlocks/Base64.sol";
 
-import { MultiValidatorLST } from "core/tenderize-v3/multi-validator/MultiValidatorLST.sol";
+import { MultiValidatorLSTNative } from "core/tenderize-v3/multi-validator/MultiValidatorLST.sol";
 
 interface GetUnstakeRequest {
-    function getUnstakeRequest(uint256 id) external view returns (MultiValidatorLST.UnstakeRequest memory);
+    function getUnstakeRequest(uint256 id) external view returns (MultiValidatorLSTNative.UnstakeRequest memory);
 }
 
 contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, ERC721 {
@@ -37,7 +37,7 @@ contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, ERC72
 
     uint256 lastID;
     string public tokenSymbol; // Symbol of the native token (e.g., "ETH", "SEI")
-    address minter; // MultiValidatorLST contract
+    address minter; // MultiValidatorLSTNative contract
 
     constructor() ERC721() {
         _disableInitializers();
@@ -65,7 +65,7 @@ contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, ERC72
         minter = _minter;
     }
 
-    function getRequest(uint256 id) public view returns (MultiValidatorLST.UnstakeRequest memory) {
+    function getRequest(uint256 id) public view returns (MultiValidatorLSTNative.UnstakeRequest memory) {
         return GetUnstakeRequest(minter).getUnstakeRequest(id);
     }
 
@@ -96,7 +96,7 @@ contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, ERC72
      * @notice Returns the JSON metadata for a given unlock
      * @param data metadata for the token
      */
-    function json(MultiValidatorLST.UnstakeRequest memory data) public view returns (string memory) {
+    function json(MultiValidatorLSTNative.UnstakeRequest memory data) public view returns (string memory) {
         return string(
             abi.encodePacked(
                 "data:application/json;base64,",
@@ -109,7 +109,7 @@ contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, ERC72
         );
     }
 
-    function svg(MultiValidatorLST.UnstakeRequest memory data) external view returns (string memory) {
+    function svg(MultiValidatorLSTNative.UnstakeRequest memory data) external view returns (string memory) {
         return string(
             abi.encodePacked(
                 '<svg width="290" height="500" viewBox="0 0 290 500" xmlns="http://www.w3.org/2000/svg"',
@@ -129,7 +129,7 @@ contract UnstakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, ERC72
         );
     }
 
-    function _serializeMetadata(MultiValidatorLST.UnstakeRequest memory data)
+    function _serializeMetadata(MultiValidatorLSTNative.UnstakeRequest memory data)
         internal
         pure
         returns (string memory metadataString)

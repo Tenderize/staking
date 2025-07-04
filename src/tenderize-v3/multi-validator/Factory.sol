@@ -17,9 +17,9 @@ import { OwnableUpgradeable } from "openzeppelin-contracts-upgradeable/access/Ow
 import { Initializable } from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import { UUPSUpgradeable } from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import { MultiValidatorLST } from "core/tenderize-v3/multi-validator/MultiValidatorLST.sol";
+import { MultiValidatorLSTNative } from "core/tenderize-v3/multi-validator/MultiValidatorLST.sol";
 import { UnstakeNFT } from "core/tenderize-v3/multi-validator/UnstakeNFT.sol";
-import { Registry } from "core/registry/Registry.sol";
+import { Registry } from "core/tenderize-v3/registry/Registry.sol";
 
 contract MultiValidatorFactory is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     Registry immutable registry;
@@ -31,11 +31,11 @@ contract MultiValidatorFactory is Initializable, UUPSUpgradeable, OwnableUpgrade
     error ZeroAddress();
     error EmptySymbol();
 
-    constructor(Registry _registry) {
+    constructor(Registry _registry, MultiValidatorLSTNative _multiValidatorLSTImpl, UnstakeNFT _unstakeNFTImpl) {
         _disableInitializers();
         registry = _registry;
-        initialImpl = address(new MultiValidatorLST{ salt: bytes32(uint256(0)) }(_registry));
-        initialUnstakeNFTImpl = address(new UnstakeNFT{ salt: bytes32(uint256(0)) }());
+        initialImpl = address(_multiValidatorLSTImpl);
+        initialUnstakeNFTImpl = address(_unstakeNFTImpl);
     }
 
     function initialize() external initializer {
@@ -64,7 +64,9 @@ contract MultiValidatorFactory is Initializable, UUPSUpgradeable, OwnableUpgrade
         );
 
         // Initialize MultiValidatorLST
-        MultiValidatorLST(payable(multiValidatorLST)).initialize(tokenSymbol, UnstakeNFT(unstakeNFTProxy), registry.treasury());
+        MultiValidatorLSTNative(payable(multiValidatorLST)).initialize(
+            tokenSymbol, UnstakeNFT(unstakeNFTProxy), registry.treasury()
+        );
 
         // Transfer ownership of UnstakeNFT to registry treasury
         UnstakeNFT(unstakeNFTProxy).transferOwnership(registry.treasury());

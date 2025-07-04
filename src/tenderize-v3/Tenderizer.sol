@@ -12,7 +12,7 @@
 pragma solidity ^0.8.25;
 
 import { Unlocks } from "core/unlocks/Unlocks.sol";
-import { Registry } from "core/registry/Registry.sol";
+import { Registry } from "core/tenderize-v3/registry/Registry.sol";
 import { Adapter, AdapterDelegateCall } from "core/tenderize-v3/Adapter.sol";
 import { TToken } from "core/tendertoken/TToken.sol";
 import { Multicall } from "core/utils/Multicall.sol";
@@ -59,7 +59,7 @@ contract Tenderizer is Initializable, TenderizerEvents, TToken, Multicall, SelfP
     }
 
     function adapter() public view returns (Adapter) {
-        return Adapter(_registry().adapter(asset));
+        return Adapter(payable(_registry().adapter(asset)));
     }
 
     function _registry() internal view returns (Registry) {

@@ -15,12 +15,13 @@ import { UpgradeableBeacon } from "openzeppelin-contracts/proxy/beacon/Upgradeab
 
 import { BeaconProxy } from "openzeppelin-contracts/proxy/beacon/BeaconProxy.sol";
 
-import { Adapter } from "core/adapters/Adapter.sol";
-import { Registry } from "core/registry/Registry.sol";
+import { Adapter } from "core/tenderize-v3/Adapter.sol";
+import { Registry } from "core/tenderize-v3/registry/Registry.sol";
+import { Tenderizer } from "core/tenderize-v3/Tenderizer.sol";
 
 contract TenderizerFactory is UpgradeableBeacon {
     error InvalidAsset(address asset);
-    error NotValidator(address validator);
+    error NotValidator(bytes32 validator);
 
     address public immutable registry;
 
@@ -28,12 +29,14 @@ contract TenderizerFactory is UpgradeableBeacon {
         registry = _registry;
     }
 
-    function createTenderizer(address asset, address validator) external returns (address tenderizer) {
+    function createTenderizer(address asset, bytes32 validator) external payable returns (address tenderizer) {
         Adapter adapter = Adapter(Registry(registry).adapter(asset));
 
         if (address(adapter) == address(0)) revert InvalidAsset(asset);
         if (!adapter.isValidator(validator)) revert NotValidator(validator);
         tenderizer = address(new BeaconProxy(address(this), ""));
+        // abi.encodeCall(Tenderizer.initialize, (validator)))
+        Tenderizer(tenderizer).initialize(validator);
         Registry(registry).registerTenderizer(asset, validator, tenderizer);
     }
 }

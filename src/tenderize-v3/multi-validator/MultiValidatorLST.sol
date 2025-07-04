@@ -24,11 +24,11 @@ import { ERC721Receiver } from "core/utils/ERC721Receiver.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 
 import { Tenderizer } from "core/tenderize-v3/Tenderizer.sol";
-import { Registry } from "core/registry/Registry.sol";
+import { Registry } from "core/tenderize-v3/registry/Registry.sol";
 import { AVLTree } from "core/multi-validator/AVLTree.sol";
 import { UnstakeNFT } from "core/tenderize-v3/multi-validator/UnstakeNFT.sol";
 
-contract MultiValidatorLST is
+contract MultiValidatorLSTNative is
     ERC20,
     ERC721Receiver,
     Initializable,

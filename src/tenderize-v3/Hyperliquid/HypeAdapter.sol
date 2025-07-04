@@ -65,7 +65,7 @@ contract HypeAdapter is Adapter {
         return 0;
     }
 
-    function stake(bytes32 validator, uint256 /*amount*/ ) external override returns (uint256 staked) {
+    function stake(bytes32 validator, uint256 /*amount*/ ) external payable override returns (uint256 staked) {
         return 0;
     }
 
@@ -77,7 +77,7 @@ contract HypeAdapter is Adapter {
         return 0;
     }
 
-    function rebase(bytes32 validator, uint256 currentStake) external override returns (uint256 newStake) {
+    function rebase(bytes32 validator, uint256 currentStake) external payable override returns (uint256 newStake) {
         address delegator = address(bytes20(validator));
         console2.log("delegator %s", delegator);
         uint256 currentTime = currentTime();

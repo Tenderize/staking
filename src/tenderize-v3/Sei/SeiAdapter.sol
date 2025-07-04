@@ -14,6 +14,10 @@ pragma solidity ^0.8.25;
 import { Adapter } from "core/tenderize-v3/Adapter.sol";
 import { IERC165 } from "core/interfaces/IERC165.sol";
 import { ISeiStaking, SEI_STAKING_PRECOMPILE_ADDRESS, Delegation } from "core/tenderize-v3/Sei/Sei.sol";
+import { console2 } from "forge-std/console2.sol";
+
+uint256 constant VERSION = 1;
+address constant SEI = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
 contract SeiAdapter is Adapter {
     error UnlockNotReady();
@@ -60,7 +64,7 @@ contract SeiAdapter is Adapter {
     }
 
     function previewDeposit(bytes32, /*validator*/ uint256 assets) external pure returns (uint256) {
-        return assets;
+        return assets / PRECISION_SCALE * PRECISION_SCALE;
     }
 
     function previewWithdraw(uint256 unlockID) external view override returns (uint256) {
@@ -81,17 +85,14 @@ contract SeiAdapter is Adapter {
         return block.timestamp;
     }
 
-    function stake(bytes32 validator, uint256 amount) external override returns (uint256 staked) {
+    function stake(bytes32 validator, uint256 amount) external payable override returns (uint256 staked) {
         if (amount == 0) revert InvalidAmount();
 
         string memory validatorAddr = _bytes32ToSeiValidator(validator);
-
-        // Convert from 18 decimal to 6 decimal precision
-        uint256 seiAmount = amount / PRECISION_SCALE;
-
         // Call the Sei staking precompile
-        ISeiStaking seiStaking = ISeiStaking(SEI_STAKING_PRECOMPILE_ADDRESS);
-        bool success = seiStaking.delegate{ value: seiAmount }(validatorAddr);
+        (bool success,) = SEI_STAKING_PRECOMPILE_ADDRESS.call{ value: msg.value }(
+            abi.encodeCall(ISeiStaking(SEI_STAKING_PRECOMPILE_ADDRESS).delegate, (validatorAddr))
+        );
 
         if (!success) revert DelegationFailed();
 
@@ -106,9 +107,10 @@ contract SeiAdapter is Adapter {
         // Convert from 18 decimal to 6 decimal precision
         uint256 seiAmount = amount / PRECISION_SCALE;
 
-        // Call the Sei staking precompile
-        ISeiStaking seiStaking = ISeiStaking(SEI_STAKING_PRECOMPILE_ADDRESS);
-        bool success = seiStaking.undelegate(validatorAddr, seiAmount);
+        // Call the Sei staking precompile via low-level call
+        (bool success,) = SEI_STAKING_PRECOMPILE_ADDRESS.call(
+            abi.encodeCall(ISeiStaking(SEI_STAKING_PRECOMPILE_ADDRESS).undelegate, (validatorAddr, seiAmount))
+        );
 
         if (!success) revert UndelegationFailed();
 
@@ -135,14 +137,17 @@ contract SeiAdapter is Adapter {
         return amount;
     }
 
-    function rebase(bytes32 validator, uint256 currentStake) external view override returns (uint256 newStake) {
+    function rebase(bytes32 validator, uint256 currentStake) external payable override returns (uint256 newStake) {
+        // Query current delegation from Sei using a call to the precompile
+        if (currentStake == 0) return 0;
         string memory validatorAddr = _bytes32ToSeiValidator(validator);
 
-        // Query current delegation from Sei
-        ISeiStaking seiStaking = ISeiStaking(SEI_STAKING_PRECOMPILE_ADDRESS);
-        Delegation memory delegation = seiStaking.delegation(address(this), validatorAddr);
+        (bool success, bytes memory returndata) = SEI_STAKING_PRECOMPILE_ADDRESS.staticcall(
+            abi.encodeCall(ISeiStaking(SEI_STAKING_PRECOMPILE_ADDRESS).delegation, (address(this), validatorAddr))
+        );
+        if (!success) revert DelegationFailed();
 
-        // Convert from 6 decimal to 18 decimal precision
+        Delegation memory delegation = abi.decode(returndata, (Delegation)); // Convert from 6 decimal to 18 decimal precision
         uint256 seiBalance = delegation.balance.amount;
         newStake = seiBalance * PRECISION_SCALE;
 
@@ -373,5 +378,31 @@ contract SeiAdapter is Adapter {
         if (top & 16 != 0) chk ^= 0x2a1462b3;
 
         return chk;
+    }
+
+    // -------------------------------------------------------------------
+    // Temporary debug helpers (can be removed later)
+    // -------------------------------------------------------------------
+
+    /// @notice Return the raw bytes returned by the staking precompile's `delegation` query.
+    /// @param validator The bytes32 validator ID to query
+    /// @return ok Whether the staticcall succeeded, ret The raw returndata
+    function debugRawDelegation(bytes32 validator) external view returns (bool ok, bytes memory ret) {
+        string memory validatorAddr = _bytes32ToSeiValidator(validator);
+        (ok, ret) = SEI_STAKING_PRECOMPILE_ADDRESS.staticcall(
+            abi.encodeCall(ISeiStaking(SEI_STAKING_PRECOMPILE_ADDRESS).delegation, (address(this), validatorAddr))
+        );
+    }
+
+    /// @notice Return the decoded Delegation struct for the calling tenderizer.
+    /// @dev Reverts if the decoding fails.
+    /// @param validator The bytes32 validator ID to query
+    function debugDecodedDelegation(bytes32 validator) external view returns (Delegation memory) {
+        string memory validatorAddr = _bytes32ToSeiValidator(validator);
+        (bool success, bytes memory ret) = SEI_STAKING_PRECOMPILE_ADDRESS.staticcall(
+            abi.encodeCall(ISeiStaking(SEI_STAKING_PRECOMPILE_ADDRESS).delegation, (address(this), validatorAddr))
+        );
+        require(success, "query failed");
+        return abi.decode(ret, (Delegation));
     }
 }

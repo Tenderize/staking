@@ -76,7 +76,7 @@ contract TaoAdapter is Adapter {
         return block.number;
     }
 
-    function stake(bytes32 validator, uint256 /*amount*/ ) external override returns (uint256 staked) {
+    function stake(bytes32 validator, uint256 /*amount*/ ) external payable override returns (uint256 staked) {
         IBittensor(STAKING_ADDRESS).addStake(validator, SUBNET_ID);
     }
 
@@ -97,7 +97,7 @@ contract TaoAdapter is Adapter {
         delete $.unlocks[unlockID];
     }
 
-    function rebase(bytes32 validator, uint256 currentStake) external override returns (uint256 newStake) {
+    function rebase(bytes32 validator, uint256 currentStake) external payable override returns (uint256 newStake) {
         bytes32 coldKey = H160toSS58(address(this));
         newStake = IBittensor(STAKING_ADDRESS).getStake(validator, coldKey, SUBNET_ID);
     }

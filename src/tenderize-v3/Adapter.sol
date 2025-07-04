@@ -24,13 +24,13 @@ interface Adapter is IERC165 {
 
     function currentTime() external view returns (uint256);
 
-    function stake(bytes32 validator, uint256 amount) external returns (uint256 staked);
+    function stake(bytes32 validator, uint256 amount) external payable returns (uint256 staked);
 
     function unstake(bytes32 validator, uint256 amount) external returns (uint256 unlockID);
 
     function withdraw(bytes32 validator, uint256 unlockID) external returns (uint256 amount);
 
-    function rebase(bytes32 validator, uint256 currentStake) external returns (uint256 newStake);
+    function rebase(bytes32 validator, uint256 currentStake) external payable returns (uint256 newStake);
 
     function isValidator(bytes32 validator) external view returns (bool);
 

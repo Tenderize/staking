@@ -18,7 +18,7 @@ import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.
 
 import { Tenderizer } from "core/tenderize-v3/Tenderizer.sol";
 import { TenderizerFactory } from "core/tenderize-v3/Factory.sol";
-import { Registry } from "core/registry/Registry.sol";
+import { Registry } from "core/tenderize-v3/registry/Registry.sol";
 import { FACTORY_ROLE } from "core/registry/Roles.sol";
 import { Renderer } from "core/unlocks/Renderer.sol";
 import { Unlocks } from "core/unlocks/Unlocks.sol";
@@ -37,8 +37,8 @@ contract Tenderize_Native_Deploy is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         // 1. Deploy Registry (without initialization)
-        Registry registryImpl = new Registry{ salt: salt }();
-        address registryProxy = address(new ERC1967Proxy{ salt: salt }(address(registryImpl), ""));
+        Registry registryImpl = new Registry();
+        address registryProxy = address(new ERC1967Proxy(address(registryImpl), ""));
         vm.serializeAddress(json_output, "registry_implementation", address(registryImpl));
         vm.serializeAddress(json_output, "registry_proxy", registryProxy);
         console2.log("Registry Implementation: ", address(registryImpl));
@@ -46,22 +46,21 @@ contract Tenderize_Native_Deploy is Script {
 
         // 2. Deploy Unlocks
         // - Deploy Renderer Implementation
-        Renderer rendererImpl = new Renderer{ salt: salt }();
+        Renderer rendererImpl = new Renderer();
         vm.serializeAddress(json_output, "renderer_implementation", address(rendererImpl));
         // - Deploy Renderer UUPS Proxy
-        ERC1967Proxy rendererProxy =
-            new ERC1967Proxy{ salt: salt }(address(rendererImpl), abi.encodeCall(rendererImpl.initialize, ()));
+        ERC1967Proxy rendererProxy = new ERC1967Proxy(address(rendererImpl), abi.encodeCall(rendererImpl.initialize, ()));
         vm.serializeAddress(json_output, "renderer_proxy", address(rendererProxy));
         // - Deploy Unlocks
-        Unlocks unlocks = new Unlocks{ salt: salt }(registryProxy, address(rendererProxy));
+        Unlocks unlocks = new Unlocks(registryProxy, address(rendererProxy));
         vm.serializeAddress(json_output, "unlocks", address(unlocks));
         console2.log("Renderer Implementation: ", address(rendererImpl));
         console2.log("Renderer Proxy: ", address(rendererProxy));
         console2.log("Unlocks: ", address(unlocks));
 
         // 3. Deploy Tenderizer Implementation (native asset)
-        address asset = address(0); // Native ETH
-        Tenderizer tenderizerImpl = new Tenderizer{ salt: salt }(asset, registryProxy, address(unlocks));
+        address asset = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE; // Native ETH
+        Tenderizer tenderizerImpl = new Tenderizer(asset, registryProxy, address(unlocks));
         vm.serializeAddress(json_output, "tenderizer_implementation", address(tenderizerImpl));
         console2.log("Tenderizer Implementation: ", address(tenderizerImpl));
 
@@ -69,7 +68,7 @@ contract Tenderize_Native_Deploy is Script {
         Registry(registryProxy).initialize(address(tenderizerImpl), address(unlocks));
 
         // 5. Deploy TenderizerFactory (UpgradeableBeacon) and register it
-        TenderizerFactory factory = new TenderizerFactory{ salt: salt }(registryProxy, address(tenderizerImpl));
+        TenderizerFactory factory = new TenderizerFactory(registryProxy, address(tenderizerImpl));
         vm.serializeAddress(json_output, "factory", address(factory));
         console2.log("Factory (Beacon): ", address(factory));
 
