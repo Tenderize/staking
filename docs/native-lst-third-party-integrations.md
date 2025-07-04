@@ -1,12 +1,14 @@
 # Integrating Tenderize **Sei** Native-Asset Multi-Validator LST (tSEI)
 
-> **Audience:** Oracle providers, lending protocol developers, risk teams
+> **Audience:** Oracle providers, lending protocol developers, ...
 
 Tenderize's multi-validator Liquid Staking Token for **SEI (`tSEI`)** continuously accrues staking rewards and is fully backed by on-chain, non-custodial validator positions managed by the Tenderize Protocol on the Sei Network.  
 This guide explains how developers can integrate **tSEI** into their protocols:
 
 1. **Redemption-Rate Oracles** – track the exchange-rate between an LST and its underlying native asset (e.g. `tSEI ⇆ SEI`).  
 2. **Lending Protocols** – consume redemption-rate oracles, account for staking yield, and execute liquidations via Tenderize-specific mechanisms or third-party liquidity pools (`unstake`, `withdraw` or `flashUnstake`).
+
+For more information about Tenderize's Sei LSTs please refer to the [Sei adapter documentation](../src/tenderize-v3/Sei/README.md)
 
 ---
 
@@ -115,28 +117,9 @@ Liquidators can choose between these paths based on gas costs, urgency, and liqu
 
 ## 3. Contract Addresses (Mainnet)
 
-| Asset | tToken | Flash Unstake contract | Oracle feed |
-|-------|--------|------------------------|-------------|
-| SEI   | `0xtSEI` | `0xFlashUnstake` | `TBD` |
-| ETH   | `0x…` | `0x…` | TBD (Chainlink feed) |
-| MATIC | `0x…` | `0x…` | TBD |
-| …     | | | |
-
-> 📌  **Note:** Addresses will be finalized after audit and mainnet deployment. Follow [Tenderize deployments](../deployments.md) for updates.
-
----
-
-## 4. Monitoring Tips
-
-• **Validator Slashing:** Slashing is socialized across the stake set; the redemption rate can **decrease**. Keep a guard-rail that halts borrowing if the oracle ever reports a negative delta.  
-• **Oracle Staleness:** Set a circuit-breaker if the feed is older than your chosen heartbeat interval.
-
----
-
-## 5. FAQ
-
-**Q:** *Why redemption rate rather than price oracle?*  
-**A:** Redemption rate is deterministic, resistant to manipulation, and aligns with underlying yield.
-
-**Q:** *Yield-bearing interest conflicts with lending interest?*  
-**A:** LST yield is implicit in collateral value growth. Lending interest rates can be set independently (similar to cTokens accruing interest on supplied assets).
+| Name | Address | Description |
+|-------|--------|------------------------|
+| tSEI   | `0x0027305D78Accd068d886ac4217B67922E9F490f` | Multi-validator LST token managed by the Tenderize protocol and governance |
+| FlashUnstake | `0x0724788Cdab1f059cA9d7FCD9AA9513BB9A984f8` | Wrapper that unwraps `tSEI` into single-validator LST parts and sells them on TenderSwap, used to instantly unstake `tSEI` without unstaking period |
+| TenderSwap (Sei)   | `0x5c57F4E063a2A1302D78ac9ec2C902ec621200d3` | Instantly unstake staked SEI for a small fee |
+| Single-validator LST factory | `0xb0E174D9235f133333c71bB47120e4Cb26442386` | Create liquid staking vaults tied to a specific Sei validator, extending the delegation experience with liquid staking |

@@ -41,9 +41,9 @@ contract MultiValidatorFactory_Deploy is Script {
         factory.initialize();
         console2.log("MultiValidatorFactory deployed at: %s", address(factory));
 
-        // deploy flash unstake wrapper
-        // address flashUnstake = address(new FlashUnstake());
-        // console2.log("FlashUnstake deployed at: %s", flashUnstake);
+        //  deploy flash unstake wrapper
+        address flashUnstake = address(new FlashUnstake());
+        console2.log("FlashUnstake deployed at: %s", flashUnstake);
 
         vm.stopBroadcast();
     }
