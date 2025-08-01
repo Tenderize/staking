@@ -16,22 +16,19 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - name: "Check out the repo"
-        uses: "actions/checkout@v3"
+        uses: "actions/checkout@v4"
+
+      - name: "Install Bun.sh"
+        uses: oven-sh/setup-bun@v1
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
-      - name: "Install Node.js"
-        uses: "actions/setup-node@v3"
-        with:
-          cache: "yarn"
-          node-version: "lts/*"
-
       - name: "Install the Node.js dependencies"
-        run: "yarn install --immutable"
+        run: "bun install --immutable"
 
       - name: "Lint the contracts"
-        run: "yarn lint"
+        run: "bun lint"
 
       - name: "Add lint summary"
         run: |
@@ -41,12 +38,18 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - name: "Check out the repo"
-        uses: "actions/checkout@v3"
-        with:
-          submodules: "recursive"
+        uses: "actions/checkout@v4"
+
+      - name: "Install Bun.sh"
+        uses: oven-sh/setup-bun@v1
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Install the Node.js dependencies"
+        run: "bun install --immutable"
+        with:
+          submodules: "recursive"
 
       - name: "Build the contracts and print their size"
         run: "forge build --sizes"
@@ -60,13 +63,19 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - name: "Check out the repo"
-        uses: "actions/checkout@v3"
+        uses: "actions/checkout@v4"
         with:
           submodules: "recursive"
+
+      - name: "Install Bun.sh"
+        uses: oven-sh/setup-bun@v1
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
+      - name: "Install the Node.js dependencies"
+        run: "bun install --immutable"
+        
       - name: "Run the tests"
         run: "forge test"
 
