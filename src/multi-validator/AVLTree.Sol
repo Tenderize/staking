@@ -9,7 +9,6 @@
 //
 
 pragma solidity >=0.8.19;
-import {console2} from "forge-std/Test.sol";
 /// @title AVL Tree Library
 /// @notice Provides an AVL (balanced binary search) tree implementation for sorting nodes by their `divergence`.
 /// @dev The tree is keyed by `int200 divergence`. When `divergence` values are equal, nodes are ordered by `id`.
@@ -72,7 +71,7 @@ library AVLTree {
 
         // Update tree stats
         tree.size = tree.size + 1;
-        if (divergence > 0) {
+        if (divergence >= 0) {
             tree.positiveNodes++;
             tree.posDivergence += divergence;
         } else if (divergence < 0) {
@@ -111,11 +110,15 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
 
     // Recursive insertion
     Node storage current = tree.nodes[nodeId];
-    if (newNode.divergence < current.divergence) {
+    if (newNode.divergence < current.divergence ||
+        (newNode.divergence == current.divergence && newId < nodeId)
+    ) {
         current.left = _insertRecursive(tree, current.left, newId, newNode);
         
         // Update first pointer if this is a new minimum
-        if (newNode.divergence < tree.nodes[tree.first].divergence) {
+        if (newNode.divergence < tree.nodes[tree.first].divergence ||
+            (newNode.divergence == tree.nodes[tree.first].divergence && newId < tree.first)
+        ) {
             tree.first = newId;
         }
     } else {
@@ -140,19 +143,14 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
         if (tree.size == 0) revert TreeEmpty();
         if (!hasNode(tree, id)) revert NodeNotFound();
 
-        Node storage node = tree.nodes[id];
-        _updateDivergenceStats(tree, node.divergence, 0);
+        int200 oldDiv = tree.nodes[id].divergence;
 
-        tree.root = _removeRecursive(tree, tree.root, id);
+        tree.root = _removeByKey(tree, tree.root, oldDiv, id);
         tree.size--;
 
-        // Update first/last if necessary
-        if (id == tree.first) {
-            tree.first = _findMin(tree, tree.root);
-        }
-        if (id == tree.last) {
-            tree.last = _findMax(tree, tree.root);
-        }
+        // Update first/last
+        tree.first = _findMin(tree, tree.root);
+        tree.last = _findMax(tree, tree.root);
 
         return true;
     }
@@ -162,39 +160,117 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
     /// @param nodeId The current subtree root being examined.
     /// @param id The ID of the node to remove.
     /// @return uint24 The updated subtree root after removal.
-    function _removeRecursive(Tree storage tree, uint24 nodeId, uint24 id) internal returns (uint24) {
+    function _removeByKey(Tree storage tree, uint24 nodeId, int200 divergence, uint24 id) internal returns (uint24) {
         if (nodeId == 0) return 0;
 
         Node storage current = tree.nodes[nodeId];
 
-        if (id < nodeId) {
-            current.left = _removeRecursive(tree, current.left, id);
-        } else if (id > nodeId) {
-            current.right = _removeRecursive(tree, current.right, id);
-        } else {
-            // Node to delete found
-            if (current.left == 0 || current.right == 0) {
-                // One child or leaf
-                uint24 temp = current.left == 0 ? current.right : current.left;
-                if (temp == 0) {
-                    // No child
-                    delete tree.nodes[nodeId];
-                    return 0;
-                } else {
-                    // One child
-                    tree.nodes[nodeId] = tree.nodes[temp];
-                    delete tree.nodes[temp];
-                    return temp;
-                }
-            } else {
-                // Two children
-                uint24 temp = _findMin(tree, current.right);
-                current.divergence = tree.nodes[temp].divergence;
-                current.right = _removeRecursive(tree, current.right, temp);
-            }
+        // Compare (divergence, id)
+        if (divergence < current.divergence || (divergence == current.divergence && id < nodeId)) {
+            current.left = _removeByKey(tree, current.left, divergence, id);
+            return rebalanceNode(tree, nodeId);
+        }
+        if (divergence > current.divergence || (divergence == current.divergence && id > nodeId)) {
+            current.right = _removeByKey(tree, current.right, divergence, id);
+            return rebalanceNode(tree, nodeId);
         }
 
-        return rebalanceNode(tree, nodeId);
+        // Found target node (nodeId == id and divergence equal)
+        if (current.left == 0 && current.right == 0) {
+            // Leaf
+            _applyStatsRemove(tree, current.divergence);
+            delete tree.nodes[nodeId];
+            return 0;
+        }
+        if (current.left == 0) {
+            // Only right child: remove current, promote right
+            uint24 child = current.right;
+            _applyStatsRemove(tree, current.divergence);
+            delete tree.nodes[nodeId];
+            return child;
+        }
+        if (current.right == 0) {
+            // Only left child: remove current, promote left
+            uint24 child = current.left;
+            _applyStatsRemove(tree, current.divergence);
+            delete tree.nodes[nodeId];
+            return child;
+        }
+
+        // Two children: replace with predecessor (max of left subtree)
+        uint24 replacementId = _findMax(tree, current.left);
+        int200 replDiv = tree.nodes[replacementId].divergence;
+        // Remove replacement from left subtree (this will decrement stats for replDiv)
+        uint24 newLeft = _removeByKey(tree, current.left, replDiv, replacementId);
+        // Since replacement stays in the tree as new root here, add back its stats
+        _applyStatsAdd(tree, replDiv);
+        // Remove stats for the current node being deleted
+        _applyStatsRemove(tree, current.divergence);
+        // Link replacement's children
+        tree.nodes[replacementId].left = newLeft;
+        tree.nodes[replacementId].right = current.right;
+
+        // Delete current node
+        delete tree.nodes[nodeId];
+
+        // Rebalance from replacement
+        return rebalanceNode(tree, replacementId);
+    }
+
+    /// @notice Internal version of _removeByKey that doesn't update stats (used by updateDivergence).
+    /// @param tree The tree storage pointer.
+    /// @param nodeId The current subtree root being examined.
+    /// @param divergence The divergence of the node to remove.
+    /// @param id The ID of the node to remove.
+    /// @return uint24 The updated subtree root after removal.
+    function _removeByKeyForUpdate(Tree storage tree, uint24 nodeId, int200 divergence, uint24 id) internal returns (uint24) {
+        if (nodeId == 0) return 0;
+
+        Node storage current = tree.nodes[nodeId];
+
+        // Compare (divergence, id)
+        if (divergence < current.divergence || (divergence == current.divergence && id < nodeId)) {
+            current.left = _removeByKeyForUpdate(tree, current.left, divergence, id);
+            return rebalanceNode(tree, nodeId);
+        }
+        if (divergence > current.divergence || (divergence == current.divergence && id > nodeId)) {
+            current.right = _removeByKeyForUpdate(tree, current.right, divergence, id);
+            return rebalanceNode(tree, nodeId);
+        }
+
+        // Found target node (nodeId == id and divergence equal)
+        if (current.left == 0 && current.right == 0) {
+            // Leaf - don't update stats
+            delete tree.nodes[nodeId];
+            return 0;
+        }
+        if (current.left == 0) {
+            // Only right child: remove current, promote right - don't update stats
+            uint24 child = current.right;
+            delete tree.nodes[nodeId];
+            return child;
+        }
+        if (current.right == 0) {
+            // Only left child: remove current, promote left - don't update stats
+            uint24 child = current.left;
+            delete tree.nodes[nodeId];
+            return child;
+        }
+
+        // Two children: replace with predecessor (max of left subtree)
+        uint24 replacementId = _findMax(tree, current.left);
+        int200 replDiv = tree.nodes[replacementId].divergence;
+        // Remove replacement from left subtree (without stats update)
+        uint24 newLeft = _removeByKeyForUpdate(tree, current.left, replDiv, replacementId);
+        // Link replacement's children
+        tree.nodes[replacementId].left = newLeft;
+        tree.nodes[replacementId].right = current.right;
+
+        // Delete current node
+        delete tree.nodes[nodeId];
+
+        // Rebalance from replacement
+        return rebalanceNode(tree, replacementId);
     }
 
     /// @notice Updates the divergence of an existing node.
@@ -204,28 +280,59 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
     /// @param newDivergence The new divergence value.
     /// @return success True if the update was successful.
     function updateDivergence(Tree storage tree, uint24 id, int200 newDivergence) external returns (bool) {
-        Node storage node = tree.nodes[id];
         if (!hasNode(tree, id)) revert NodeNotFound();
-        int200 oldDivergence = node.divergence;
-        console2.log("oldDivergence", oldDivergence);
-        console2.log("newDivergence", newDivergence);
+        int200 oldDivergence = tree.nodes[id].divergence;
         if (oldDivergence == newDivergence) return true;
 
-        // Update tree statistics
-        _updateDivergenceStats(tree, oldDivergence, newDivergence);
-
-        // Determine if delete+reinsert is more efficient
-        uint256 levelChange = _estimateLevelChange(oldDivergence, newDivergence);
-        if (levelChange > node.height / 2) {
-            // Delete and reinsert
-            remove(tree, id);
-            return insert(tree, id, newDivergence);
+        // Fix: Manually update stats before remove/insert to avoid double counting
+        // When remove() is called, it will decrement stats based on oldDivergence
+        // When insert() is called, it will increment stats based on newDivergence
+        // However, there's a bug where the stats aren't being properly updated
+        
+        // First, update the stats manually to handle the transition
+        if (oldDivergence >= 0) {
+            tree.positiveNodes--;
+            tree.posDivergence -= oldDivergence;
         } else {
-            // Update in place
-            node.divergence = newDivergence;
-            tree.root = _rebalanceRecursive(tree, tree.root, id);
-            return true;
+            tree.negativeNodes--;
+            tree.negDivergence -= oldDivergence;
         }
+        
+        if (newDivergence >= 0) {
+            tree.positiveNodes++;
+            tree.posDivergence += newDivergence;
+        } else {
+            tree.negativeNodes++;
+            tree.negDivergence += newDivergence;
+        }
+
+        // Now rebuild the tree structure without updating stats
+        // We need to bypass the normal remove/insert to avoid double counting
+        tree.root = _removeByKeyForUpdate(tree, tree.root, oldDivergence, id);
+        tree.size--;
+        
+        // Safety: in case a rare path left the node mapping, clear it
+        if (tree.nodes[id].height != 0) {
+            delete tree.nodes[id];
+        }
+        
+        // Insert the node with new divergence (bypassing stats update)
+        tree.size++;
+        Node memory newNode = Node({ left: 0, right: 0, height: 1, divergence: newDivergence });
+        
+        if (tree.size == 1) {
+            tree.root = id;
+            tree.first = id;
+            tree.last = id;
+            tree.nodes[id] = newNode;
+        } else {
+            tree.root = _insertRecursive(tree, tree.root, id, newNode);
+            // Update first/last  
+            tree.first = _findMin(tree, tree.root);
+            tree.last = _findMax(tree, tree.root);
+        }
+        
+        return true;
     }
 
     /// @notice Rebalances the AVL tree starting from a given node after an update.
@@ -413,12 +520,7 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
     /// @param oldValue The old divergence value.
     /// @param newValue The new divergence value.
     /// @return uint256 The estimated level change.
-    function _estimateLevelChange(int200 oldValue, int200 newValue) internal pure returns (uint256) {
-        if (oldValue == newValue) return 0;
-        if (oldValue < 0 && newValue < 0) return 0;
-        if (oldValue > 0 && newValue > 0) return 0;
-        return 1; // Simplified for now, could be more sophisticated
-    }
+    
 
     /// @notice Finds the minimum node starting from a given subtree root.
     /// @param tree The tree storage pointer.
@@ -442,6 +544,26 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
             nodeId = tree.nodes[nodeId].right;
         }
         return nodeId;
+    }
+
+    function _applyStatsRemove(Tree storage tree, int200 divergence) internal {
+        if (divergence >= 0) {
+            tree.positiveNodes--;
+            tree.posDivergence -= divergence;
+        } else if (divergence < 0) {
+            tree.negativeNodes--;
+            tree.negDivergence -= divergence;
+        }
+    }
+
+    function _applyStatsAdd(Tree storage tree, int200 divergence) internal {
+        if (divergence >= 0) {
+            tree.positiveNodes++;
+            tree.posDivergence += divergence;
+        } else if (divergence < 0) {
+            tree.negativeNodes++;
+            tree.negDivergence += divergence;
+        }
     }
 
     // Core missing utility functions
@@ -518,7 +640,7 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
     /// @param newDivergence The new divergence value.
     function _updateDivergenceStats(Tree storage tree, int200 oldDivergence, int200 newDivergence) internal {
         // Remove old stats
-        if (oldDivergence > 0) {
+        if (oldDivergence >= 0) {
             tree.positiveNodes--;
             tree.posDivergence -= oldDivergence;
         } else if (oldDivergence < 0) {
@@ -527,7 +649,7 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
         }
 
         // Add new stats
-        if (newDivergence > 0) {
+        if (newDivergence >= 0) {
             tree.positiveNodes++;
             tree.posDivergence += newDivergence;
         } else if (newDivergence < 0) {
@@ -579,7 +701,5 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
     /// @return root The root node ID.
     /// @return first The node ID with the smallest divergence.
     /// @return last The node ID with the largest divergence.
-    function getTreeBounds(Tree storage tree) external view returns (uint24 root, uint24 first, uint24 last) {
-        return (tree.root, tree.first, tree.last);
-    }
+    
 }

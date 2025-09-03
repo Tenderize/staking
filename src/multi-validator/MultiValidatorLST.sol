@@ -31,6 +31,8 @@ import { AVLTree } from "core/multi-validator/AVLTree.sol";
 import { UnstakeNFT } from "core/multi-validator/UnstakeNFT.sol";
 import { Registry } from "core/registry/Registry.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract MultiValidatorLST is
     ERC20,
     ERC721Receiver,
@@ -56,6 +58,15 @@ contract MultiValidatorLST is
         uint64 createdAt; // block timestamp
         address[] tTokens; // addresses of the tTokens unstaked
         uint256[] unlockIDs; // IDs of the unlocks
+    }
+
+    // Temporary structure for reindexing operation
+    struct ValidatorData {
+        uint24 id;
+        address payable tToken;
+        uint256 target;
+        uint256 balance;
+        int200 divergence;
     }
 
     error DepositTooSmall();
@@ -132,6 +143,66 @@ contract MultiValidatorLST is
     }
 
     // Core functions for deposits
+    function _depositToPool(uint24 id, uint256 amount) internal returns (uint256 tTokensReceived) {
+        if (amount == 0) return 0;
+        StakingPool storage pool = stakingPools[id];
+        ERC20(token).approve(pool.tToken, amount);
+        uint256 tTokens = Tenderizer(pool.tToken).deposit(address(this), amount);
+        pool.balance += tTokens;
+        int200 d =
+            pool.balance < pool.target ? -int200(uint200(pool.target - pool.balance)) : int200(uint200(pool.balance - pool.target));
+        stakingPoolTree.updateDivergence(id, d);
+        return tTokens;
+    }
+
+    function _fillNegatives(uint24[] memory ids, uint256 assets) internal returns (uint256 received, uint256 consumed) {
+        uint256 remaining = assets;
+        uint256 len = ids.length;
+        for (uint256 i = 0; i < len; i++) {
+            uint24 id = ids[i];
+            StakingPool storage p = stakingPools[id];
+            uint256 need = p.target - p.balance;
+            uint256 amt = need < remaining ? need : remaining;
+            if (amt == 0) continue;
+            uint256 tTokens = _depositToPool(id, amt);
+            received += tTokens;
+            remaining -= amt;
+            if (remaining == 0) break;
+        }
+        consumed = assets - remaining;
+    }
+
+    function _distributeLeastPositives(uint24[] memory ids, uint256 leftover) internal returns (uint256 received) {
+        if (leftover == 0 || ids.length == 0) return 0;
+        // Sum surplus
+        uint256 len = ids.length;
+        uint256 posSum = 0;
+        for (uint256 i = 0; i < len; i++) {
+            StakingPool storage p = stakingPools[ids[i]];
+            uint256 surplus = p.balance > p.target ? (p.balance - p.target) : 0;
+            posSum += surplus;
+        }
+        if (posSum == 0) return 0;
+        uint256 allocated = 0;
+        for (uint256 i = 0; i < len; i++) {
+            StakingPool storage p = stakingPools[ids[i]];
+            uint256 surplus = p.balance > p.target ? (p.balance - p.target) : 0;
+            uint256 amt = leftover * surplus / posSum;
+            if (i == 0 && amt < leftover) {
+                // allocate any dust to first bucket later
+            }
+            if (amt > 0) {
+                received += _depositToPool(ids[i], amt);
+                allocated += amt;
+            }
+        }
+        // Allocate any dust remainder to the first id to avoid keeping idle funds
+        if (allocated < leftover) {
+            uint256 dust = leftover - allocated;
+            received += _depositToPool(ids[0], dust);
+        }
+    }
+
     function deposit(address receiver, uint256 assets) external returns (uint256 shares) {
         // Transfer assets from sender
         token.safeTransferFrom(msg.sender, address(this), assets);
@@ -140,6 +211,9 @@ contract MultiValidatorLST is
         uint24 count = 3;
 
         (, uint24 positiveNodes, uint24 negativeNodes,, int200 negDivergence) = stakingPoolTree.getTreeStats();
+
+        console2.log("negativeNodes", uint256(negativeNodes));
+        console2.log("positiveNodes", uint256(positiveNodes));
 
         uint256 negDiv_ = uint256(int256(-(negDivergence)));
 
@@ -174,46 +248,43 @@ contract MultiValidatorLST is
                 stakingPoolTree.updateDivergence(validatorIDs[i], d);
             }
         } else {
-            uint24 maxCount = negativeNodes > count ? count : negativeNodes;
-            (uint24[] memory validatorIDs,) = stakingPoolTree.findMostDivergent(false, maxCount);
-            uint256[] memory depositAmounts = new uint256[](maxCount);
-            for (uint24 i = 0; i < maxCount; i++) {
-                StakingPool storage pool = stakingPools[validatorIDs[i]];
-                depositAmounts[i] = pool.target - pool.balance;
+            // Phase 1: fully fill the most negative nodes up to their targets
+            uint24 negCount = negativeNodes > count ? count : negativeNodes;
+            (uint24[] memory negIDs,) = stakingPoolTree.findMostDivergent(false, negCount);
+            uint256 consumed_;
+            {
+                (uint256 rcv, uint256 con) = _fillNegatives(negIDs, assets);
+                received += rcv;
+                consumed_ = con;
             }
 
-            // Fill the remaining between a set of validators all above surplus, start with the one least in surplus
-            maxCount = positiveNodes > count ? count : positiveNodes;
-            (validatorIDs,) = stakingPoolTree.findMostDivergent(false, maxCount);
-            StakingPool[] memory items = new StakingPool[](maxCount);
-
-            for (uint24 i = 0; i < maxCount; i++) {
-                StakingPool storage pool = stakingPools[validatorIDs[i]];
-                items[i] = StakingPool(pool.tToken, pool.target, pool.balance);
-
-                // IN THEORY: This set should all have positive divergence, so we can use the absolute values
-                // instead of the signed integers.
-                totalDivergence += int200(int256((pool.balance - pool.target)));
-            }
-
-            for (uint24 i = 0; i < maxCount; i++) {
-                int256 div = int256(items[i].target - items[i].balance);
-                int256 amount = int256(depositAmounts[i] + assets);
-                amount = amount * div / int256(totalDivergence);
-                ERC20(token).approve(items[i].tToken, uint256(amount));
-                uint256 tTokens = Tenderizer(items[i].tToken).deposit(address(this), uint256(amount));
-                StakingPool storage pool = stakingPools[validatorIDs[i]];
-                pool.balance += tTokens;
-                received += tTokens;
-
-                // Rebalance tree
-                int200 d;
-                if (pool.balance < pool.target) {
-                    d = -int200(uint200(pool.target - pool.balance));
-                } else {
-                    d = int200(uint200(pool.balance - pool.target));
+            // Phase 2: distribute leftover across least-positive nodes proportionally to their surplus
+            uint256 leftover = assets - consumed_;
+            if (leftover > 0 && positiveNodes > 0) {
+                uint24 posCount = positiveNodes > count ? count : positiveNodes;
+                // Collect least-positive nodes by walking ascending order from first until divergence > 0
+                uint24[] memory posIDs2 = new uint24[](posCount);
+                uint24 found = 0;
+                uint24 cur = stakingPoolTree.getFirst();
+                while (cur != 0 && found < posCount) {
+                    int200 div = stakingPoolTree.getNode(cur).divergence;
+                    if (div > 0) {
+                        posIDs2[found] = cur;
+                        found++;
+                    }
+                    uint24 next_ = stakingPoolTree.findSuccessor(cur);
+                    if (next_ == 0 || next_ == cur) break;
+                    cur = next_;
                 }
-                stakingPoolTree.updateDivergence(validatorIDs[i], d);
+                // Trim to actual found length
+                if (found < posCount) {
+                    assembly {
+                        mstore(posIDs2, found)
+                    }
+                }
+                if (posIDs2.length > 0) {
+                    received += _distributeLeastPositives(posIDs2, leftover);
+                }
             }
         }
 
@@ -432,7 +503,7 @@ contract MultiValidatorLST is
         uint256 newBalance = tenderizer.balanceOf(address(this));
         uint256 currentBalance = pool.balance;
         if (newBalance > currentBalance) {
-            uint256 fees = newBalance - currentBalance * fee / FEE_WAD;
+            uint256 fees = (newBalance - currentBalance) * fee / FEE_WAD;
             totalAssets += newBalance - currentBalance - fees;
             if (fees > 0) _mint(registry.treasury(), fees);
         } else {
@@ -503,4 +574,89 @@ contract MultiValidatorLST is
 
     // Override required by UUPSUpgradeable
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADE_ROLE) { }
+
+    /**
+     * @notice One-off function to reindex the entire AVL tree structure
+     * @dev This function should only be called once to fix a broken tree
+     *      It extracts all validator data, clears the tree, and rebuilds it properly
+     *      Protected by GOVERNANCE_ROLE for security
+     */
+    function reindexTree() external onlyRole(GOVERNANCE_ROLE) {
+        // Step 1: Count existing validators and prepare array
+        uint256 validatorTotal = 0;
+        for (uint24 i = 0; i <= 20; i++) {
+            // Check up to 20 validators (safe upper bound)
+            if (stakingPools[i].tToken != address(0)) {
+                validatorTotal++;
+            }
+        }
+
+        // Step 2: Extract all existing validator data
+        ValidatorData[] memory validators = new ValidatorData[](validatorTotal);
+        uint256 index = 0;
+
+        for (uint24 i = 0; i <= 20 && index < validatorTotal; i++) {
+            StakingPool memory pool = stakingPools[i];
+
+            // Check if this pool exists (has a tToken address)
+            if (pool.tToken != address(0)) {
+                // Calculate divergence
+                int200 divergence;
+                if (pool.balance < pool.target) {
+                    divergence = -int200(uint200(pool.target - pool.balance));
+                } else {
+                    divergence = int200(uint200(pool.balance - pool.target));
+                }
+
+                validators[index] = ValidatorData({
+                    id: i,
+                    tToken: pool.tToken,
+                    target: pool.target,
+                    balance: pool.balance,
+                    divergence: divergence
+                });
+
+                index++;
+            }
+        }
+
+        // Step 3: Clear the existing tree structure
+        // Reset tree state variables
+        stakingPoolTree.root = 0;
+        stakingPoolTree.first = 0;
+        stakingPoolTree.last = 0;
+        stakingPoolTree.size = 0;
+        stakingPoolTree.positiveNodes = 0;
+        stakingPoolTree.negativeNodes = 0;
+        stakingPoolTree.posDivergence = 0;
+        stakingPoolTree.negDivergence = 0;
+
+        // Clear all node data
+        for (uint24 i = 0; i <= 20; i++) {
+            delete stakingPoolTree.nodes[i];
+        }
+
+        // Step 4: Sort validators by divergence (bubble sort for simplicity with small dataset)
+        for (uint256 i = 0; i < validatorTotal; i++) {
+            for (uint256 j = i + 1; j < validatorTotal; j++) {
+                if (
+                    validators[i].divergence > validators[j].divergence
+                        || (validators[i].divergence == validators[j].divergence && validators[i].id > validators[j].id)
+                ) {
+                    // Swap
+                    ValidatorData memory temp = validators[i];
+                    validators[i] = validators[j];
+                    validators[j] = temp;
+                }
+            }
+        }
+
+        // Step 5: Reinsert all validators in sorted order
+        for (uint256 i = 0; i < validatorTotal; i++) {
+            ValidatorData memory v = validators[i];
+
+            // Reinsert into tree
+            stakingPoolTree.insert(v.id, v.divergence);
+        }
+    }
 }

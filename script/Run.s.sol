@@ -18,12 +18,11 @@ import { Script, console2 } from "forge-std/Script.sol";
 import { MultiValidatorLST } from "core/multi-validator/MultiValidatorLST.sol";
 import { MultiValidatorFactory } from "core/multi-validator/Factory.sol";
 import { FlashUnstake, TenderSwap } from "core/multi-validator/FlashUnstake.sol";
-<<<<<<< HEAD
-import { Tenderizer } from "core/tenderizer/Tenderizer.sol";
-=======
 import { Tenderizer } from "core/tenderize-v3/Tenderizer.sol";
->>>>>>> 890b534 (Sei testnet deployment)
 import { LPT } from "core/adapters/LivepeerAdapter.sol";
+import { GRT } from "core/adapters/GraphAdapter.sol";
+import { GraphAdapter } from "core/adapters/GraphAdapter.sol";
+import { Registry } from "core/registry/Registry.sol";
 
 import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { MockERC20 } from "solmate/test/utils/mocks/MockERC20.sol";
@@ -37,10 +36,7 @@ address constant TENDERIZER_2 = 0xFB32bF22B4F004a088c1E7d69e29492f5D7CD7E1;
 address constant TENDERIZER_3 = 0x6DFd5Cee0Ed2ec24Fdc814Ad857902DE01c065d6;
 address constant LIVEPEER_MINTER = 0xc20DE37170B45774e6CD3d2304017fc962f27252;
 
-interface ADDR {
-    function getSeiAddr(address addr) external view returns (string memory response);
-    function getEvmAddr(string memory addr) external view returns (address response);
-}
+import { MultiValidatorLST } from "core/multi-validator/MultiValidatorLST.sol";
 
 contract MultiValidatorLST_Deploy is Script {
     bytes32 private constant salt = bytes32(uint256(1));
@@ -48,33 +44,27 @@ contract MultiValidatorLST_Deploy is Script {
     MultiValidatorFactory factory;
     // MultiValidatorLST lst;
 
-    address constant ADDR_PRECOMPILE = 0x0000000000000000000000000000000000001004;
-    address constant STAKING_PRECOMPILE = 0x0000000000000000000000000000000000001005;
+    function run() public {
+        // uint256 privKey = vm.envUint("PRIVATE_KEY");
+        // address owner = 0xc1cFab553835D74717c4499793EEa6Ef198A3031;
+        // vm.startBroadcast(owner);
 
-    function run() public payable {
-        uint256 privKey = vm.envUint("PRIVATE_KEY");
-        vm.startBroadcast(privKey);
-        // console2.logString(
-        //     SeiAdapter(0x59726AcA54DB5bA44888992A88e71af1E2D2f09C).validatorBytes32ToString(
-        //         0x2af815558b165be177531446f693fb7e7f3563e1000000000000000000000000
-        //     )
-        // );
+        // Registry(0xa7cA8732Be369CaEaE8C230537Fc8EF82a3387EE).registerAdapter(address(GRT), address(new GraphAdapter()));
+        // vm.stopBroadcast();
+        // address guy = 0x838afC2DE97D97A1ab478A8297292482A278A9CA;
+        // address lst = 0x4003E23bE46f3Bf2B50c3c7F8B13aAeCDc71EA72;
+        // vm.startBroadcast(guy);
+        // // console2.log("unlock maturity", Tenderizer(payable(lst)).unlockMaturity(4));
+        // Tenderizer(payable(lst)).withdraw(guy, 116);
 
-        Delegation memory del = ISeiStaking(STAKING_PRECOMPILE).delegation(
-            0x28D5bC07301472829bab14aC26CF74676e9FB1d3, "seivaloper19tup24vtzed7za6nz3r0dylm0eln2clpvhtawu"
-        );
-        console2.log("del", del.balance.amount);
-        console2.log("del", del.balance.denom);
-        console2.log("del", del.delegation.delegator_address);
-        console2.log("del", del.delegation.shares);
-        console2.log("del", del.delegation.decimals);
-        console2.log("del", del.delegation.validator_address);
-        // SeiAdapter adapter = SeiAdapter(0xc7324079ACD020c2585DD00bc734d1a799D675fd);
-        // (ok, ret) = adapter.debugRawDelegation(0x2af815558b165be177531446f693fb7e7f3563e1000000000000000000000000);
-        // console2.log("ok", ok);
-        // console2.logBytes(ret);
-        // address payable lst = payable(0x28D5bC07301472829bab14aC26CF74676e9FB1d3);
-        // Tenderizer(lst).deposit{ value: 1 ether }(msg.sender);
-        vm.stopBroadcast();
+        // vm.stopBroadcast();
+
+        address lst = 0x9F5540F4A9777Ea678D80A7b508DcD924a4b1187;
+        MultiValidatorLST(payable(lst)).stakingPools(0);
+        MultiValidatorLST(payable(lst)).stakingPools(1);
+        MultiValidatorLST(payable(lst)).stakingPools(2);
+        MultiValidatorLST(payable(lst)).claimValidatorRewards(4);
+        MultiValidatorLST(payable(lst)).claimValidatorRewards(5);
+        MultiValidatorLST(payable(lst)).claimValidatorRewards(6);
     }
 }

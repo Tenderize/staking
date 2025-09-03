@@ -22,6 +22,8 @@ import { GraphAdapter, GRT, VERSION as GRT_VERSION } from "core/adapters/GraphAd
 import { PolygonAdapter, POL, VERSION as POL_VERSION } from "core/adapters/PolygonAdapter.sol";
 import { SeiAdapter, SEI, VERSION as SEI_VERSION } from "core/tenderize-v3/Sei/SeiAdapter.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract Adapter_Deploy is Script {
     uint256 VERSION;
     // Contracts are deployed deterministically.
@@ -53,6 +55,7 @@ contract Adapter_Deploy is Script {
             revert("Adapter not supported");
         }
 
+        console2.log("Adapter deployed at:", adapter);
         // register adapter
         // registry.registerAdapter(asset, adapter);
     }
