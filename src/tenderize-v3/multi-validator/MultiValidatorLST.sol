@@ -127,6 +127,59 @@ contract MultiValidatorLSTNative is
         exchangeRate = FixedPointMathLib.WAD;
     }
 
+    // Internal helpers for deposits
+    function _depositToPool(uint24 id, uint256 amount) internal returns (uint256 staked) {
+        if (amount == 0) return 0;
+        StakingPool storage pool = stakingPools[id];
+        staked = Tenderizer(payable(pool.tToken)).deposit{ value: amount }(address(this));
+        pool.balance += staked;
+        int200 d = _calculateDivergence(pool.balance, pool.target);
+        stakingPoolTree.updateDivergence(id, d);
+    }
+
+    function _fillNegatives(uint24[] memory ids, uint256 assets) internal returns (uint256 received, uint256 consumed) {
+        uint256 remaining = assets;
+        uint256 len = ids.length;
+        for (uint256 i = 0; i < len; i++) {
+            uint24 id = ids[i];
+            StakingPool storage p = stakingPools[id];
+            uint256 need = p.target - p.balance;
+            uint256 amt = need < remaining ? need : remaining;
+            if (amt == 0) continue;
+            uint256 staked = _depositToPool(id, amt);
+            received += staked;
+            remaining -= amt;
+            if (remaining == 0) break;
+        }
+        consumed = assets - remaining;
+    }
+
+    function _distributeLeastPositives(uint24[] memory ids, uint256 leftover) internal returns (uint256 received) {
+        if (leftover == 0 || ids.length == 0) return 0;
+        uint256 len = ids.length;
+        uint256 posSum = 0;
+        for (uint256 i = 0; i < len; i++) {
+            StakingPool storage p = stakingPools[ids[i]];
+            uint256 surplus = p.balance > p.target ? (p.balance - p.target) : 0;
+            posSum += surplus;
+        }
+        if (posSum == 0) return 0;
+        uint256 allocated = 0;
+        for (uint256 i = 0; i < len; i++) {
+            StakingPool storage p = stakingPools[ids[i]];
+            uint256 surplus = p.balance > p.target ? (p.balance - p.target) : 0;
+            uint256 amt = leftover * surplus / posSum;
+            if (amt > 0) {
+                received += _depositToPool(ids[i], amt);
+                allocated += amt;
+            }
+        }
+        if (allocated < leftover) {
+            uint256 dust = leftover - allocated;
+            received += _depositToPool(ids[0], dust);
+        }
+    }
+
     // Core functions for deposits - now payable for native tokens
     function deposit(address receiver) external payable returns (uint256 shares) {
         uint256 assets = msg.value;
@@ -166,42 +219,42 @@ contract MultiValidatorLSTNative is
                 stakingPoolTree.updateDivergence(validatorIDs[i], d);
             }
         } else {
-            // Handle larger deposits across multiple validators
-            uint24 maxCount = negativeNodes > count ? count : negativeNodes;
-            (uint24[] memory validatorIDs,) = stakingPoolTree.findMostDivergent(false, maxCount);
-            uint256[] memory depositAmounts = new uint256[](maxCount);
-
-            for (uint24 i = 0; i < maxCount; i++) {
-                StakingPool storage pool = stakingPools[validatorIDs[i]];
-                depositAmounts[i] = pool.target - pool.balance;
+            // Phase 1: fully fill the most negative nodes up to their targets
+            uint24 negCount = negativeNodes > count ? count : negativeNodes;
+            (uint24[] memory negIDs,) = stakingPoolTree.findMostDivergent(false, negCount);
+            uint256 consumed_;
+            {
+                (uint256 rcv, uint256 con) = _fillNegatives(negIDs, assets);
+                received += rcv;
+                consumed_ = con;
             }
 
-            // Fill remaining with positive divergence validators
-            maxCount = positiveNodes > count ? count : positiveNodes;
-            (validatorIDs,) = stakingPoolTree.findMostDivergent(true, maxCount);
-            StakingPool[] memory items = new StakingPool[](maxCount);
-
-            for (uint24 i = 0; i < maxCount; i++) {
-                StakingPool storage pool = stakingPools[validatorIDs[i]];
-                items[i] = StakingPool(pool.tToken, pool.target, pool.balance);
-                totalDivergence += int200(int256((pool.balance - pool.target)));
-            }
-
-            for (uint24 i = 0; i < maxCount; i++) {
-                int256 div = int256(items[i].target - items[i].balance);
-                int256 amount = int256(depositAmounts[i] + assets);
-                amount = amount * div / int256(totalDivergence);
-
-                if (amount > 0) {
-                    uint256 staked = Tenderizer(payable(items[i].tToken)).deposit{ value: uint256(amount) }(address(this));
-
-                    StakingPool storage pool = stakingPools[validatorIDs[i]];
-                    pool.balance += staked;
-                    received += staked;
-
-                    // Rebalance tree
-                    int200 d = _calculateDivergence(pool.balance, pool.target);
-                    stakingPoolTree.updateDivergence(validatorIDs[i], d);
+            // Phase 2: distribute leftover across least-positive nodes proportionally to their surplus
+            uint256 leftover = assets - consumed_;
+            if (leftover > 0 && positiveNodes > 0) {
+                uint24 posCount = positiveNodes > count ? count : positiveNodes;
+                // Collect least-positive nodes by walking ascending order from first until divergence > 0
+                uint24[] memory posIDs2 = new uint24[](posCount);
+                uint24 found = 0;
+                uint24 cur = stakingPoolTree.getFirst();
+                while (cur != 0 && found < posCount) {
+                    int200 div = stakingPoolTree.getNode(cur).divergence;
+                    if (div > 0) {
+                        posIDs2[found] = cur;
+                        found++;
+                    }
+                    uint24 next_ = stakingPoolTree.findSuccessor(cur);
+                    if (next_ == 0 || next_ == cur) break;
+                    cur = next_;
+                }
+                // Trim to actual found length
+                if (found < posCount) {
+                    assembly {
+                        mstore(posIDs2, found)
+                    }
+                }
+                if (posIDs2.length > 0) {
+                    received += _distributeLeastPositives(posIDs2, leftover);
                 }
             }
         }
