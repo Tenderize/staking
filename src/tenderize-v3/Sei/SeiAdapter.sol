@@ -88,15 +88,20 @@ contract SeiAdapter is Adapter {
     function stake(bytes32 validator, uint256 amount) external payable override returns (uint256 staked) {
         if (amount == 0) revert InvalidAmount();
 
+        // Align to 6-decimal precision: floor to nearest multiple of 1e12 wei
+        uint256 rounded = amount / PRECISION_SCALE * PRECISION_SCALE;
+        if (rounded == 0) revert InvalidAmount();
+
         string memory validatorAddr = _bytes32ToSeiValidator(validator);
-        // Call the Sei staking precompile
-        (bool success,) = SEI_STAKING_PRECOMPILE_ADDRESS.call{ value: msg.value }(
+        // Call the Sei staking precompile with rounded value only
+        (bool success,) = SEI_STAKING_PRECOMPILE_ADDRESS.call{ value: rounded }(
             abi.encodeCall(ISeiStaking(SEI_STAKING_PRECOMPILE_ADDRESS).delegate, (validatorAddr))
         );
 
         if (!success) revert DelegationFailed();
 
-        return amount; // Return the original amount in 18 decimal precision
+        // Return the actually staked amount in 18-decimal precision
+        return rounded;
     }
 
     function unstake(bytes32 validator, uint256 amount) external override returns (uint256 unlockID) {
@@ -104,8 +109,9 @@ contract SeiAdapter is Adapter {
 
         string memory validatorAddr = _bytes32ToSeiValidator(validator);
 
-        // Convert from 18 decimal to 6 decimal precision
+        // Convert from 18 decimals (wei) to 6 decimals (uSEI) by flooring
         uint256 seiAmount = amount / PRECISION_SCALE;
+        if (seiAmount == 0) revert InvalidAmount();
 
         // Call the Sei staking precompile via low-level call
         (bool success,) = SEI_STAKING_PRECOMPILE_ADDRESS.call(
@@ -114,10 +120,10 @@ contract SeiAdapter is Adapter {
 
         if (!success) revert UndelegationFailed();
 
-        // Create unlock entry
+        // Create unlock entry with 18-dec aligned amount (seiAmount * 1e12)
         Storage storage $ = _loadStorage();
         unlockID = ++$.lastUnlockID;
-        $.unlocks[unlockID] = Unlock({ amount: amount, unlockTime: block.timestamp + UNBONDING_PERIOD });
+        $.unlocks[unlockID] = Unlock({ amount: seiAmount * PRECISION_SCALE, unlockTime: block.timestamp + UNBONDING_PERIOD });
 
         return unlockID;
     }
@@ -146,6 +152,7 @@ contract SeiAdapter is Adapter {
             abi.encodeCall(ISeiStaking(SEI_STAKING_PRECOMPILE_ADDRESS).delegation, (address(this), validatorAddr))
         );
         if (!success) revert DelegationFailed();
+        if (returndata.length == 0) return currentStake;
 
         Delegation memory delegation = abi.decode(returndata, (Delegation)); // Convert from 6 decimal to 18 decimal precision
         uint256 seiBalance = delegation.balance.amount;

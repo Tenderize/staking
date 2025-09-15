@@ -38,6 +38,10 @@ contract MultiValidatorLSTHarness is MultiValidatorLST {
     function exposed_findSuccessor(uint24 id) external view returns (uint24) {
         return stakingPoolTree.findSuccessor(id);
     }
+
+    function exposed_findPredecessor(uint24 id) external view returns (uint24) {
+        return stakingPoolTree.findPredecessor(id);
+    }
 }
 
 contract MultiValidatorLST_Arbitrum_Fork_Test is Test {
@@ -48,14 +52,15 @@ contract MultiValidatorLST_Arbitrum_Fork_Test is Test {
     address constant REGISTRY = 0xa7cA8732Be369CaEaE8C230537Fc8EF82a3387EE;
 
     // Fork block height (you can adjust this to a specific block)
-    uint256 constant FORK_BLOCK = 375_306_528; // Recent Arbitrum block
+    uint256 constant FORK_BLOCK = 377_027_947; // Recent Arbitrum block
 
     MultiValidatorLSTHarness harness;
+    address treasuryAddr;
 
     function setUp() public {
         // Fork Arbitrum from specific block height
-        console2.log("Forking Arbitrum at block:", FORK_BLOCK);
-        vm.createSelectFork(vm.envString("ARBITRUM_RPC"), FORK_BLOCK);
+        console2.log("Forking Arbitrum at block:", block.number);
+        vm.createSelectFork(vm.envString("ARBITRUM_RPC"));
 
         // Deploy the harness implementation
         console2.log("Deploying MultiValidatorLSTHarness...");
@@ -74,6 +79,7 @@ contract MultiValidatorLST_Arbitrum_Fork_Test is Test {
 
         // First check if treasury has the role
         address treasury = Registry(REGISTRY).treasury();
+        treasuryAddr = treasury;
         console2.log("Treasury address:", treasury);
 
         // Impersonate the treasury to perform upgrade
@@ -124,72 +130,242 @@ contract MultiValidatorLST_Arbitrum_Fork_Test is Test {
         harness = MultiValidatorLSTHarness(MULTI_VALIDATOR_LST);
     }
 
-    function test_readMainnetTreeState() public {
-        console2.log("\n=== COMPREHENSIVE TREE STRUCTURE ANALYSIS ===\n");
+    function test_ReadMainnetTreeState() public {
+        console2.log("\n========================================");
+        console2.log("    AVL TREE STRUCTURE VISUALIZATION");
+        console2.log("========================================\n");
 
         // Get tree statistics first
         (uint24 size, uint24 positiveNodes, uint24 negativeNodes, int200 posDivergence, int200 negDivergence) =
             harness.exposed_getTreeStats();
 
-        console2.log("=== Tree Statistics ===");
-        console2.log("Total nodes:", size);
-        console2.log("Positive divergence nodes:", positiveNodes);
-        console2.log("Negative divergence nodes:", negativeNodes);
-        console2.log("Total positive divergence:", posDivergence);
-        console2.log("Total negative divergence:", negDivergence);
+        console2.log("TREE SUMMARY:");
+        console2.log("  Total Nodes:     ", size);
+        console2.log("  Positive Nodes:  ", positiveNodes);
+        console2.log("  Positive Divergence:  ", posDivergence);
+        console2.log("  Negative Nodes:  ", negativeNodes);
+        console2.log("  Negative Divergence:  ", negDivergence);
+        console2.log("");
 
-        // Get first and last
-        uint24 firstId = harness.exposed_getFirst();
-        uint24 lastId = harness.exposed_getLast();
-        console2.log("\nFirst item ID:", firstId);
-        console2.log("Last item ID:", lastId);
+        // Build a mapping of all nodes first
+        uint24[] memory nodeIds = new uint24[](13);
+        uint256 validNodeCount = 0;
 
-        console2.log("\n=== TRAVERSING ALL 13 NODES ===\n");
-
-        // Try to iterate through all possible node IDs (0-12)
-        for (uint24 nodeId = 0; nodeId <= 12; nodeId++) {
-            try harness.exposed_getNode(nodeId) returns (AVLTree.Node memory node) {
-                MultiValidatorLST.StakingPool memory pool = harness.exposed_getStakingPool(nodeId);
-
-                console2.log("---- Node ID:", nodeId, "----");
-                console2.log("  Divergence:", node.divergence);
-                console2.log("  Height:", node.height);
-                console2.log("  Left child:", node.left);
-                console2.log("  Right child:", node.right);
-                console2.log("  tToken:", pool.tToken);
-                console2.log("  Target:", pool.target);
-                console2.log("  Balance:", pool.balance);
-
-                // Calculate actual divergence
-                int200 calculatedDiv;
-                if (pool.balance < pool.target) {
-                    calculatedDiv = -int200(uint200(pool.target - pool.balance));
-                } else {
-                    calculatedDiv = int200(uint200(pool.balance - pool.target));
-                }
-                console2.log("  Calculated divergence:", calculatedDiv);
-                console2.log("");
+        for (uint24 i = 1; i <= 13; i++) {
+            try harness.exposed_getNode(i) returns (AVLTree.Node memory) {
+                nodeIds[validNodeCount] = i;
+                validNodeCount++;
             } catch {
-                // Node doesn't exist or has no data
+                // Node doesn't exist
             }
         }
 
-        console2.log("\n=== TESTING TREE TRAVERSAL FUNCTIONS ===\n");
+        console2.log("========================================");
+        console2.log("         IN-ORDER TRAVERSAL");
+        console2.log("     (Left to Right by Divergence)");
+        console2.log("========================================\n");
 
-        // Test findSuccessor for each node
-        console2.log("Testing findSuccessor:");
-        for (uint24 nodeId = 0; nodeId <= 12; nodeId++) {
-            try harness.exposed_findSuccessor(nodeId) returns (uint24 successor) {
-                console2.log("  Node", nodeId, "-> successor:", successor);
-            } catch {
-                console2.log("  Node", nodeId, "-> no successor (error)");
+        // Traverse the tree in order (from smallest to largest divergence)
+        uint24 currentId = harness.exposed_getFirst();
+        uint256 position = 1;
+
+        // Track visited nodes to prevent infinite loop
+        uint256 maxIterations = validNodeCount + 1; // Safety limit
+        uint256 iterations = 0;
+
+        while (currentId != 0 && iterations < maxIterations) {
+            AVLTree.Node memory node = harness.exposed_getNode(currentId);
+            MultiValidatorLST.StakingPool memory pool = harness.exposed_getStakingPool(currentId);
+
+            // console2.log(string(abi.encodePacked("[", _uint2str(position), "] Node ID: ", _uint2str(currentId))));
+            // console2.log("    Balance:    ", pool.balance);
+            // console2.log("    Target:     ", pool.target);
+            // console2.log("    Divergence: ", node.divergence);
+
+            // // Show over/under allocation - check actual balance vs target
+            // if (pool.balance > pool.target) {
+            //     console2.log("    Status:      OVER-ALLOCATED by", pool.balance - pool.target);
+            // } else if (pool.balance < pool.target) {
+            //     console2.log("    Status:      UNDER-ALLOCATED by", pool.target - pool.balance);
+            // } else {
+            //     console2.log("    Status:      PERFECTLY BALANCED");
+            // }
+            // console2.log("");
+
+            uint24 nextId = harness.exposed_findSuccessor(currentId);
+
+            // If successor is 0 or we're back to a node we've seen, we're done
+            if (nextId == 0) {
+                break;
+            }
+
+            currentId = nextId;
+            position++;
+            iterations++;
+        }
+
+        console2.log("========================================");
+        console2.log("         TREE STRUCTURE");
+        console2.log("    (Parent -> Children Relationships)");
+        console2.log("========================================\n");
+
+        // Find the root node (node with maximum height)
+        uint24 rootId = 0;
+        uint8 maxHeight = 0;
+
+        for (uint256 i = 0; i < validNodeCount; i++) {
+            AVLTree.Node memory node = harness.exposed_getNode(nodeIds[i]);
+            if (node.height > maxHeight) {
+                maxHeight = node.height;
+                rootId = nodeIds[i];
             }
         }
 
-        console2.log("\n=== ANALYSIS SUMMARY ===");
-        console2.log("ISSUE: All nodes have left=0 and right=0");
-        console2.log("This indicates the tree is completely FLAT (degenerate)");
-        console2.log("Every node exists in isolation without proper tree linkage");
-        console2.log("This breaks AVL tree invariants and traversal functions");
+        if (rootId != 0) {
+            console2.log("ROOT NODE:", rootId);
+            _printTreeStructure(rootId, 0, "");
+        }
+
+        console2.log("\n========================================");
+        console2.log("         NODE DETAILS TABLE");
+        console2.log("========================================\n");
+
+        console2.log("ID  | Height | Left | Right | Balance         | Target          | Divergence");
+        console2.log("----+--------+------+-------+-----------------+-----------------+-----------");
+
+        for (uint256 i = 0; i < validNodeCount; i++) {
+            uint24 nodeId = nodeIds[i];
+            AVLTree.Node memory node = harness.exposed_getNode(nodeId);
+            MultiValidatorLST.StakingPool memory pool = harness.exposed_getStakingPool(nodeId);
+
+            console2.log(
+                string(
+                    abi.encodePacked(
+                        _padRight(_uint2str(nodeId), 3),
+                        " | ",
+                        _padRight(_uint2str(node.height), 6),
+                        " | ",
+                        _padRight(_uint2str(node.left), 4),
+                        " | ",
+                        _padRight(_uint2str(node.right), 5),
+                        " | ",
+                        _padRight(_uint2str(pool.balance), 15),
+                        " | ",
+                        _padRight(_uint2str(pool.target), 15),
+                        " | ",
+                        _int2str(node.divergence)
+                    )
+                )
+            );
+        }
+
+        console2.log("\n========================================\n");
+    }
+
+    function test_ClaimRewardsFork() public {
+        // vm.startBroadcast();
+        // // harness.claimValidatorRewards(9);
+        // for (uint24 i = 1; i <= 13; i++) {
+        //     harness.claimValidatorRewards(i);
+        // }
+        // vm.stopBroadcast();
+        vm.prank(treasuryAddr);
+        uint24[] memory ids = new uint24[](13);
+        for (uint24 i = 0; i < 13; i++) {
+            ids[i] = i + 1;
+        }
+        harness.migrate_RebuildTreeFromIds(ids);
+        // vm.startBroadcast();
+        for (uint24 i = 1; i < 13; i++) {
+            test_ReadMainnetTreeState();
+            harness.claimValidatorRewards(i);
+        }
+        // vm.stopBroadcast();
+        test_ReadMainnetTreeState();
+    }
+
+    // Helper function to print tree structure recursively
+    function _printTreeStructure(uint24 nodeId, uint256 depth, string memory prefix) private view {
+        if (nodeId == 0) return;
+
+        AVLTree.Node memory node = harness.exposed_getNode(nodeId);
+        MultiValidatorLST.StakingPool memory pool = harness.exposed_getStakingPool(nodeId);
+
+        // Create indentation
+        string memory indent = "";
+        for (uint256 i = 0; i < depth; i++) {
+            indent = string(abi.encodePacked(indent, "  "));
+        }
+
+        // Print current node
+        console2.log(
+            string(
+                abi.encodePacked(
+                    indent,
+                    prefix,
+                    "Node ",
+                    _uint2str(nodeId),
+                    " [Bal: ",
+                    _uint2str(pool.balance),
+                    ", Div: ",
+                    _int2str(node.divergence),
+                    "]"
+                )
+            )
+        );
+
+        // Print children
+        if (node.left != 0) {
+            _printTreeStructure(node.left, depth + 1, "L-> ");
+        }
+        if (node.right != 0) {
+            _printTreeStructure(node.right, depth + 1, "R-> ");
+        }
+    }
+
+    // Helper function to convert uint to string
+    function _uint2str(uint256 value) private pure returns (string memory) {
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
+    // Helper function to convert int to string
+    function _int2str(int200 value) private pure returns (string memory) {
+        if (value >= 0) {
+            return _uint2str(uint200(value));
+        } else {
+            return string(abi.encodePacked("-", _uint2str(uint200(-value))));
+        }
+    }
+
+    // Helper function to pad string to the right
+    function _padRight(string memory str, uint256 length) private pure returns (string memory) {
+        bytes memory strBytes = bytes(str);
+        if (strBytes.length >= length) {
+            return str;
+        }
+        bytes memory result = new bytes(length);
+        uint256 i;
+        for (i = 0; i < strBytes.length; i++) {
+            result[i] = strBytes[i];
+        }
+        for (; i < length; i++) {
+            result[i] = " ";
+        }
+        return string(result);
     }
 }

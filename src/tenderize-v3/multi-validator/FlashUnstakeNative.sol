@@ -38,6 +38,17 @@ interface TenderSwap {
     )
         external
         returns (uint256 out, uint256 fee);
+
+    // Consult TWAP
+    function consult(address asset, uint32 window) external view returns (uint256 basePerAsset1e18);
+    function consultMultiple(
+        address payable[] calldata assets,
+        uint256[] calldata amounts,
+        uint32 window
+    )
+        external
+        view
+        returns (uint256 basePerAsset1e18);
 }
 
 contract FlashUnstake is ERC721Receiver, Multicallable, SelfPermit {
@@ -98,6 +109,25 @@ contract FlashUnstake is ERC721Receiver, Multicallable, SelfPermit {
             (out, fees) = TenderSwap(tenderSwap).quote(tTokens[0], amounts[0]);
         } else {
             (out, fees) = TenderSwap(tenderSwap).quoteMultiple(tTokens, amounts);
+        }
+    }
+
+    function flashUnstakeTWAP(
+        address payable token,
+        address tenderSwap,
+        uint32 window
+    )
+        external
+        view
+        returns (uint256 basePerLST1e18)
+    {
+        (address payable[] memory tTokens, uint256[] memory amounts) = MultiValidatorLSTNative(token).previewUnwrap(1e18);
+        uint256 l = tTokens.length;
+        if (l == 0) revert();
+        if (l == 1) {
+            basePerLST1e18 = TenderSwap(tenderSwap).consult(tTokens[0], window);
+        } else {
+            basePerLST1e18 = TenderSwap(tenderSwap).consultMultiple(tTokens, amounts, window);
         }
     }
 }

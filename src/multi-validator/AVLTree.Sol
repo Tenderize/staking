@@ -206,9 +206,16 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
         _applyStatsAdd(tree, replDiv);
         // Remove stats for the current node being deleted
         _applyStatsRemove(tree, current.divergence);
-        // Link replacement's children
-        tree.nodes[replacementId].left = newLeft;
-        tree.nodes[replacementId].right = current.right;
+
+        // Rehydrate replacement node (it was deleted in the subtree removal)
+        {
+            uint8 leftHeight = newLeft == 0 ? 0 : tree.nodes[newLeft].height;
+            uint8 rightHeight = current.right == 0 ? 0 : tree.nodes[current.right].height;
+            tree.nodes[replacementId].divergence = replDiv;
+            tree.nodes[replacementId].left = newLeft;
+            tree.nodes[replacementId].right = current.right;
+            tree.nodes[replacementId].height = max(leftHeight, rightHeight) + 1;
+        }
 
         // Delete current node
         delete tree.nodes[nodeId];
@@ -262,9 +269,16 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
         int200 replDiv = tree.nodes[replacementId].divergence;
         // Remove replacement from left subtree (without stats update)
         uint24 newLeft = _removeByKeyForUpdate(tree, current.left, replDiv, replacementId);
-        // Link replacement's children
-        tree.nodes[replacementId].left = newLeft;
-        tree.nodes[replacementId].right = current.right;
+
+        // Rehydrate replacement node (it was deleted in the subtree removal)
+        {
+            uint8 leftHeight = newLeft == 0 ? 0 : tree.nodes[newLeft].height;
+            uint8 rightHeight = current.right == 0 ? 0 : tree.nodes[current.right].height;
+            tree.nodes[replacementId].divergence = replDiv;
+            tree.nodes[replacementId].left = newLeft;
+            tree.nodes[replacementId].right = current.right;
+            tree.nodes[replacementId].height = max(leftHeight, rightHeight) + 1;
+        }
 
         // Delete current node
         delete tree.nodes[nodeId];
@@ -696,10 +710,4 @@ function _insertRecursive(Tree storage tree, uint24 nodeId, uint24 newId, Node m
         return tree.last;
     }
 
-    /// @notice Returns the bounds of the tree (root, first, and last node IDs).
-    /// @param tree The tree storage pointer.
-    /// @return root The root node ID.
-    /// @return first The node ID with the smallest divergence.
-    /// @return last The node ID with the largest divergence.
-    
 }

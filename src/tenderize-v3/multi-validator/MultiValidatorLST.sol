@@ -18,6 +18,7 @@ import { AccessControlUpgradeable } from "openzeppelin-contracts-upgradeable/acc
 
 import { Multicallable } from "solady/utils/Multicallable.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { SelfPermit } from "core/utils/SelfPermit.sol";
 import { ERC721Receiver } from "core/utils/ERC721Receiver.sol";
 
@@ -37,6 +38,7 @@ contract MultiValidatorLSTNative is
     Multicallable,
     SelfPermit
 {
+    using SafeTransferLib for address;
     using FixedPointMathLib for uint256;
     using AVLTree for AVLTree.Tree;
 
@@ -401,8 +403,8 @@ contract MultiValidatorLSTNative is
             int200 d = _calculateDivergence(pool.balance, pool.target);
             stakingPoolTree.updateDivergence(id, d);
 
-            // Note: In unwrap, we return tenderizer addresses and amounts
-            // The caller can handle the actual unstaking/withdrawal separately
+            // Transfer tTokens to caller for immediate liquidity actions
+            SafeTransferLib.safeTransfer(pool.tToken, msg.sender, draw);
 
             if (draw == remaining) {
                 break;
@@ -432,7 +434,7 @@ contract MultiValidatorLSTNative is
         uint256 newBalance = tenderizer.balanceOf(address(this));
         uint256 currentBalance = pool.balance;
         if (newBalance > currentBalance) {
-            uint256 fees = newBalance - currentBalance * fee / FEE_WAD;
+            uint256 fees = (newBalance - currentBalance) * fee / FEE_WAD;
             totalAssets += newBalance - currentBalance - fees;
             if (fees > 0) _mint(registry.treasury(), fees);
         } else {
@@ -457,8 +459,8 @@ contract MultiValidatorLSTNative is
     function addValidator(address payable tToken, uint200 target) external onlyRole(GOVERNANCE_ROLE) {
         // TODO: Validate tToken
         if (!registry.isTenderizer(tToken)) revert InvalidTenderizer(tToken);
-        // TODO: would this work for ID ?
-        uint24 id = stakingPoolTree.getSize();
+        // Start validator IDs at 1
+        uint24 id = stakingPoolTree.getSize() + 1;
         stakingPools[id] = StakingPool(tToken, target, 0);
         // TODO: if we consider the target as the validators full stake (including its total delegation) we would
         // need to initialise that here

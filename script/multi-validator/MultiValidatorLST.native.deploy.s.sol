@@ -23,17 +23,17 @@ contract MultiValidatorLST_Deploy is Script {
     bytes32 private constant salt = bytes32(uint256(1));
 
     address[] tenderizers = [
-        0x28D5bC07301472829bab14aC26CF74676e9FB1d3,
-        0x9744581825e21C07F51B35BF3cC0AE9389a1Ca3C,
-        0x131a09734AE656f78030b2a89687b4D58E2FbE62,
-        0x9d68575fE6cA05E4D6F6d982fe6Dfac6678D243E
+        0x0BA49e1b6616CCb0650B39043554ad791b1b6eD1,
+        0xCF4cD036Ac6FAB8F6bd49C0890ed53a38767B62F,
+        0x06fd675BE0513d4fF5F05796a3BAD9d20d91610B,
+        0x82c72F3Aefc525ade379b6E71E23f71e8fe84aab
     ];
 
     MultiValidatorLSTNative lst;
 
     function run() public {
         uint256 privKey = vm.envUint("PRIVATE_KEY");
-        MultiValidatorFactory factory = MultiValidatorFactory(vm.envAddress("FACTORY"));
+        MultiValidatorFactory factory = MultiValidatorFactory(0xe6c969743180BE1AdC8Fd8880DBEFef41412dae1);
         vm.startBroadcast(privKey);
 
         console2.log("Deploying MultiValidatorLST...");

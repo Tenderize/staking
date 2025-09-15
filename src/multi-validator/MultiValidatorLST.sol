@@ -31,8 +31,6 @@ import { AVLTree } from "core/multi-validator/AVLTree.sol";
 import { UnstakeNFT } from "core/multi-validator/UnstakeNFT.sol";
 import { Registry } from "core/registry/Registry.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
 contract MultiValidatorLST is
     ERC20,
     ERC721Receiver,
@@ -58,15 +56,6 @@ contract MultiValidatorLST is
         uint64 createdAt; // block timestamp
         address[] tTokens; // addresses of the tTokens unstaked
         uint256[] unlockIDs; // IDs of the unlocks
-    }
-
-    // Temporary structure for reindexing operation
-    struct ValidatorData {
-        uint24 id;
-        address payable tToken;
-        uint256 target;
-        uint256 balance;
-        int200 divergence;
     }
 
     error DepositTooSmall();
@@ -106,6 +95,7 @@ contract MultiValidatorLST is
     mapping(uint24 id => StakingPool) public stakingPools;
     mapping(uint256 unstakeID => UnstakeRequest) private unstakeRequests;
     AVLTree.Tree public stakingPoolTree;
+    bool public idsMigrated; // one-off guard for id bump migration
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(Registry _registry) {
@@ -115,11 +105,11 @@ contract MultiValidatorLST is
     }
 
     function name() public view override returns (string memory) {
-        return string.concat("Steaked ", ERC20(token).symbol());
+        return string.concat("Tenderized ", ERC20(token).symbol());
     }
 
     function symbol() public view override returns (string memory) {
-        return string.concat("st", ERC20(token).symbol());
+        return string.concat("t", ERC20(token).symbol());
     }
 
     function getUnstakeRequest(uint256 id) external view returns (UnstakeRequest memory) {
@@ -211,9 +201,6 @@ contract MultiValidatorLST is
         uint24 count = 3;
 
         (, uint24 positiveNodes, uint24 negativeNodes,, int200 negDivergence) = stakingPoolTree.getTreeStats();
-
-        console2.log("negativeNodes", uint256(negativeNodes));
-        console2.log("positiveNodes", uint256(positiveNodes));
 
         uint256 negDiv_ = uint256(int256(-(negDivergence)));
 
@@ -529,7 +516,7 @@ contract MultiValidatorLST is
         // TODO: Validate tToken
         if (!registry.isTenderizer(tToken)) revert InvalidTenderizer(tToken);
         // TODO: would this work for ID ?
-        uint24 id = stakingPoolTree.getSize();
+        uint24 id = stakingPoolTree.getSize() + 1;
         stakingPools[id] = StakingPool(tToken, target, 0);
         // TODO: if we consider the target as the validators full stake (including its total delegation) we would
         // need to initialise that here
@@ -542,9 +529,6 @@ contract MultiValidatorLST is
         return stakingPoolTree.getSize();
     }
 
-    // This only updates the divergence of the current validator. Depending on the weighting used the divergences
-    // for other validators may also need to be updated. The contract currently uses lazy-updating of divergences
-    // when validators are next accessed.
     function removeValidator(uint24 id) external onlyRole(GOVERNANCE_ROLE) {
         // TODO: move the stake from this validator or require that this validator has no balance left
         if (stakingPools[id].balance > 0) revert BalanceNotZero();
@@ -574,89 +558,4 @@ contract MultiValidatorLST is
 
     // Override required by UUPSUpgradeable
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADE_ROLE) { }
-
-    /**
-     * @notice One-off function to reindex the entire AVL tree structure
-     * @dev This function should only be called once to fix a broken tree
-     *      It extracts all validator data, clears the tree, and rebuilds it properly
-     *      Protected by GOVERNANCE_ROLE for security
-     */
-    function reindexTree() external onlyRole(GOVERNANCE_ROLE) {
-        // Step 1: Count existing validators and prepare array
-        uint256 validatorTotal = 0;
-        for (uint24 i = 0; i <= 20; i++) {
-            // Check up to 20 validators (safe upper bound)
-            if (stakingPools[i].tToken != address(0)) {
-                validatorTotal++;
-            }
-        }
-
-        // Step 2: Extract all existing validator data
-        ValidatorData[] memory validators = new ValidatorData[](validatorTotal);
-        uint256 index = 0;
-
-        for (uint24 i = 0; i <= 20 && index < validatorTotal; i++) {
-            StakingPool memory pool = stakingPools[i];
-
-            // Check if this pool exists (has a tToken address)
-            if (pool.tToken != address(0)) {
-                // Calculate divergence
-                int200 divergence;
-                if (pool.balance < pool.target) {
-                    divergence = -int200(uint200(pool.target - pool.balance));
-                } else {
-                    divergence = int200(uint200(pool.balance - pool.target));
-                }
-
-                validators[index] = ValidatorData({
-                    id: i,
-                    tToken: pool.tToken,
-                    target: pool.target,
-                    balance: pool.balance,
-                    divergence: divergence
-                });
-
-                index++;
-            }
-        }
-
-        // Step 3: Clear the existing tree structure
-        // Reset tree state variables
-        stakingPoolTree.root = 0;
-        stakingPoolTree.first = 0;
-        stakingPoolTree.last = 0;
-        stakingPoolTree.size = 0;
-        stakingPoolTree.positiveNodes = 0;
-        stakingPoolTree.negativeNodes = 0;
-        stakingPoolTree.posDivergence = 0;
-        stakingPoolTree.negDivergence = 0;
-
-        // Clear all node data
-        for (uint24 i = 0; i <= 20; i++) {
-            delete stakingPoolTree.nodes[i];
-        }
-
-        // Step 4: Sort validators by divergence (bubble sort for simplicity with small dataset)
-        for (uint256 i = 0; i < validatorTotal; i++) {
-            for (uint256 j = i + 1; j < validatorTotal; j++) {
-                if (
-                    validators[i].divergence > validators[j].divergence
-                        || (validators[i].divergence == validators[j].divergence && validators[i].id > validators[j].id)
-                ) {
-                    // Swap
-                    ValidatorData memory temp = validators[i];
-                    validators[i] = validators[j];
-                    validators[j] = temp;
-                }
-            }
-        }
-
-        // Step 5: Reinsert all validators in sorted order
-        for (uint256 i = 0; i < validatorTotal; i++) {
-            ValidatorData memory v = validators[i];
-
-            // Reinsert into tree
-            stakingPoolTree.insert(v.id, v.divergence);
-        }
-    }
 }

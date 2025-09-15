@@ -14,7 +14,7 @@ contract MultiUpgrade is Script {
     function run() public {
         vm.startBroadcast();
 
-        address lst = address(new MultiValidatorLST{ salt: bytes32(uint256(2)) }(registry));
+        address lst = address(new MultiValidatorLST{ salt: bytes32(uint256(3)) }(registry));
 
         console2.log("Multi LST deployed at: %s", lst);
     }

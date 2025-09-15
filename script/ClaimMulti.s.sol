@@ -15,7 +15,7 @@ pragma solidity 0.8.25;
 
 import { Script, console2 } from "forge-std/Script.sol";
 
-import { MultiValidatorLSTNative } from "core/tenderize-v3/multi-validator/MultiValidatorLST.sol";
+import { MultiValidatorLST } from "core/multi-validator/MultiValidatorLST.sol";
 import { MultiValidatorFactory } from "core/multi-validator/Factory.sol";
 import { FlashUnstake, TenderSwap } from "core/multi-validator/FlashUnstake.sol";
 import { Tenderizer } from "core/tenderize-v3/Tenderizer.sol";
@@ -28,7 +28,7 @@ import { ERC1967Proxy } from "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.
 import { MockERC20 } from "solmate/test/utils/mocks/MockERC20.sol";
 import { FlashUnstake } from "core/multi-validator/FlashUnstake.sol";
 
-import { SeiAdapter, SEI } from "core/tenderize-v3/Sei/SeiAdapter.sol";
+import { SeiAdapter } from "core/tenderize-v3/Sei/SeiAdapter.sol";
 import { ISeiStaking, Delegation } from "core/tenderize-v3/Sei/Sei.sol";
 
 address constant TENDERIZER_1 = 0x4b7339E599a599DBd7829a8ECA0d233ED4F7eA09;
@@ -63,8 +63,8 @@ contract MultiValidatorLST_Deploy is Script {
         // graph 0x9f5540f4a9777ea678d80a7b508dcd924a4b1187
         vm.startBroadcast(privKey);
 
-        // address lpt = 0x388B0fAf9DE300ffC21e3DC849202544901792CB;
-        // address grt = 0x9F5540F4A9777Ea678D80A7b508DcD924a4b1187;
+        address lpt = 0x388B0fAf9DE300ffC21e3DC849202544901792CB;
+        address grt = 0x9F5540F4A9777Ea678D80A7b508DcD924a4b1187;
 
         // MultiValidatorLST(payable(lpt)).claimValidatorRewards(1);
         // MultiValidatorLST(payable(lpt)).claimValidatorRewards(2);
@@ -80,13 +80,11 @@ contract MultiValidatorLST_Deploy is Script {
         // MultiValidatorLST(payable(lpt)).claimValidatorRewards(12);
         // MultiValidatorLST(payable(lpt)).claimValidatorRewards(13);
 
-        SeiAdapter adapter = new SeiAdapter();
-        Registry(0x4EB2ce452ea35A050495c3c23193b385f48473C0).registerAdapter(address(SEI), address(adapter));
-
-        MultiValidatorLSTNative(payable(0x58CDD57FD0c878AF54eD0D9578959BA8FD154Aa7)).deposit{ value: 3 ether }(address(this));
+        for (uint24 i = 1; i <= 13; i++) {
+            MultiValidatorLST(payable(grt)).claimValidatorRewards(i);
+            MultiValidatorLST(payable(lpt)).claimValidatorRewards(i);
+        }
 
         vm.stopBroadcast();
     }
 }
-
-// TODO: Add validator and check if we can deposit in it without a small dust deposit from EOA first

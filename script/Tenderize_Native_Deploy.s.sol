@@ -66,6 +66,7 @@ contract Tenderize_Native_Deploy is Script {
 
         // 4. Initialize Registry
         Registry(registryProxy).initialize(address(tenderizerImpl), address(unlocks));
+        Registry(registryProxy).setTreasury(address(payable(msg.sender)));
 
         // 5. Deploy TenderizerFactory (UpgradeableBeacon) and register it
         TenderizerFactory factory = new TenderizerFactory(registryProxy, address(tenderizerImpl));

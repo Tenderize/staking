@@ -138,15 +138,15 @@ The adapter enables users to stake SEI tokens through Tenderizer and receive liq
 
 forge script script/Tenderize_Native_Deploy.s.sol --broadcast -vvv --private-key $PRIVKEY --rpc-url $RPC_URL --skip-simulation
 
-ASSET=0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE REGISTRY=0x50d9655930e1b6Bc543Ecbe650F166D1389c3E1C forge script script/Adapter_Deploy.s.sol --broadcast --private-key $PRIVKEY --rpc-url $RPC_URL --skip-simulation
+ASSET=0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE REGISTRY=0x4EB2ce452ea35A050495c3c23193b385f48473C0 forge script script/Adapter_Deploy.s.sol --broadcast --private-key $PRIVKEY --rpc-url $RPC_URL --skip-simulation
 
-REGISTRY=0x50d9655930e1b6Bc543Ecbe650F166D1389c3E1C cast send --private-key $PRIVKEY --rpc-url $RPC_URL $REGISTRY "registerAdapter(address,address)" 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE 0x2AB768f7d9Cd1f19ce13cE5c0Ed03ae52102c352
+REGISTRY=0x4EB2ce452ea35A050495c3c23193b385f48473C0 cast send --private-key $PRIVKEY --rpc-url $RPC_URL $REGISTRY "registerAdapter(address,address)" 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE 0xa60Af847e4BE2bC48F878F69FC436ba018206041
 
 cast call --rpc-url $RPC_URL $ADAPTER "validatorStringToBytes32(string)" seivaloper1xtf2jmastk0tejjqrhc9ax48qsvvkd92s6pg4u
 
 cast call --rpc-url $RPC_URL $ADAPTER "bytes32ToValidatorString(bytes32)" 0x2af815558b165be177531446f693fb7e7f3563e1000000000000000000000000
 
-cast send --private-key $PRIVKEY --rpc-url $RPC_URL $FACTORY "createTenderizer(address,bytes32)" 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE 0x88827b1bd6e194e82cd6f0092b1cb30ef8eff56f000000000000000000000000
+cast send --private-key $PRIVKEY --rpc-url $RPC_URL $FACTORY "createTenderizer(address,bytes32)" 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE 0x2af815558b165be177531446f693fb7e7f3563e1000000000000000000000000
 
   Registry Implementation:  0xF813ef59B3C34C63faf91602aEe609338e783FCC
   Registry Proxy:  0x50d9655930e1b6Bc543Ecbe650F166D1389c3E1C
@@ -162,19 +162,21 @@ cast send --private-key $PRIVKEY --rpc-url $RPC_URL $FACTORY "createTenderizer(a
   TenderSwap deployed at:  0x5c57F4E063a2A1302D78ac9ec2C902ec621200d3
   Implementation deployed at:  0xeF0e582A07E5a02b36B2c834C98b161E2915a585
 
-  seivaloper19tup24vtzed7za6nz3r0dylm0eln2clpvhtawu -- 0x28D5bC07301472829bab14aC26CF74676e9FB1d3
+  seivaloper19tup24vtzed7za6nz3r0dylm0eln2clpvhtawu -- 0x2af815558b165be177531446f693fb7e7f3563e1000000000000000000000000 -- 0x0BA49e1b6616CCb0650B39043554ad791b1b6eD1
 
-  seivaloper1xtf2jmastk0tejjqrhc9ax48qsvvkd92s6pg4u -- 0x32d2a96fb05d9ebcca401df05e9aa70418cb34aa000000000000000000000000 -- 0x9744581825e21c07f51b35bf3cc0ae9389a1ca3c
+  seivaloper1xtf2jmastk0tejjqrhc9ax48qsvvkd92s6pg4u -- 0x32d2a96fb05d9ebcca401df05e9aa70418cb34aa000000000000000000000000 -- 0xCF4cD036Ac6FAB8F6bd49C0890ed53a38767B62F
 
-  seivaloper1sq7x0r2mf3gvwr2l9amtlye0yd3c6dqa4th95v -- 0x803c678d5b4c50c70d5f2f76bf932f23638d341d000000000000000000000000 -- 0x131a09734ae656f78030b2a89687b4d58e2fbe62
+  seivaloper1sq7x0r2mf3gvwr2l9amtlye0yd3c6dqa4th95v -- 0x803c678d5b4c50c70d5f2f76bf932f23638d341d000000000000000000000000 -- 0x06fd675BE0513d4fF5F05796a3BAD9d20d91610B
 
-  seivaloper13zp8kx7kux2wstxk7qyjk89npmuwlat090ru4w -- 0x88827b1bd6e194e82cd6f0092b1cb30ef8eff56f000000000000000000000000 -- 0x9d68575fe6ca05e4d6f6d982fe6dfac6678d243e
+  seivaloper13zp8kx7kux2wstxk7qyjk89npmuwlat090ru4w -- 0x88827b1bd6e194e82cd6f0092b1cb30ef8eff56f000000000000000000000000 -- 0x82c72F3Aefc525ade379b6E71E23f71e8fe84aab
 
-cast send --private-key $PRIVKEY --rpc-url $RPC_URL --value 1000000000000000 0x28D5bC07301472829bab14aC26CF74676e9FB1d3 "deposit(address)" 0xd45E4347b33FA87C466ebA5E32823D76BaCC7eD7
+  seivaloper15lu2zzp9ll0x6weth0y0wr3ur7rd4f933qefty -- 0xa7f8a10825ffde6d3b2bbbc8f70e3c1f86daa4b1000000000000000000000000 -- 0xb1bFDC5C304BC9212964C27D499Ea80F7D0a6E5A
 
-cast call 0x0000000000000000000000000000000000001005 "delegation(address,string)" 0x28D5bC07301472829bab14aC26CF74676e9FB1d3 "seivaloper19tup24vtzed7za6nz3r0dylm0eln2clpvhtawu"
+cast send --private-key $PRIVKEY --rpc-url $RPC_URL --value 4000000000000000 0x58CDD57FD0c878AF54eD0D9578959BA8FD154Aa7 "deposit(address)" 0xd45E4347b33FA87C466ebA5E32823D76BaCC7eD7
 
-cast send --private-key $PRIVKEY --rpc-url $RPC_URL --value 2000000000000000000 0x5c57F4E063a2A1302D78ac9ec2C902ec621200d3 "deposit(uint256)" 1900000000000000000
+cast call 0x0000000000000000000000000000000000001005 "delegation(address,string)" 0x0BA49e1b6616CCb0650B39043554ad791b1b6eD1 "seivaloper19tup24vtzed7za6nz3r0dylm0eln2clpvhtawu"
+
+cast send --private-key $PRIVKEY --rpc-url $RPC_URL --value 2000000000000000000 0x9718b28CddDb84B941bEf97Eb9e4fbe32dc90152 "deposit(uint256)" 1900000000000000000
 
 cast call --rpc-url $RPC_URL 0x5c57F4E063a2A1302D78ac9ec2C902ec621200d3 "quote(address,uint256)" 0x28D5bC07301472829bab14aC26CF74676e9FB1d3 100000000000000
 
@@ -188,3 +190,9 @@ FACTORY=0xce48304A0c94eC79a5f8ca9Fc3Aa8498382711E6 forge script script/multi-val
   FlashUnstake deployed at: 0xce48304A0c94eC79a5f8ca9Fc3Aa8498382711E6
 
   tSEI deployed at: 0x0027305D78Accd068d886ac4217B67922E9F490f
+
+cast send --private-key $PRIVKEY --rpc-url $RPC_URL --value 1000000000000000000 0x82c72f3aefc525ade379b6e71e23f71e8fe84aab "rebase()
+
+cast call --rpc-url $RPC_URL 0x0000000000000000000000000000000000001005 "delegation(address,string)" 0x82c72F3Aefc525ade379b6E71E23f71e8fe84aab "seivaloper13zp8kx7kux2wstxk7qyjk89npmuwlat090ru4w"
+
+cast call --rpc-url $RPC_URL 0x82c72F3Aefc525ade379b6E71E23f71e8fe84aab "totalSupply()"
